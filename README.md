@@ -54,8 +54,7 @@ rentease/
 ├── run.py                      # Flask entry point
 ├── README.md                   # Project documentation
 ├── .gitignore                  # Files to ignore in Git
-
-
+```
 ## 🚀 Installation
 
 1. **Clone the Repository**
@@ -63,21 +62,24 @@ rentease/
 ```plaintext
 git clone https://github.com/Carey99/Rentease.git
 cd rentease
+```
 
 2. **Set Up Virtual Environment**
 ```plaintext
 python3 -m venv venv
 source venv/bin/activate   # For MacOS/Linux
 venv\Scripts\activate      # For Windows
+```
 
 3. **Install Dependencies**
 ```plaintext
 pip install -r requirements.txt
+```
 
 4 **Run the Application**
 ```plaintext
 python run.py
-
+```
 
 ## 📚 API Documentation
 Documentation for the API routes will be available soon. Stay tuned for updates!
@@ -101,7 +103,8 @@ See the LICENSE file for details.
 ### How to Ensure This Works on GitHub:
 1. Copy and paste the above content into your `README.md` file.
 2. Save the file and push it to your GitHub repository:
-   ```bash
+   ```plaintext
    git add README.md
    git commit -m "Update README"
    git push origin main
+   ```
