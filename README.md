@@ -54,3 +54,54 @@ rentease/
 ├── run.py                      # Flask entry point
 ├── README.md                   # Project documentation
 ├── .gitignore                  # Files to ignore in Git
+
+
+## 🚀 Installation
+
+1. **Clone the Repository**
+
+```plaintext
+git clone https://github.com/Carey99/Rentease.git
+cd rentease
+
+2. **Set Up Virtual Environment**
+```plaintext
+python3 -m venv venv
+source venv/bin/activate   # For MacOS/Linux
+venv\Scripts\activate      # For Windows
+
+3. **Install Dependencies**
+```plaintext
+pip install -r requirements.txt
+
+4 **Run the Application**
+```plaintext
+python run.py
+
+
+## 📚 API Documentation
+Documentation for the API routes will be available soon. Stay tuned for updates!
+
+
+## 🔒 Authentication
+The RentEase app uses JWT (JSON Web Token) for user authentication and role-based access control.
+
+
+## 🖥️ Frontend Integration
+The frontend of RentEase will be built using React.js. Further instructions on how to integrate the backend with the frontend will be provided in future updates.
+
+## 🤝 Contribution
+Contributions are welcome!
+Feel free to open issues or submit pull requests to improve the app.
+
+## 📜 License
+This project is licensed under the MIT License.
+See the LICENSE file for details.
+
+### How to Ensure This Works on GitHub:
+1. Copy and paste the above content into your `README.md` file.
+2. Save the file and push it to your GitHub repository:
+   ```bash
+   git add README.md
+   git commit -m "Update README"
+   git push origin main
