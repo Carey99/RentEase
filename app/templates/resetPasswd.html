@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reset Password</title>
+    <script>
+        async function handleResetPassword(event) {
+            event.preventDefault();
+            const email = document.getElementById('email').value;
+            const newPassword = document.getElementById('new_password').value;
+            const confirmPassword = document.getElementById('confirm_password').value;
+
+            const response = await fetch('/api/auth/reset_password', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ email, new_password: newPassword, confirm_password: confirmPassword })
+            });
+
+            const result = await response.json();
+            if (response.status === 200) {
+                alert(result.message);
+                window.location.href = '/api/auth/login';
+            } else {
+                alert(result.message);
+            }
+        }
+    </script>
+</head>
+<body>
+    <h1>Reset Password</h1>
+    <form onsubmit="handleResetPassword(event)">
+        <label for="email">Email:</label>
+        <input type="email" id="email" name="email" required><br><br>
+        <label for="new_password">New Password:</label>
+        <input type="password" id="new_password" name="new_password" required><br><br>
+        <label for="confirm_password">Confirm Password:</label>
+        <input type="password" id="confirm_password" name="confirm_password" required><br><br>
+        <button type="submit">Reset Password</button>
+    </form>
+</body>
+</html>

@@ -8,7 +8,7 @@ import os
 load_dotenv()
 
 #Gets connection string from the variable in .env
-connection_str = os.getenv("DB_URL")
+connection_str = os.getenv("MONGO_URI")
 
 #Intialize client
 try:
