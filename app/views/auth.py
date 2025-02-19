@@ -4,6 +4,30 @@ from app.models import User
 
 auth_bp = Blueprint('auth_bp', __name__)
 
+@auth_bp.route('/register', methods=['GET', 'POST'])
+def register():
+    #if request is get, render signup form
+    if request.method == 'GET':
+        return render_template('signup.html')
+    
+    #if the request is POST, Handel the signUp logic
+    data = request.get_json()
+    email = data.get('email')
+    password = data.get('password')
+    confirm_password = data.get('confirm_password')
+
+    #check if the two password match
+    if password != confirm_password:
+        return jsonify({"message": "Passwords do not match"}), 400
+    
+    #create and save the user
+    try:
+        user = User(email, password)
+        user.save() #hashes the password and checks duplicates
+        return jsonify({"message": "Registration successful"})
+    except ValueError as e:
+        #e.g if user exists or password is too short
+        return jsonify({"message": str(e)}, 400)
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'GET':
