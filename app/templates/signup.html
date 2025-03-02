@@ -2,29 +2,45 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Sign Up</title>
+    <title>Sign Up - RentEase</title>
     <script>
+        window.onload = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const role = urlParams.get('role') || 'tenant'; //default to tenant if not provided
+            document.getElementById('role').value = role;
+        }
         async function handleSignup(event) {
             event.preventDefault(); // Prevents form from refreshing the page
             
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
             const confirmPassword = document.getElementById('confirm_password').value;
+            const role = document.getElementById('role').value; //pre-filled hidden field
+            const landlordEmail = document.getElementById('landlord_email').value; // Get selected landlord email
+
+            if (password != confirmPassword) {
+                alert("Passwords do not match");
+                return;
+            }
 
             //Send a POST request to /api/auth/register
             const response = await fetch('/api/auth/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password, confirm_password: confirmPassword })
+                body: JSON.stringify({ email, password, confirm_password: confirmPassword, role, landlord_email: landlordEmail })
             });
 
-            const result =  await response.json();
+            const data =  await response.json();
             if (response.ok) {
-                alert(result.message);
-                //Redirecct to home page
-                window.location.href = '/'
+                alert(data.message);
+                //redirect based on role
+                if (role === 'landlord') {
+                    window.location.href = '/dashboard/landlord';
+                } else {
+                    window.location.href = '/dashboard/tenant';
+                }
             } else {
-                alert(result.message);
+                alert(data.message);
             }
         }
     </script>
@@ -35,11 +51,22 @@
         <label for="email">Email:</label>
         <input type="email" id="email" name="email" required><br><br>
 
-        <label for="password">Password</label>
+        <label for="password">Password:</label>
         <input type="password" id="password" name="password" required><br><br>
 
-        <label for="confirm_password">Confirm Password</label>
+        <label for="confirm_password">Confirm Password:</label>
         <input type="password" id="confirm_password" name="confirm_password" required><br><br>
+
+        <!-- Dropdown for landlord's email -->
+        <label for="landlord_email">Select Landlord:</label>
+        <select id="landlord_email" name="landlord_email" required>
+            {% for landlord in landlords %}
+                <option value="{{ landlord }}">{{ landlord }}</option>
+            {% endfor %}
+        </select><br><br>
+
+        <!-- Hidden field prepopulated with role -->
+        <input type="hidden" id="role" name="role">
 
         <button type="submit">Register</button>
     </form>

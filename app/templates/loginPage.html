@@ -10,19 +10,37 @@
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
 
-            const response = await fetch('/api/auth/login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ email, password })
-            });
+            // Show loading indicator
+            const loginButton = document.querySelector('button[type="submit"]');
+            loginButton.disabled = true;
+            loginButton.textContent = 'Logging in...';
 
-            const result = await response.json();
-            if (response.status === 200) {
-                alert(result.message);
-            } else {
-                alert(result.message);
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    alert(data.message);
+                    if (data.role === 'landlord') {
+                        window.location.href = '/dashboard/landlord';
+                    } else {
+                        window.location.href = '/dashboard/tenant';
+                    }
+                } else {
+                    alert(data.message);
+                }
+            } catch (error) {
+                alert('An error occurred. Please try again later.');
+            } finally {
+                // Hide loading indicator
+                loginButton.disabled = false;
+                loginButton.textContent = 'Login';
             }
         }
     </script>

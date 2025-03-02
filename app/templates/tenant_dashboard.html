@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard - tenant</title>
+</head>
+<body>
+    <!-- Sidebar -->
+    <nav style="width: 200px; float: left; border-right: 1px solid #ccc; padding: 1em;">
+        <h3>RentEase</h3>
+        <ul style="list-style: none; padding: 0;">
+            <li><a href="#">Home</a></li>
+            <li><a href="#">Reports</a></li>
+            <li><a href="#" onclick="showMakePayment()">Make Payment</a></li>
+            <li><a href="#" onclick="showTenantSettings()">Settings</a></li> <!-- Updated link -->
+            <li><a href="#">Logout</a></li>
+        </ul>
+    </nav>
+
+    <!-- Main Content Area -->
+    <div style="margin-left: 220px; padding: 1em;">
+        <h1>Tenant Dashboard</h1>
+        <div id="tenant-content">
+            <p>Welcome, Tenant!</p>
+            <p>Choose "Make Payment" to proceed with rent payment.</p>
+        </div>
+    </div>
+
+    <script>
+        function showMakePayment() {
+            const content = document.getElementById('tenant-content');
+            content.innerHTML = `
+                <h2>Make Payment</h2>
+                <p>Select a payment method:</p>
+                <button onclick="mpesaPayment()">Mpesa</button>
+                <button disabled>PayPal (Coming soon)</button>
+                <button disabled>Visa (Coming soon)</button>
+                <button disabled>Stripe (Coming soon)</button>
+            `;
+        }
+
+        async function mpesaPayment() {
+            // For now, we simulate a successful payment. 
+            // Later, we'll integrate actual Mpesa API or Webhook.
+            const tenantEmail = "tenant@example.com";  // Replace with real user email
+            const amount = 100;  // Example amount
+
+            // Send payment event to server (or to your Socket.IO event)
+            // For demonstration, let's do a simple POST request:
+            try {
+                const response = await fetch('/api/pay', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: tenantEmail, amount })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    alert("Payment successful!");
+                } else {
+                    alert("Payment failed: " + data.message);
+                }
+            } catch (err) {
+                console.error(err);
+                alert("An error occurred while making payment.");
+            }
+        }
+
+        async function showTenantSettings() {
+            const content = document.getElementById('tenant-content');
+
+            try {
+                const response = await fetch('/settings/tenant');
+                if (!response.ok) {
+                    throw new Error('Failed to load settings');
+                }
+                const html = await response.text();
+                content.innerHTML = html;
+                fetchTenantInfo(); // Populate the form with current info
+            } catch (error) {
+                content.innerHTML = `<p>Error: ${error.message}</p>`;
+            }
+        }
+
+        async function fetchTenantInfo() {
+            const response = await fetch('/api/tenant/info');
+            const tenant = await response.json();
+            document.getElementById('first_name').value = tenant.first_name;
+            document.getElementById('last_name').value = tenant.last_name;
+            document.getElementById('email').value = tenant.email;
+            document.getElementById('phone').value = tenant.phone;
+            document.getElementById('house_type').value = tenant.house_type;
+        }
+
+        async function handleTenantSettings(event) {
+            event.preventDefault();
+            const formData = new FormData(document.getElementById('settings-form'));
+
+            const response = await fetch('/api/tenant/settings', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+            if (response.ok) {
+                alert(result.message);
+                window.location.href = '/dashboard/tenant';  // Corrected link
+            } else {
+                alert(result.message);
+            }
+        }
+
+        function cancelTenantSettings() {
+            window.location.href = '/dashboard/tenant';  // Corrected link
+        }
+    </script>
+</body>
+</html>

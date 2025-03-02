@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Settings - RentEase</title>
+</head>
+<body>
+    <h1>Settings</h1>
+    <!--
+      This form allows landlords to update their settings.
+      Fields like first name, last name, phone, and profile picture are optional.
+      The email is read-only.
+      The "Change Password" section is optional; if you don't want to update your password,
+      leave both password fields blank.
+    -->
+    <form id="settings-form" onsubmit="handleSettings(event)" enctype="multipart/form-data" autocomplete="off">
+        <div class="form-group">
+            <label for="first_name">First Name:</label>
+            <!-- Optional field -->
+            <input type="text" id="first_name" name="first_name">
+        </div>
+        <div class="form-group">
+            <label for="last_name">Last Name:</label>
+            <!-- Optional field -->
+            <input type="text" id="last_name" name="last_name">
+        </div>
+        <div class="form-group">
+            <label for="email">Email:</label>
+            <!-- Read-only field -->
+            <input type="email" id="email" name="email" readonly>
+        </div>
+        <div class="form-group">
+            <label for="phone">Phone Number:</label>
+            <!-- Optional field -->
+            <input type="text" id="phone" name="phone">
+        </div>
+        <div class="form-group">
+            <label for="profile_picture">Profile Picture:</label>
+            <!-- Optional file upload -->
+            <input type="file" id="profile_picture" name="profile_picture" accept="image/*">
+        </div>
+        <h2>Change Password (Optional)</h2>
+        <p>If you do not wish to update your password at this time, leave these fields blank.</p>
+        <div class="form-group">
+            <label for="current_password">Current Password:</label>
+            <!-- Removed required attribute -->
+            <input type="password" id="current_password" name="current_password">
+        </div>
+        <div class="form-group">
+            <label for="new_password">New Password:</label>
+            <!-- Removed required attribute -->
+            <input type="password" id="new_password" name="new_password">
+        </div>
+        <div class="form-group">
+            <button type="button" onclick="cancelSettings()">Cancel</button>
+            <button type="submit">Confirm</button>
+        </div>
+    </form>
+
+    <script>
+        // Example JavaScript for handling form submission and clearing fields
+
+        // Clears all form fields
+        function clearFormFields() {
+            document.getElementById('first_name').value = '';
+            document.getElementById('last_name').value = '';
+            // Note: email is read-only, so we don't clear it.
+            document.getElementById('phone').value = '';
+            document.getElementById('profile_picture').value = '';
+            document.getElementById('current_password').value = '';
+            document.getElementById('new_password').value = '';
+        }
+
+        // Handle form submission for updating settings
+        async function handleSettings(event) {
+            event.preventDefault();
+            const formData = new FormData(document.getElementById('settings-form'));
+
+            const response = await fetch('/api/landlord/settings', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+            if (response.ok) {
+                alert(result.message);
+                clearFormFields();
+                window.location.href = '/dashboard/landlord';
+            } else {
+                alert(result.message);
+            }
+        }
+
+        // Cancel button handler - clears the form and redirects to the dashboard
+        function cancelSettings() {
+            clearFormFields();
+            window.location.href = '/dashboard/landlord';
+        }
+    </script>
+</body>
+</html>

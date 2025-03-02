@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard - landlord</title>
+</head>
+<body>
+    <!-- Sidebar -->
+    <nav style="width: 200px; float: left; border-right: 1px solid #ccc; padding: 1em;">
+        <h3>RentEase</h3>
+        <ul style="list-style: none; padding: 0;">
+            <li><a href="#">Home</a></li>
+            <li><a href="#" onclick="showTenants()">Tenants</a></li>
+            <li><a href="#">Properties</a></li>
+            <li><a href="#">Bill/Payments</a></li>
+            <li><a href="#" onclick="showSettings()">Settings</a></li>
+            <li><a href="#">Logout</a></li>
+        </ul>
+    </nav>
+
+    <!-- Main content area -->
+    <div style="margin-left: 220px; padding: 1em;">
+        <h1>Dashboard - Landlord</h1>
+        <div id="content-area">
+            <p>Welcome, landlord!</p>
+            <p>When a tenant makes a payment, it will appear here in real time.</p>
+        </div>
+    </div>
+
+    <script>
+        async function showTenants() {
+            const contentArea = document.getElementById('content-area');
+
+            try {
+                const response = await fetch('/api/landlord/tenants');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch tenants');
+                }
+                const tenants = await response.json();
+                let html = "<h2>Tenants List</h2><table border='1' cellpadding='5'><tr><th>Name</th><th>Status</th><th>House Type</th></tr>";
+                tenants.forEach(t => {
+                    html += `<tr><td>${t.name}</td><td>${t.status}</td><td>${t.house_type}</td></tr>`;
+                });
+                html += "</table>";
+                contentArea.innerHTML = html;
+            } catch (error) {
+                contentArea.innerHTML = `<p>Error: ${error.message}</p>`;
+            }
+        }
+
+        async function showSettings() {
+            const contentArea = document.getElementById('content-area');
+
+            try {
+                const response = await fetch('/settings');
+                if (!response.ok) {
+                    throw new Error('Failed to load settings');
+                }
+                const html = await response.text();
+                contentArea.innerHTML = html;
+                fetchLandlordInfo(); // Populate the form with current info
+            } catch (error) {
+                contentArea.innerHTML = `<p>Error: ${error.message}</p>`;
+            }
+        }
+
+        async function fetchLandlordInfo() {
+            const response = await fetch('/api/landlord/info');
+            const landlord = await response.json();
+            document.getElementById('first_name').value = landlord.first_name;
+            document.getElementById('last_name').value = landlord.last_name;
+            document.getElementById('email').value = landlord.email;
+            document.getElementById('phone').value = landlord.phone;
+        }
+
+        async function handleSettings(event) {
+            event.preventDefault();
+            const formData = new FormData(document.getElementById('settings-form'));
+
+            const response = await fetch('/api/landlord/settings', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+            if (response.ok) {
+                alert(result.message);
+                window.location.href = '/dashboard/landlord';
+            } else {
+                alert(result.message);
+            }
+        }
+
+        function cancelSettings() {
+            window.location.href = '/dashboard/landlord';
+        }
+    </script>
+</body>
+</html>

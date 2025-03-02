@@ -1,33 +1,39 @@
 #app/views/auth.py
-from flask import Blueprint, request, jsonify, render_template
+from flask import Blueprint, request, jsonify, render_template, session
 from app.models import User
 
 auth_bp = Blueprint('auth_bp', __name__)
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
-    #if request is get, render signup form
+    # If request is GET, render signup form
     if request.method == 'GET':
-        return render_template('signup.html')
+        # Retrieve the role from the query params; defaults to tenant if not provided
+        role = request.args.get('role', 'tenant')
+        landlords = User.get_landlord()  # Fetch the list of landlords
+        return render_template('signup.html', role=role, landlords=landlords)
     
-    #if the request is POST, Handel the signUp logic
+    # If the request is POST, handle the signup logic
     data = request.get_json()
     email = data.get('email')
     password = data.get('password')
     confirm_password = data.get('confirm_password')
+    role = data.get("role", "tenant")  # Defaults to tenant if no role provided
+    landlord_email = data.get('landlord_email')  # Get the selected landlord's email
 
-    #check if the two password match
+    # Check if the two passwords match
     if password != confirm_password:
         return jsonify({"message": "Passwords do not match"}), 400
     
-    #create and save the user
+    # Create and save the user
     try:
-        user = User(email, password)
-        user.save() #hashes the password and checks duplicates
-        return jsonify({"message": "Registration successful"})
+        user = User(email, password, role, landlord_email)
+        user.save()  # Hashes the password and checks duplicates
+        return jsonify({"message": "Registration successful", "role": role}), 201
     except ValueError as e:
-        #e.g if user exists or password is too short
-        return jsonify({"message": str(e)}, 400)
+        # e.g., if user exists or password is too short
+        return jsonify({"message": str(e)}), 400
+
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'GET':
@@ -39,7 +45,12 @@ def login():
     
     user = User.find_by_email(email)
     if user and user.check_password(password):
-        return jsonify({"message": "Login successful"}), 200
+        session['role'] = user.role
+        session['email'] = user.email
+        return jsonify({
+            "message": "Login successful",
+            "role": user.role
+        }), 200
     else:
         return jsonify({"message": "Invalid credentials"}), 401
     
@@ -69,7 +80,7 @@ def reset_password():
     
     user = User.find_by_email(email)
     if not user:
-        return jsonify({"message": "User not found"}), 4040
+        return jsonify({"message": "User not found"}), 404
     
     try:
         user.reset_password(new_password)

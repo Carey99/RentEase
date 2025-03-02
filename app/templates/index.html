@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Your Property in Your Hands</title>
+    <style>
+        /* Simple styling for clarity */
+        .button {
+          padding: 1em 2em;
+          font-size: 1.2em;
+          margin: 1em;
+          cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>Welcome to RentEase</h1>
+    <p>Select your role to get started</p>
+    <a href="/api/auth/register?role=tenant">
+        <button class="button">Get Started as Tenant</button>
+    </a>
+    <a href="/api/auth/register?role=landlord">
+        <button class="button">Get Started as Landlord</button>
+    </a>
+</body>
+</html>
