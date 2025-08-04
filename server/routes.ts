@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertUserSchema, insertPropertySchema, insertTenantPropertySchema } from "@shared/schema";
+import { connectToDatabase } from "./database";
 import { ZodError } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
