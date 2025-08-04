@@ -1,0 +1,106 @@
+I want to build a web app called RentEase with the following features and design:
+
+✨ UI Layout (Replit-style Onboarding)
+Use a split-screen layout:
+
+Left Side: Form fields with step-based onboarding (personal info, password, property details)
+
+Right Side: A large background image or illustration, with motivational heading and short description text — like Replit's onboarding/login UI.
+
+Example:
+
+pgsql
+Copy
+Edit
+|-----------------------------|------------------------------|
+|        Form Section         |     Image with message       |
+|                             |                              |
+|   [Logo]                    |  [Illustration of a house]   |
+|   Welcome! Let’s begin.     |  "Manage your rentals smart."|
+|   [Name]                    |                              |
+|   [Email]                   |                              |
+|   [Next]                    |                              |
+|-----------------------------|------------------------------|
+🔒 Authentication Flow
+Landing page with two CTAs:
+
+Start as Landlord
+
+Start as Tenant
+
+Clicking either takes user to a multi-step onboarding form with Replit-style layout.
+
+🧩 Multi-Step Onboarding
+🔹 Step 1: Personal Info
+Full Name
+
+Email
+
+Next button
+
+🔹 Step 2: Create Password
+Password (with eye icon toggle)
+
+Confirm Password
+
+Back / Next buttons
+
+🔹 Step 3: Property Details
+If Landlord:
+
+Property Name
+
+Property Type (dropdown): Studio, Bedsitter, 1 Bedroom, 2 Bedroom, 3 Bedroom, Custom
+
+Utility Bills: dynamic inputs or checkboxes for electricity, water, garbage, security, internet, and others
+
+Option to add multiple properties (with "+ Add Property" button)
+
+If Tenant:
+
+Search or select apartment name (already registered by landlord)
+
+Select unit type or house number
+
+🗃️ Database
+MongoDB Atlas (I'll provide the URI)
+
+Database: RentEase
+
+Collections: landlords, tenants, properties
+
+📍After Onboarding
+Each user is redirected to a dashboard view depending on their role.
+
+Sidebar Navigation:
+
+Landlord:
+
+Dashboard
+
+Properties
+
+Tenants
+
+Bills
+
+Settings
+
+Logout
+
+Tenant:
+
+Dashboard
+
+My Apartment
+
+My Bills
+
+History
+
+Settings
+
+Logout
+
+Please scaffold this using Replit's clean, responsive onboarding layout. Use simple starter code (React or HTML/CSS/JS) and let the transitions between steps feel smooth.
+
