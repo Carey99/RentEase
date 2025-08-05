@@ -2,6 +2,9 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { connectToDatabase } from "./database";
+import { seedDatabase } from "./seed";
+import dotenv from "dotenv";
+dotenv.config();
 
 const app = express();
 app.use(express.json());
@@ -40,10 +43,11 @@ app.use((req, res, next) => {
 (async () => {
   // Connect to MongoDB Atlas
   await connectToDatabase();
-  
-  const server = await registerRoutes(app);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  // Seed database with test data
+  await seedDatabase();
+
+  const server = await registerRoutes(app); app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
 

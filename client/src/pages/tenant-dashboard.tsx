@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Bell, DollarSign, Calendar, CheckCircle } from "lucide-react";
+import { useLocation } from "wouter";
+import { Bell, DollarSign, Calendar, CheckCircle, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Sidebar from "@/components/dashboard/sidebar";
@@ -8,18 +9,86 @@ import StatsCard from "@/components/dashboard/stats-card";
 
 export default function TenantDashboard() {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [, setLocation] = useLocation();
 
-  // Mock user data - in a real app this would come from authentication
-  const currentUser = {
-    id: "1",
-    name: "Jane Smith",
-    role: "tenant" as const,
+  // Get user data from localStorage (set during registration/signin)
+  const getCurrentUser = () => {
+    try {
+      // Try both keys for compatibility
+      let userData = localStorage.getItem('rentease_user');
+      if (!userData) {
+        userData = localStorage.getItem('currentUser');
+      }
+      return userData ? JSON.parse(userData) : null;
+    } catch (error) {
+      console.error('Error parsing user data:', error);
+      return null;
+    }
   };
 
-  const { data: tenantProperty } = useQuery({
-    queryKey: ['/api/tenant-properties/tenant', currentUser.id],
-    enabled: !!currentUser.id,
+  const currentUser = getCurrentUser();
+
+  const { data: tenantProperty, isLoading, error } = useQuery({
+    queryKey: ['/api/tenant-properties/tenant', currentUser?.id],
+    queryFn: async () => {
+      const response = await fetch(`/api/tenant-properties/tenant/${currentUser?.id}`);
+      if (!response.ok) {
+        if (response.status === 404) {
+          return null; // No apartment assigned
+        }
+        throw new Error('Failed to fetch tenant property');
+      }
+      return response.json();
+    },
+    enabled: !!currentUser?.id,
   });
+
+  // Only redirect if we're sure there's an issue
+  useEffect(() => {
+    if (!currentUser) {
+      console.log('No user data found, redirecting to landing...');
+      setLocation('/');
+      return;
+    }
+  }, [currentUser, setLocation]);
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-neutral-600">Loading your dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state if apartment assignment failed
+  if (!tenantProperty && !isLoading) {
+    return (
+      <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
+        <Card className="max-w-md w-full mx-4">
+          <CardContent className="p-8 text-center">
+            <AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-neutral-900 mb-2">
+              No Apartment Assigned
+            </h2>
+            <p className="text-neutral-600 mb-6">
+              You need to be assigned to an apartment to access your dashboard. 
+              Please complete the registration process.
+            </p>
+            <Button 
+              onClick={() => setLocation('/')}
+              className="w-full"
+            >
+              Go to Home
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -121,7 +190,7 @@ export default function TenantDashboard() {
   return (
     <div className="min-h-screen bg-neutral-50">
       <div className="flex">
-        <Sidebar role="tenant" userName={currentUser.name} />
+        <Sidebar role="tenant" userName={currentUser.name || currentUser.fullName || 'User'} />
 
         {/* Main Content */}
         <div className="flex-1 overflow-hidden">
@@ -132,7 +201,7 @@ export default function TenantDashboard() {
                 <div>
                   <h1 className="text-2xl font-bold text-neutral-900">Dashboard</h1>
                   <p className="text-neutral-600 mt-1">
-                    Welcome back, {currentUser.name}
+                    Welcome back, {currentUser.name || currentUser.fullName || 'User'}
                   </p>
                 </div>
                 <div className="flex items-center space-x-4">
@@ -145,7 +214,7 @@ export default function TenantDashboard() {
                   <div className="flex items-center space-x-3">
                     <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
                       <span className="text-white text-sm font-semibold">
-                        {currentUser.name.split(' ').map(n => n[0]).join('')}
+                        {(currentUser.name || currentUser.fullName || 'U').split(' ').map(n => n[0]).join('')}
                       </span>
                     </div>
                   </div>

@@ -25,6 +25,7 @@ export const tenantSchema = z.object({
   apartmentInfo: z.object({
     propertyId: z.string().optional(),
     propertyName: z.string().optional(),
+    propertyType: z.string().optional(),
     unitNumber: z.string().optional(),
     rentAmount: z.string().optional(),
     landlordId: z.string().optional(),
@@ -38,7 +39,10 @@ export const propertySchema = z.object({
   _id: z.string().optional(),
   landlordId: z.string(),
   name: z.string().min(1, "Property name is required"),
-  type: z.string().min(1, "Property type is required"),
+  propertyTypes: z.array(z.object({
+    type: z.string().min(1, "Property type is required"),
+    price: z.string().min(1, "Price is required"),
+  })).min(1, "At least one property type is required"),
   utilities: z.object({
     electricity: z.boolean().optional(),
     water: z.boolean().optional(),
@@ -105,6 +109,7 @@ export type User = {
 export type InsertTenantProperty = {
   tenantId: string;
   propertyId: string;
+  propertyType: string;
   unitNumber: string;
   rentAmount?: string;
 };
@@ -117,6 +122,7 @@ export type TenantProperty = InsertTenantProperty & {
 export const insertTenantPropertySchema = z.object({
   tenantId: z.string(),
   propertyId: z.string(),
+  propertyType: z.string(),
   unitNumber: z.string(),
   rentAmount: z.string().optional(),
 });

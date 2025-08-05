@@ -10,16 +10,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/register", async (req, res) => {
     try {
       const userData = insertUserSchema.parse(req.body);
-      
+
       // Check if user already exists
       const existingUser = await storage.getUserByEmail(userData.email);
       if (existingUser) {
         return res.status(400).json({ message: "User already exists" });
       }
-      
+
       const user = await storage.createUser(userData);
       const { password, ...userWithoutPassword } = user;
-      
+
       res.json({ user: userWithoutPassword });
     } catch (error) {
       if (error instanceof ZodError) {
@@ -33,12 +33,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/login", async (req, res) => {
     try {
       const { email, password } = req.body;
-      
+
       const user = await storage.getUserByEmail(email);
       if (!user || user.password !== password) {
         return res.status(401).json({ message: "Invalid credentials" });
       }
-      
+
+      const { password: _, ...userWithoutPassword } = user;
+      res.json({ user: userWithoutPassword });
+    } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // User signin (alias for login)
+  app.post("/api/auth/signin", async (req, res) => {
+    try {
+      const { email, password } = req.body;
+
+      const user = await storage.getUserByEmail(email);
+      if (!user || user.password !== password) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+
       const { password: _, ...userWithoutPassword } = user;
       res.json({ user: userWithoutPassword });
     } catch (error) {
@@ -53,7 +70,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       const { password, ...userWithoutPassword } = user;
       res.json(userWithoutPassword);
     } catch (error) {
@@ -89,12 +106,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/properties/search", async (req, res) => {
     try {
       const { name } = req.query;
-      if (!name || typeof name !== 'string') {
-        return res.status(400).json({ message: "Name parameter is required" });
-      }
-      
-      const properties = await storage.searchPropertiesByName(name);
+      const searchTerm = typeof name === 'string' ? name : '';
+
+      const properties = await storage.searchPropertiesByName(searchTerm);
       res.json(properties);
+    } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Get property types for a specific property
+  app.get("/api/properties/:propertyId/types", async (req, res) => {
+    try {
+      const property = await storage.getProperty(req.params.propertyId);
+      if (!property) {
+        return res.status(404).json({ message: "Property not found" });
+      }
+
+      // Return property types - this will be the propertyTypes array from the property
+      res.json(property.propertyTypes || []);
     } catch (error) {
       res.status(500).json({ message: "Internal server error" });
     }
@@ -121,14 +151,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!tenantProperty) {
         return res.status(404).json({ message: "Tenant property not found" });
       }
-      
-      // Get property details
-      const property = await storage.getProperty(tenantProperty.propertyId);
-      if (!property) {
-        return res.status(404).json({ message: "Property not found" });
-      }
-      
-      res.json({ ...tenantProperty, property });
+
+      res.json(tenantProperty);
     } catch (error) {
       res.status(500).json({ message: "Internal server error" });
     }

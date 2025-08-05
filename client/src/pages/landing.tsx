@@ -9,6 +9,10 @@ export default function LandingPage() {
     setLocation(`/onboarding/${role}`);
   };
 
+  const goToSignin = () => {
+    setLocation('/signin');
+  };
+
   return (
     <div className="min-h-screen">
       {/* Navigation Header */}
@@ -23,7 +27,13 @@ export default function LandingPage() {
               <a href="#" className="text-neutral-600 hover:text-primary transition-colors">Features</a>
               <a href="#" className="text-neutral-600 hover:text-primary transition-colors">Pricing</a>
               <a href="#" className="text-neutral-600 hover:text-primary transition-colors">About</a>
-              <button className="text-primary hover:text-secondary transition-colors font-medium">Sign In</button>
+              <button 
+                onClick={goToSignin}
+                className="text-primary hover:text-secondary transition-colors font-medium"
+                data-testid="button-signin-nav"
+              >
+                Sign In
+              </button>
             </nav>
           </div>
         </div>
@@ -68,7 +78,13 @@ export default function LandingPage() {
             <div className="text-center lg:text-left">
               <p className="text-sm text-neutral-500">
                 Already have an account? 
-                <a href="#" className="text-primary hover:text-secondary font-medium transition-colors ml-1">Sign in here</a>
+                <button 
+                  onClick={goToSignin}
+                  className="text-primary hover:text-secondary font-medium transition-colors ml-1"
+                  data-testid="link-signin-cta"
+                >
+                  Sign in here
+                </button>
               </p>
             </div>
           </div>

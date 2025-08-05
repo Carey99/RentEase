@@ -14,6 +14,7 @@ interface StepFormProps {
   submitText?: string;
   submitIcon?: ReactNode;
   isLoading?: boolean;
+  submitDisabled?: boolean;
   "data-testid"?: string;
 }
 
@@ -28,6 +29,7 @@ export default function StepForm({
   submitText = "Continue",
   submitIcon = <ArrowRight className="ml-2 h-4 w-4" />,
   isLoading = false,
+  submitDisabled = false,
   "data-testid": testId,
 }: StepFormProps) {
   return (
@@ -57,7 +59,7 @@ export default function StepForm({
           <Button
             type="submit"
             className={`${showBack ? 'flex-1' : 'w-full'} bg-primary hover:bg-secondary text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200`}
-            disabled={isLoading}
+            disabled={isLoading || submitDisabled}
             data-testid="button-submit"
           >
             {isLoading ? "Processing..." : submitText}

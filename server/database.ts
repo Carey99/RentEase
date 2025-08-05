@@ -42,6 +42,7 @@ const tenantSchema = new mongoose.Schema({
   apartmentInfo: {
     propertyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Property' },
     propertyName: String,
+    propertyType: String,
     unitNumber: String,
     rentAmount: String,
     landlordId: { type: mongoose.Schema.Types.ObjectId, ref: 'Landlord' },
@@ -55,7 +56,10 @@ const tenantSchema = new mongoose.Schema({
 const propertySchema = new mongoose.Schema({
   landlordId: { type: mongoose.Schema.Types.ObjectId, ref: 'Landlord', required: true },
   name: { type: String, required: true },
-  type: { type: String, required: true },
+  propertyTypes: [{
+    type: { type: String, required: true },
+    price: { type: String, required: true },
+  }],
   utilities: {
     electricity: { type: Boolean, default: false },
     water: { type: Boolean, default: false },

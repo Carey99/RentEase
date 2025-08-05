@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Bell, Building, Users, DollarSign, AlertTriangle, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,18 +9,45 @@ import StatsCard from "@/components/dashboard/stats-card";
 
 export default function LandlordDashboard() {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [, setLocation] = useLocation();
 
-  // Mock user data - in a real app this would come from authentication
-  const currentUser = {
-    id: "1",
-    name: "John Doe",
-    role: "landlord" as const,
+  // Get user data from localStorage (set during registration/signin)
+  const getCurrentUser = () => {
+    try {
+      // Try both keys for compatibility
+      let userData = localStorage.getItem('rentease_user');
+      if (!userData) {
+        userData = localStorage.getItem('currentUser');
+      }
+      return userData ? JSON.parse(userData) : null;
+    } catch (error) {
+      console.error('Error parsing user data:', error);
+      return null;
+    }
   };
 
+  const currentUser = getCurrentUser();
+
   const { data: properties = [] } = useQuery({
-    queryKey: ['/api/properties/landlord', currentUser.id],
-    enabled: !!currentUser.id,
+    queryKey: ['/api/properties/landlord', currentUser?.id],
+    queryFn: async () => {
+      const response = await fetch(`/api/properties/landlord/${currentUser?.id}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch properties');
+      }
+      return response.json();
+    },
+    enabled: !!currentUser?.id,
   });
+
+  // Only redirect if we're sure there's no user data
+  useEffect(() => {
+    if (!currentUser) {
+      console.log('No user data found, redirecting to landing...');
+      setLocation('/');
+      return;
+    }
+  }, [currentUser, setLocation]);
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -178,7 +206,7 @@ export default function LandlordDashboard() {
   return (
     <div className="min-h-screen bg-neutral-50">
       <div className="flex">
-        <Sidebar role="landlord" userName={currentUser.name} />
+        <Sidebar role="landlord" userName={currentUser.name || currentUser.fullName || 'User'} />
 
         {/* Main Content */}
         <div className="flex-1 overflow-hidden">
@@ -191,7 +219,7 @@ export default function LandlordDashboard() {
                     {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
                   </h1>
                   <p className="text-neutral-600 mt-1">
-                    Welcome back, {currentUser.name}
+                    Welcome back, {currentUser.name || currentUser.fullName || 'User'}
                   </p>
                 </div>
                 <div className="flex items-center space-x-4">
@@ -204,7 +232,7 @@ export default function LandlordDashboard() {
                   <div className="flex items-center space-x-3">
                     <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
                       <span className="text-white text-sm font-semibold">
-                        {currentUser.name.split(' ').map(n => n[0]).join('')}
+                        {(currentUser.name || currentUser.fullName || 'U').split(' ').map(n => n[0]).join('')}
                       </span>
                     </div>
                   </div>

@@ -1,18 +1,23 @@
 import { type User, type InsertUser, type Property, type InsertProperty, type TenantProperty, type InsertTenantProperty, type Landlord, type Tenant, type InsertLandlord, type InsertTenant } from "@shared/schema";
 import { Landlord as LandlordModel, Tenant as TenantModel, Property as PropertyModel } from "./database";
 
+// Helper function to validate ObjectId format
+function isValidObjectId(id: string): boolean {
+  return /^[0-9a-fA-F]{24}$/.test(id);
+}
+
 export interface IStorage {
   // User operations
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
-  
+
   // Property operations
   getProperty(id: string): Promise<Property | undefined>;
   getPropertiesByLandlord(landlordId: string): Promise<Property[]>;
   createProperty(property: InsertProperty): Promise<Property>;
   searchPropertiesByName(name: string): Promise<Property[]>;
-  
+
   // Tenant property relationships
   getTenantProperty(tenantId: string): Promise<TenantProperty | undefined>;
   createTenantProperty(tenantProperty: InsertTenantProperty): Promise<TenantProperty>;
@@ -22,6 +27,12 @@ export interface IStorage {
 export class MongoStorage implements IStorage {
   async getUser(id: string): Promise<User | undefined> {
     try {
+      // Validate ObjectId format
+      if (!isValidObjectId(id)) {
+        console.log('Invalid ObjectId format for user ID:', id);
+        return undefined;
+      }
+
       // Try to find in landlords collection first
       const landlord = await LandlordModel.findById(id).lean();
       if (landlord) {
@@ -133,6 +144,12 @@ export class MongoStorage implements IStorage {
 
   async getProperty(id: string): Promise<Property | undefined> {
     try {
+      // Validate ObjectId format
+      if (!isValidObjectId(id)) {
+        console.log('Invalid ObjectId format for property ID:', id);
+        return undefined;
+      }
+
       const property = await PropertyModel.findById(id).lean();
       if (!property) return undefined;
 
@@ -140,7 +157,7 @@ export class MongoStorage implements IStorage {
         id: property._id.toString(),
         landlordId: property.landlordId.toString(),
         name: property.name,
-        type: property.type,
+        propertyTypes: property.propertyTypes || [],
         utilities: property.utilities || undefined,
         totalUnits: property.totalUnits || undefined,
         occupiedUnits: property.occupiedUnits || "0",
@@ -154,12 +171,18 @@ export class MongoStorage implements IStorage {
 
   async getPropertiesByLandlord(landlordId: string): Promise<Property[]> {
     try {
+      // Check if landlordId is a valid ObjectId format
+      if (!isValidObjectId(landlordId)) {
+        console.log('Invalid ObjectId format for landlordId:', landlordId);
+        return [];
+      }
+
       const properties = await PropertyModel.find({ landlordId }).lean();
       return properties.map(property => ({
         id: property._id.toString(),
         landlordId: property.landlordId.toString(),
         name: property.name,
-        type: property.type,
+        propertyTypes: property.propertyTypes || [],
         utilities: property.utilities || undefined,
         totalUnits: property.totalUnits || undefined,
         occupiedUnits: property.occupiedUnits || "0",
@@ -176,7 +199,7 @@ export class MongoStorage implements IStorage {
       const property = new PropertyModel({
         landlordId: insertProperty.landlordId,
         name: insertProperty.name,
-        type: insertProperty.type,
+        propertyTypes: insertProperty.propertyTypes,
         utilities: insertProperty.utilities,
         totalUnits: insertProperty.totalUnits,
         occupiedUnits: "0",
@@ -193,7 +216,7 @@ export class MongoStorage implements IStorage {
         id: saved._id.toString(),
         landlordId: saved.landlordId.toString(),
         name: saved.name,
-        type: saved.type,
+        propertyTypes: saved.propertyTypes,
         utilities: saved.utilities,
         totalUnits: saved.totalUnits,
         occupiedUnits: saved.occupiedUnits,
@@ -207,15 +230,15 @@ export class MongoStorage implements IStorage {
 
   async searchPropertiesByName(name: string): Promise<Property[]> {
     try {
-      const properties = await PropertyModel.find({
-        name: { $regex: name, $options: 'i' }
-      }).lean();
+      // If no search term provided, return all properties
+      const query = name ? { name: { $regex: name, $options: 'i' } } : {};
+      const properties = await PropertyModel.find(query).lean();
 
       return properties.map(property => ({
         id: property._id.toString(),
         landlordId: property.landlordId.toString(),
         name: property.name,
-        type: property.type,
+        propertyTypes: property.propertyTypes || [],
         utilities: property.utilities || undefined,
         totalUnits: property.totalUnits || undefined,
         occupiedUnits: property.occupiedUnits || "0",
@@ -229,15 +252,43 @@ export class MongoStorage implements IStorage {
 
   async getTenantProperty(tenantId: string): Promise<TenantProperty | undefined> {
     try {
-      const tenant = await TenantModel.findById(tenantId).populate('apartmentInfo.propertyId').lean();
-      if (!tenant || !tenant.apartmentInfo) return undefined;
+      console.log('Getting tenant property for tenant ID:', tenantId);
 
-      const property = await PropertyModel.findById(tenant.apartmentInfo.propertyId).lean();
+      // Validate ObjectId format
+      if (!isValidObjectId(tenantId)) {
+        console.log('Invalid ObjectId format for tenant ID:', tenantId);
+        return undefined;
+      }
 
-      return {
+      const tenant = await TenantModel.findById(tenantId).lean();
+      console.log('Found tenant:', tenant);
+
+      if (!tenant || !tenant.apartmentInfo) {
+        console.log('No tenant or apartment info found');
+        return undefined;
+      }
+
+      // Handle both cases: when propertyId is an ObjectId string or a populated object
+      let propertyId: string;
+      if (typeof tenant.apartmentInfo.propertyId === 'string') {
+        propertyId = tenant.apartmentInfo.propertyId;
+      } else if (tenant.apartmentInfo.propertyId && typeof tenant.apartmentInfo.propertyId === 'object') {
+        propertyId = tenant.apartmentInfo.propertyId._id?.toString() || tenant.apartmentInfo.propertyId.toString();
+      } else {
+        console.log('No valid property ID found');
+        return undefined;
+      }
+
+      console.log('Using property ID:', propertyId);
+
+      const property = await PropertyModel.findById(propertyId).lean();
+      console.log('Found property:', property);
+
+      const result = {
         _id: tenantId,
         tenantId: tenantId,
-        propertyId: tenant.apartmentInfo.propertyId?.toString() || '',
+        propertyId: propertyId,
+        propertyType: tenant.apartmentInfo.propertyType || '',
         unitNumber: tenant.apartmentInfo.unitNumber || '',
         rentAmount: tenant.apartmentInfo.rentAmount,
         createdAt: tenant.createdAt,
@@ -245,13 +296,14 @@ export class MongoStorage implements IStorage {
           id: property._id.toString(),
           landlordId: property.landlordId.toString(),
           name: property.name,
-          type: property.type,
+          propertyTypes: property.propertyTypes || [],
           utilities: property.utilities,
           totalUnits: property.totalUnits,
           occupiedUnits: property.occupiedUnits,
           createdAt: property.createdAt,
         } : undefined,
-      };
+      }; console.log('Returning tenant property result:', result);
+      return result;
     } catch (error) {
       console.error('Error getting tenant property:', error);
       return undefined;
@@ -260,12 +312,18 @@ export class MongoStorage implements IStorage {
 
   async createTenantProperty(insertTenantProperty: InsertTenantProperty): Promise<TenantProperty> {
     try {
+      // Validate ObjectId format for tenantId
+      if (!isValidObjectId(insertTenantProperty.tenantId)) {
+        throw new Error('Invalid tenant ID format');
+      }
+
       // Update tenant with apartment info
       const tenant = await TenantModel.findByIdAndUpdate(
         insertTenantProperty.tenantId,
         {
           apartmentInfo: {
             propertyId: insertTenantProperty.propertyId,
+            propertyType: insertTenantProperty.propertyType,
             unitNumber: insertTenantProperty.unitNumber,
             rentAmount: insertTenantProperty.rentAmount,
           }
@@ -285,6 +343,7 @@ export class MongoStorage implements IStorage {
         _id: tenant._id.toString(),
         tenantId: insertTenantProperty.tenantId,
         propertyId: insertTenantProperty.propertyId,
+        propertyType: insertTenantProperty.propertyType,
         unitNumber: insertTenantProperty.unitNumber,
         rentAmount: insertTenantProperty.rentAmount,
         createdAt: tenant.createdAt,
@@ -293,9 +352,7 @@ export class MongoStorage implements IStorage {
       console.error('Error creating tenant property:', error);
       throw error;
     }
-  }
-
-  async getTenantsByProperty(propertyId: string): Promise<TenantProperty[]> {
+  } async getTenantsByProperty(propertyId: string): Promise<TenantProperty[]> {
     try {
       const tenants = await TenantModel.find({
         'apartmentInfo.propertyId': propertyId
@@ -305,6 +362,7 @@ export class MongoStorage implements IStorage {
         _id: tenant._id.toString(),
         tenantId: tenant._id.toString(),
         propertyId: propertyId,
+        propertyType: tenant.apartmentInfo?.propertyType || '',
         unitNumber: tenant.apartmentInfo?.unitNumber || '',
         rentAmount: tenant.apartmentInfo?.rentAmount,
         createdAt: tenant.createdAt,
