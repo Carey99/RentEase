@@ -1,11 +1,17 @@
 import mongoose from 'mongoose';
+import dotenv from 'dotenv';
+dotenv.config();
 
-const MONGODB_URL = "mongodb+srv://ceryakida:CareFour4@cluster0.dwzqjzg.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
-const DATABASE_NAME = "RentFlow";
+const MONGODB_URL = process.env.MONGODB_URL;
+const DATABASE_NAME = process.env.DATABASE_NAME || "RentFlow";
+
+if (!MONGODB_URL) {
+  throw new Error('MONGODB_URL environment variable is required');
+}
 
 export async function connectToDatabase() {
   try {
-    await mongoose.connect(MONGODB_URL, {
+    await mongoose.connect(MONGODB_URL!, {
       dbName: DATABASE_NAME,
     });
     console.log('Connected to MongoDB Atlas - RentFlow database');
