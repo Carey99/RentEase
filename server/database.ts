@@ -60,14 +60,10 @@ const propertySchema = new mongoose.Schema({
     type: { type: String, required: true },
     price: { type: String, required: true },
   }],
-  utilities: {
-    electricity: { type: Boolean, default: false },
-    water: { type: Boolean, default: false },
-    garbage: { type: Boolean, default: false },
-    security: { type: Boolean, default: false },
-    internet: { type: Boolean, default: false },
-    other: { type: Boolean, default: false },
-  },
+  utilities: [{
+    type: { type: String, required: true },
+    price: { type: String, required: true },
+  }],
   totalUnits: String,
   occupiedUnits: { type: String, default: '0' },
   tenants: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Tenant' }],

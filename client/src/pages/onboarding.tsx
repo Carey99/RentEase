@@ -32,14 +32,10 @@ const landlordPropertySchema = z.object({
   propertyName: z.string().min(1, "Property name is required"),
   customType: z.string().optional(),
   customPrice: z.string().optional(),
-  utilities: z.object({
-    electricity: z.boolean().optional(),
-    water: z.boolean().optional(),
-    garbage: z.boolean().optional(),
-    security: z.boolean().optional(),
-    internet: z.boolean().optional(),
-    other: z.boolean().optional(),
-  }).optional(),
+  utilities: z.array(z.object({
+    type: z.string().min(1, "Utility type is required"),
+    price: z.string().min(1, "Price per unit is required"),
+  })).optional(),
 }).refine((data) => {
   // Custom validation will be handled separately for property types
   return true;
@@ -62,6 +58,7 @@ export default function OnboardingPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formData, setFormData] = useState<any>({});
   const [selectedPropertyTypes, setSelectedPropertyTypes] = useState<Array<{type: string, price: string}>>([]);
+  const [selectedUtilities, setSelectedUtilities] = useState<Array<{type: string, price: string}>>([]);
   const [showCustomType, setShowCustomType] = useState(false);
 
   const role = params?.role as 'landlord' | 'tenant';
@@ -134,7 +131,6 @@ export default function OnboardingPage() {
       propertyName: "",
       customType: "",
       customPrice: "",
-      utilities: {},
     } : {
       propertyId: "",
       propertyType: "",
@@ -165,7 +161,8 @@ export default function OnboardingPage() {
   });
 
   const nextStep = () => {
-    if (currentStep < 3) {
+    const maxSteps = role === 'landlord' ? 4 : 3;
+    if (currentStep < maxSteps) {
       setCurrentStep(currentStep + 1);
     }
   };
@@ -243,7 +240,7 @@ export default function OnboardingPage() {
           landlordId: registerResponse.user.id,
           name: data.propertyName,
           propertyTypes: allPropertyTypes,
-          utilities: data.utilities,
+          utilities: selectedUtilities,
         };
 
         console.log('Property data to create:', propertyData);
@@ -316,6 +313,22 @@ export default function OnboardingPage() {
   const updatePropertyTypePrice = (type: string, newPrice: string) => {
     setSelectedPropertyTypes(selectedPropertyTypes.map(pt => 
       pt.type === type ? { ...pt, price: newPrice } : pt
+    ));
+  };
+
+  const addUtility = (type: string, price: string) => {
+    if (!selectedUtilities.find(ut => ut.type === type)) {
+      setSelectedUtilities([...selectedUtilities, { type, price }]);
+    }
+  };
+
+  const removeUtility = (typeToRemove: string) => {
+    setSelectedUtilities(selectedUtilities.filter(ut => ut.type !== typeToRemove));
+  };
+
+  const updateUtilityPrice = (type: string, newPrice: string) => {
+    setSelectedUtilities(selectedUtilities.map(ut => 
+      ut.type === type ? { ...ut, price: newPrice } : ut
     ));
   };
 
@@ -443,18 +456,11 @@ export default function OnboardingPage() {
               title="Property Information"
               description="Tell us about your rental property and available unit types."
               form={propertyForm}
-              onSubmit={(data) => {
-                console.log('=== STEP FORM SUBMISSION ===');
-                console.log('Raw form data from React Hook Form:', data);
-                console.log('Form validation state:', propertyForm.formState);
-                console.log('Form errors:', propertyForm.formState.errors);
-                onPropertySubmit(data);
-              }}
+              onSubmit={nextStep}
               showBack
               onBack={previousStep}
-              submitText="Complete Setup"
-              submitIcon={<Check />}
-              isLoading={registerMutation.isPending || createPropertyMutation.isPending}
+              submitText="Next"
+              submitIcon={<ArrowRight />}
               submitDisabled={role === 'landlord' ? (selectedPropertyTypes.length === 0 || selectedPropertyTypes.some(pt => !pt.price || pt.price.trim() === "")) : false}
               data-testid="form-landlord-property"
             >
@@ -598,40 +604,6 @@ export default function OnboardingPage() {
                     </p>
                   )}
                 </div>
-
-                <div>
-                  <Label>Utility Bills Included</Label>
-                  <div className="grid grid-cols-2 gap-3 mt-3">
-                    {['electricity', 'water', 'garbage', 'security', 'internet', 'other'].map((utility) => (
-                      <div key={utility} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={utility}
-                          onCheckedChange={(checked) => 
-                            propertyForm.setValue(`utilities.${utility}` as any, checked)
-                          }
-                          data-testid={`checkbox-${utility}`}
-                        />
-                        <Label htmlFor={utility} className="text-sm capitalize">
-                          {utility}
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <Card className="border-dashed">
-                  <CardContent className="p-4">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className="w-full text-primary hover:text-secondary"
-                      data-testid="button-add-property"
-                    >
-                      <Plus className="mr-2 h-4 w-4" />
-                      Add Another Property
-                    </Button>
-                  </CardContent>
-                </Card>
               </div>
             </StepForm>
           );
@@ -813,6 +785,111 @@ export default function OnboardingPage() {
           );
         }
 
+      case 4:
+        if (role === 'landlord') {
+          return (
+            <StepForm
+              title="Utilities & Final Setup"
+              description="Configure utility billing and complete your property setup."
+              form={propertyForm}
+              onSubmit={(data) => {
+                console.log('=== STEP FORM SUBMISSION ===');
+                console.log('Raw form data from React Hook Form:', data);
+                console.log('Form validation state:', propertyForm.formState);
+                console.log('Form errors:', propertyForm.formState.errors);
+                onPropertySubmit(data);
+              }}
+              showBack
+              onBack={previousStep}
+              submitText="Complete Setup"
+              submitIcon={<Check />}
+              isLoading={registerMutation.isPending || createPropertyMutation.isPending}
+              data-testid="form-landlord-utilities"
+            >
+              <div className="space-y-6">
+                <div>
+                  <Label>Utility Bills (Price per Unit)</Label>
+                  <p className="text-sm text-neutral-600 mb-3">Set pricing for utilities that will be charged separately to tenants.</p>
+                  <div className="grid grid-cols-2 gap-3 mt-3">
+                    {['electricity', 'water', 'garbage', 'security', 'internet', 'other'].map((utility) => {
+                      const isSelected = selectedUtilities.find(ut => ut.type === utility);
+                      return (
+                        <div key={utility} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={utility}
+                            checked={!!isSelected}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                addUtility(utility, "");
+                              } else {
+                                removeUtility(utility);
+                              }
+                            }}
+                            data-testid={`checkbox-${utility}`}
+                          />
+                          <Label htmlFor={utility} className="text-sm capitalize">
+                            {utility}
+                          </Label>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {selectedUtilities.length > 0 && (
+                    <div className="mt-4 space-y-3">
+                      <Label className="text-sm font-medium">Set Prices per Unit</Label>
+                      <div className="space-y-2">
+                        {selectedUtilities.map((utility) => (
+                          <div key={utility.type} className="flex items-center gap-3 p-3 border rounded-lg">
+                            <span className="capitalize min-w-[80px] text-sm">{utility.type}</span>
+                            <Input
+                              placeholder="Price per unit"
+                              value={utility.price}
+                              onChange={(e) => updateUtilityPrice(utility.type, e.target.value)}
+                              className="flex-1"
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeUtility(utility.type)}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedUtilities.length === 0 && (
+                    <p className="text-sm text-neutral-500 mt-2">
+                      Select utilities that will be charged separately per unit.
+                    </p>
+                  )}
+                </div>
+
+                <Card className="border-dashed">
+                  <CardContent className="p-4">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="w-full text-primary hover:text-secondary"
+                      data-testid="button-add-property"
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add Another Property
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+            </StepForm>
+          );
+        } else {
+          return null; // Tenants don't have a step 4
+        }
+
       default:
         return null;
     }
@@ -826,6 +903,8 @@ export default function OnboardingPage() {
         return "https://images.unsplash.com/photo-1563013544-824ae1b704d3?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1920&h=1080";
       case 3:
         return "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1920&h=1080";
+      case 4:
+        return "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1920&h=1080";
       default:
         return "";
     }
@@ -850,6 +929,12 @@ export default function OnboardingPage() {
           icon: "🏠",
           title: "Almost There!",
           description: "Just a few more details and you'll be ready to start managing your rental experience like a pro."
+        };
+      case 4:
+        return {
+          icon: "⚡",
+          title: "Final Touch!",
+          description: "Configure your utilities and complete your property setup. You're just one step away from going live!"
         };
       default:
         return {
@@ -886,13 +971,13 @@ export default function OnboardingPage() {
           <div className="mb-8">
             <div className="flex items-center space-x-2 mb-2">
               <span className="text-sm font-medium text-neutral-500">
-                Step {currentStep} of 3
+                Step {currentStep} of {role === 'landlord' ? '4' : '3'}
               </span>
             </div>
             <div className="w-full bg-neutral-200 rounded-full h-2">
               <div 
                 className="bg-primary h-2 rounded-full transition-all duration-300"
-                style={{ width: `${(currentStep / 3) * 100}%` }}
+                style={{ width: `${(currentStep / (role === 'landlord' ? 4 : 3)) * 100}%` }}
               />
             </div>
           </div>

@@ -43,14 +43,10 @@ export const propertySchema = z.object({
     type: z.string().min(1, "Property type is required"),
     price: z.string().min(1, "Price is required"),
   })).min(1, "At least one property type is required"),
-  utilities: z.object({
-    electricity: z.boolean().optional(),
-    water: z.boolean().optional(),
-    garbage: z.boolean().optional(),
-    security: z.boolean().optional(),
-    internet: z.boolean().optional(),
-    other: z.boolean().optional(),
-  }).optional(),
+  utilities: z.array(z.object({
+    type: z.string().min(1, "Utility type is required"),
+    price: z.string().min(1, "Price per unit is required"),
+  })).optional(),
   totalUnits: z.string().optional(),
   occupiedUnits: z.string().default("0"),
   tenants: z.array(z.string()).optional(), // Array of tenant IDs
