@@ -102,6 +102,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update property
+  app.put("/api/properties/:propertyId", async (req, res) => {
+    try {
+      console.log('PUT /api/properties/:propertyId called');
+      console.log('Property ID:', req.params.propertyId);
+      console.log('Request body:', req.body);
+      
+      const { propertyTypes, utilities } = req.body;
+      
+      if (!propertyTypes || !Array.isArray(propertyTypes)) {
+        return res.status(400).json({ message: "Invalid property types data" });
+      }
+      
+      const updateData: any = { propertyTypes };
+      
+      // Include utilities in update if provided
+      if (utilities && Array.isArray(utilities)) {
+        updateData.utilities = utilities;
+      }
+      
+      const property = await storage.updateProperty(req.params.propertyId, updateData);
+      
+      if (!property) {
+        return res.status(404).json({ message: "Property not found" });
+      }
+      
+      console.log('Property updated successfully:', property);
+      res.json(property);
+    } catch (error) {
+      console.error('Property update error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ message: "Internal server error", error: errorMessage });
+    }
+  });
+
   // Search properties by name
   app.get("/api/properties/search", async (req, res) => {
     try {

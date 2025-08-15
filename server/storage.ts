@@ -16,6 +16,7 @@ export interface IStorage {
   getProperty(id: string): Promise<Property | undefined>;
   getPropertiesByLandlord(landlordId: string): Promise<Property[]>;
   createProperty(property: InsertProperty): Promise<Property>;
+  updateProperty(id: string, updates: Partial<Property>): Promise<Property | undefined>;
   searchPropertiesByName(name: string): Promise<Property[]>;
 
   // Tenant property relationships
@@ -225,6 +226,39 @@ export class MongoStorage implements IStorage {
     } catch (error) {
       console.error('Error creating property:', error);
       throw error;
+    }
+  }
+
+  async updateProperty(id: string, updates: Partial<Property>): Promise<Property | undefined> {
+    try {
+      if (!isValidObjectId(id)) {
+        console.log('Invalid ObjectId format for property ID:', id);
+        return undefined;
+      }
+
+      const updatedProperty = await PropertyModel.findByIdAndUpdate(
+        id,
+        updates,
+        { new: true }
+      ).lean();
+
+      if (!updatedProperty) {
+        return undefined;
+      }
+
+      return {
+        id: updatedProperty._id.toString(),
+        landlordId: updatedProperty.landlordId.toString(),
+        name: updatedProperty.name,
+        propertyTypes: updatedProperty.propertyTypes,
+        utilities: updatedProperty.utilities,
+        totalUnits: updatedProperty.totalUnits,
+        occupiedUnits: updatedProperty.occupiedUnits,
+        createdAt: updatedProperty.createdAt,
+      };
+    } catch (error) {
+      console.error('Error updating property:', error);
+      return undefined;
     }
   }
 

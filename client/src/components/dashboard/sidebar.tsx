@@ -5,9 +5,11 @@ import { Home, BarChart3, Building, Users, FileText, Settings, LogOut } from "lu
 interface SidebarProps {
   role: 'landlord' | 'tenant';
   userName: string;
+  activeTab?: string;
+  onTabChange?: (tab: string) => void;
 }
 
-export default function Sidebar({ role, userName }: SidebarProps) {
+export default function Sidebar({ role, userName, activeTab = 'dashboard', onTabChange }: SidebarProps) {
   const [, setLocation] = useLocation();
 
   const landlordNavItems = [
@@ -52,7 +54,12 @@ export default function Sidebar({ role, userName }: SidebarProps) {
               <Button
                 key={item.id}
                 variant="ghost"
-                className="w-full justify-start text-neutral-600 hover:text-primary hover:bg-blue-50"
+                className={`w-full justify-start ${
+                  activeTab === item.id 
+                    ? 'text-primary bg-blue-50 font-medium' 
+                    : 'text-neutral-600 hover:text-primary hover:bg-blue-50'
+                }`}
+                onClick={() => onTabChange?.(item.id)}
                 data-testid={`nav-${item.id}`}
               >
                 <Icon className="mr-3 h-4 w-4" />

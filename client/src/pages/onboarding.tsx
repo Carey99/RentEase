@@ -60,6 +60,8 @@ export default function OnboardingPage() {
   const [selectedPropertyTypes, setSelectedPropertyTypes] = useState<Array<{type: string, price: string}>>([]);
   const [selectedUtilities, setSelectedUtilities] = useState<Array<{type: string, price: string}>>([]);
   const [showCustomType, setShowCustomType] = useState(false);
+  const [isAddingAnotherProperty, setIsAddingAnotherProperty] = useState(false);
+  const [registeredUserId, setRegisteredUserId] = useState<string | null>(null);
 
   const role = params?.role as 'landlord' | 'tenant';
 
@@ -189,6 +191,7 @@ export default function OnboardingPage() {
     console.log('Selected property types:', selectedPropertyTypes);
     console.log('Form data accumulated:', formData);
     console.log('Role:', role);
+    console.log('Is adding another property:', isAddingAnotherProperty);
 
     // Manual validation for landlord property types
     if (role === 'landlord') {
@@ -212,17 +215,32 @@ export default function OnboardingPage() {
       }
     }
 
-    const userData = {
-      ...formData,
-      role,
-    };
-
-    console.log('User data to register:', userData);
-
     try {
-      console.log('Starting registration...');
-      const registerResponse = await registerMutation.mutateAsync(userData);
-      console.log('Registration response:', registerResponse);
+      let userId = registeredUserId;
+
+      // Register user only if not already registered (first property)
+      if (!isAddingAnotherProperty) {
+        const userData = {
+          ...formData,
+          role,
+        };
+
+        console.log('User data to register:', userData);
+        console.log('Starting registration...');
+        const registerResponse = await registerMutation.mutateAsync(userData);
+        console.log('Registration response:', registerResponse);
+        
+        userId = registerResponse.user.id;
+        setRegisteredUserId(userId);
+
+        // Store user data in localStorage for dashboard access
+        localStorage.setItem('rentease_user', JSON.stringify({
+          id: registerResponse.user.id,
+          name: registerResponse.user.fullName,
+          email: registerResponse.user.email,
+          role: registerResponse.user.role
+        }));
+      }
       
       if (role === 'landlord') {
         // Combine selected property types with custom type if provided
@@ -237,7 +255,7 @@ export default function OnboardingPage() {
         console.log('Creating property with types:', allPropertyTypes);
 
         const propertyData = {
-          landlordId: registerResponse.user.id,
+          landlordId: userId,
           name: data.propertyName,
           propertyTypes: allPropertyTypes,
           utilities: selectedUtilities,
@@ -252,7 +270,7 @@ export default function OnboardingPage() {
         const selectedType = propertyTypes.find((pt: any) => pt.type === data.propertyType);
         
         console.log('Creating tenant property with data:', {
-          tenantId: registerResponse.user.id,
+          tenantId: userId,
           propertyId: data.propertyId,
           propertyType: data.propertyType,
           unitNumber: data.unitNumber,
@@ -260,7 +278,7 @@ export default function OnboardingPage() {
         });
         
         await createTenantPropertyMutation.mutateAsync({
-          tenantId: registerResponse.user.id,
+          tenantId: userId,
           propertyId: data.propertyId,
           propertyType: data.propertyType,
           unitNumber: data.unitNumber,
@@ -273,23 +291,17 @@ export default function OnboardingPage() {
       // Success - redirect to dashboard
       console.log('Registration complete, redirecting...');
       
-      // Store user data in localStorage for dashboard access
-      localStorage.setItem('rentease_user', JSON.stringify({
-        id: registerResponse.user.id,
-        name: registerResponse.user.fullName,
-        email: registerResponse.user.email,
-        role: registerResponse.user.role
-      }));
-      
       toast({
-        title: "Registration successful!",
-        description: `Welcome to RentEase${role === 'tenant' ? '. You have been assigned to your apartment!' : ''}`,
+        title: isAddingAnotherProperty ? "Property added successfully!" : "Registration successful!",
+        description: isAddingAnotherProperty ? 
+          `${data.propertyName} has been added to your properties.` :
+          `Welcome to RentEase${role === 'tenant' ? '. You have been assigned to your apartment!' : ''}`,
       });
       setLocation(`/dashboard/${role}`);
     } catch (error) {
       console.error('Registration error:', error);
       toast({
-        title: "Registration failed",
+        title: isAddingAnotherProperty ? "Property creation failed" : "Registration failed",
         description: error instanceof Error ? error.message : "Something went wrong during registration",
         variant: "destructive",
       });
@@ -332,9 +344,127 @@ export default function OnboardingPage() {
     ));
   };
 
+  const handleAddAnotherProperty = async () => {
+    if (!registeredUserId) {
+      toast({
+        title: "Complete Current Property First",
+        description: "Please finish setting up your current property before adding another one.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Get current form data
+    const currentPropertyData = propertyForm.getValues();
+    
+    // Validate current property data
+    if (!currentPropertyData.propertyName) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter a property name before adding another property",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (selectedPropertyTypes.length === 0) {
+      toast({
+        title: "Validation Error",
+        description: "Please select at least one property type before adding another property",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const hasEmptyPrices = selectedPropertyTypes.some(pt => !pt.price || pt.price.trim() === "");
+    if (hasEmptyPrices) {
+      toast({
+        title: "Validation Error", 
+        description: "Please enter prices for all selected property types before adding another property",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Save the current property
+      let allPropertyTypes = [...selectedPropertyTypes];
+      if (showCustomType && currentPropertyData.customType && currentPropertyData.customPrice) {
+        allPropertyTypes.push({
+          type: currentPropertyData.customType,
+          price: currentPropertyData.customPrice
+        });
+      }
+
+      const propertyData = {
+        landlordId: registeredUserId,
+        name: currentPropertyData.propertyName,
+        propertyTypes: allPropertyTypes,
+        utilities: selectedUtilities,
+      };
+
+      await createPropertyMutation.mutateAsync(propertyData);
+      
+      toast({
+        title: "Property Added",
+        description: `${currentPropertyData.propertyName} has been saved successfully!`,
+      });
+
+      // Reset form for new property
+      setIsAddingAnotherProperty(true);
+      setCurrentStep(1);
+      propertyForm.reset({
+        propertyName: "",
+        customType: "",
+        customPrice: "",
+      });
+      setSelectedPropertyTypes([]);
+      setSelectedUtilities([]);
+      setShowCustomType(false);
+
+    } catch (error) {
+      console.error('Error saving property:', error);
+      toast({
+        title: "Property creation failed",
+        description: error instanceof Error ? error.message : "Failed to save property",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getStepContent = () => {
     switch (currentStep) {
       case 1:
+        if (isAddingAnotherProperty) {
+          // Skip personal info when adding another property, go directly to property info
+          return (
+            <StepForm
+              title="Add Another Property"
+              description="Let's add another property to your portfolio."
+              form={propertyForm}
+              onSubmit={nextStep}
+              data-testid="form-add-property"
+            >
+              <div className="space-y-6">
+                <div>
+                  <Label htmlFor="propertyName">Property Name</Label>
+                  <Input
+                    id="propertyName"
+                    {...propertyForm.register("propertyName")}
+                    placeholder="Sunset Apartments"
+                    data-testid="input-property-name"
+                  />
+                  {propertyForm.formState.errors.propertyName && (
+                    <p className="text-sm text-red-600 mt-1">
+                      {propertyForm.formState.errors.propertyName.message}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </StepForm>
+          );
+        }
+        
         return (
           <StepForm
             title="Welcome to RentEase!"
@@ -801,7 +931,7 @@ export default function OnboardingPage() {
               }}
               showBack
               onBack={previousStep}
-              submitText="Complete Setup"
+              submitText={isAddingAnotherProperty ? "Add Property" : "Complete Setup"}
               submitIcon={<Check />}
               isLoading={registerMutation.isPending || createPropertyMutation.isPending}
               data-testid="form-landlord-utilities"
@@ -872,15 +1002,22 @@ export default function OnboardingPage() {
 
                 <Card className="border-dashed">
                   <CardContent className="p-4">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className="w-full text-primary hover:text-secondary"
-                      data-testid="button-add-property"
-                    >
-                      <Plus className="mr-2 h-4 w-4" />
-                      Add Another Property
-                    </Button>
+                    {registeredUserId ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="w-full text-primary hover:text-secondary"
+                        data-testid="button-add-property"
+                        onClick={handleAddAnotherProperty}
+                      >
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add Another Property
+                      </Button>
+                    ) : (
+                      <div className="text-center text-neutral-500">
+                        <p className="text-sm">Complete this property first to add more properties</p>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </div>
