@@ -21,6 +21,14 @@ export default function LandlordDashboard() {
   const [newPropertyType, setNewPropertyType] = useState({ type: '', price: '' });
   const [editingUtilities, setEditingUtilities] = useState<Array<{type: string, price: string}>>([]);
   const [newUtility, setNewUtility] = useState({ type: '', price: '' });
+  const [showAddPropertyDialog, setShowAddPropertyDialog] = useState(false);
+  const [newPropertyForm, setNewPropertyForm] = useState({
+    propertyName: '',
+    propertyTypes: [] as Array<{type: string, price: string}>,
+    utilities: [] as Array<{type: string, price: string}>
+  });
+  const [tempPropertyType, setTempPropertyType] = useState({ type: '', price: '' });
+  const [tempUtility, setTempUtility] = useState({ type: '', price: '' });
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -77,6 +85,39 @@ export default function LandlordDashboard() {
       toast({
         title: "Update Failed",
         description: error instanceof Error ? error.message : "Failed to update property",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Create property mutation
+  const createPropertyMutation = useMutation({
+    mutationFn: async (propertyData: any) => {
+      console.log('Creating new property:', propertyData);
+      const response = await apiRequest('POST', '/api/properties', propertyData);
+      
+      if (!response.ok) {
+        const text = await response.text();
+        console.error('Server response:', text);
+        throw new Error(`Server error: ${response.status} - ${text}`);
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/properties/landlord', currentUser?.id] });
+      toast({
+        title: "Property Added",
+        description: "Your new property has been added successfully.",
+      });
+      setShowAddPropertyDialog(false);
+      resetNewPropertyForm();
+    },
+    onError: (error) => {
+      console.error('Create property error:', error);
+      toast({
+        title: "Failed to Add Property",
+        description: error instanceof Error ? error.message : "Failed to create property",
         variant: "destructive",
       });
     },
@@ -174,6 +215,92 @@ export default function LandlordDashboard() {
         variant: "destructive",
       });
     }
+  };
+
+  // Helper functions for new property form
+  const resetNewPropertyForm = () => {
+    setNewPropertyForm({
+      propertyName: '',
+      propertyTypes: [],
+      utilities: []
+    });
+    setTempPropertyType({ type: '', price: '' });
+    setTempUtility({ type: '', price: '' });
+  };
+
+  const handleAddPropertyTypeToNew = () => {
+    if (tempPropertyType.type && tempPropertyType.price) {
+      setNewPropertyForm(prev => ({
+        ...prev,
+        propertyTypes: [...prev.propertyTypes, tempPropertyType]
+      }));
+      setTempPropertyType({ type: '', price: '' });
+    } else {
+      toast({
+        title: "Validation Error",
+        description: "Please enter both property type and price",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleRemovePropertyTypeFromNew = (index: number) => {
+    setNewPropertyForm(prev => ({
+      ...prev,
+      propertyTypes: prev.propertyTypes.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleAddUtilityToNew = () => {
+    if (tempUtility.type && tempUtility.price) {
+      setNewPropertyForm(prev => ({
+        ...prev,
+        utilities: [...prev.utilities, tempUtility]
+      }));
+      setTempUtility({ type: '', price: '' });
+    } else {
+      toast({
+        title: "Validation Error",
+        description: "Please enter both utility type and price",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleRemoveUtilityFromNew = (index: number) => {
+    setNewPropertyForm(prev => ({
+      ...prev,
+      utilities: prev.utilities.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleCreateProperty = () => {
+    if (!newPropertyForm.propertyName.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter a property name",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (newPropertyForm.propertyTypes.length === 0) {
+      toast({
+        title: "Validation Error",
+        description: "Please add at least one property type",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const propertyData = {
+      landlordId: currentUser.id,
+      name: newPropertyForm.propertyName,
+      propertyTypes: newPropertyForm.propertyTypes,
+      utilities: newPropertyForm.utilities,
+    };
+
+    createPropertyMutation.mutate(propertyData);
   };
 
   const renderTabContent = () => {
@@ -549,7 +676,7 @@ export default function LandlordDashboard() {
           <div>
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-semibold text-neutral-900">Your Properties</h2>
-              <Button className="bg-primary hover:bg-secondary" data-testid="button-add-property">
+              <Button className="bg-primary hover:bg-secondary" data-testid="button-add-property" onClick={() => setShowAddPropertyDialog(true)}>
                 <Plus className="mr-2 h-4 w-4" />
                 Add Property
               </Button>
@@ -561,7 +688,7 @@ export default function LandlordDashboard() {
                   <Building className="h-12 w-12 mx-auto text-neutral-400 mb-4" />
                   <h3 className="text-lg font-medium text-neutral-900 mb-2">No properties yet</h3>
                   <p className="text-neutral-600 mb-6">Get started by adding your first rental property.</p>
-                  <Button className="bg-primary hover:bg-secondary" data-testid="button-add-first-property">
+                  <Button className="bg-primary hover:bg-secondary" data-testid="button-add-first-property" onClick={() => setShowAddPropertyDialog(true)}>
                     <Plus className="mr-2 h-4 w-4" />
                     Add Your First Property
                   </Button>
@@ -650,7 +777,7 @@ export default function LandlordDashboard() {
                   <div className="flex items-center space-x-3">
                     <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
                       <span className="text-white text-sm font-semibold">
-                        {(currentUser.name || currentUser.fullName || 'U').split(' ').map(n => n[0]).join('')}
+                        {(currentUser.name || currentUser.fullName || 'U').split(' ').map((n: string) => n[0]).join('')}
                       </span>
                     </div>
                   </div>
@@ -665,6 +792,161 @@ export default function LandlordDashboard() {
           </main>
         </div>
       </div>
+
+      {/* Add Property Dialog */}
+      <Dialog open={showAddPropertyDialog} onOpenChange={setShowAddPropertyDialog}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add New Property</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-6">
+            {/* Property Name */}
+            <div>
+              <Label htmlFor="propertyName" className="text-sm font-medium">Property Name</Label>
+              <Input
+                id="propertyName"
+                placeholder="Enter property name (e.g., Sunset Apartments)"
+                value={newPropertyForm.propertyName}
+                onChange={(e) => setNewPropertyForm(prev => ({ ...prev, propertyName: e.target.value }))}
+                className="mt-1"
+              />
+            </div>
+
+            {/* Property Types Section */}
+            <div>
+              <Label className="text-sm font-medium">Unit Types & Pricing</Label>
+              <p className="text-sm text-neutral-600 mb-4">Add the different unit types available in this property.</p>
+              
+              <div className="space-y-4">
+                {newPropertyForm.propertyTypes.map((propertyType, index) => (
+                  <div key={index} className="flex items-center space-x-4 p-4 border rounded-lg bg-neutral-50">
+                    <div className="flex-1">
+                      <p className="font-medium capitalize">{propertyType.type}</p>
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-semibold text-green-600">KSH {propertyType.price}/month</p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRemovePropertyTypeFromNew(index)}
+                      className="text-red-600 hover:text-red-700"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+
+                {/* Add Property Type Form */}
+                <div className="border-t pt-4">
+                  <Label className="text-sm font-medium mb-3 block">Add Unit Type</Label>
+                  <div className="flex items-center space-x-4">
+                    <Input
+                      placeholder="Unit type (e.g., 1 Bedroom, Studio)"
+                      value={tempPropertyType.type}
+                      onChange={(e) => setTempPropertyType({ ...tempPropertyType, type: e.target.value })}
+                      className="flex-1"
+                    />
+                    <div className="flex items-center space-x-2">
+                      <Input
+                        type="number"
+                        placeholder="Monthly rent"
+                        value={tempPropertyType.price}
+                        onChange={(e) => setTempPropertyType({ ...tempPropertyType, price: e.target.value })}
+                      />
+                      <span className="text-sm text-neutral-500">KSH</span>
+                    </div>
+                    <Button
+                      onClick={handleAddPropertyTypeToNew}
+                      className="bg-primary hover:bg-secondary"
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Utilities Section */}
+            <div>
+              <Label className="text-sm font-medium">Utilities (Optional)</Label>
+              <p className="text-sm text-neutral-600 mb-4">Add utilities available for this property.</p>
+              
+              <div className="space-y-4">
+                {newPropertyForm.utilities.map((utility, index) => (
+                  <div key={index} className="flex items-center space-x-4 p-4 border rounded-lg bg-neutral-50">
+                    <div className="flex-1">
+                      <p className="font-medium capitalize">{utility.type}</p>
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-semibold text-green-600">KSH {utility.price}/unit</p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRemoveUtilityFromNew(index)}
+                      className="text-red-600 hover:text-red-700"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+
+                {/* Add Utility Form */}
+                <div className="border-t pt-4">
+                  <Label className="text-sm font-medium mb-3 block">Add Utility</Label>
+                  <div className="flex items-center space-x-4">
+                    <Input
+                      placeholder="Utility type (e.g., Electricity, Water)"
+                      value={tempUtility.type}
+                      onChange={(e) => setTempUtility({ ...tempUtility, type: e.target.value })}
+                      className="flex-1"
+                    />
+                    <div className="flex items-center space-x-2">
+                      <Input
+                        type="number"
+                        placeholder="Price per unit"
+                        value={tempUtility.price}
+                        onChange={(e) => setTempUtility({ ...tempUtility, price: e.target.value })}
+                      />
+                      <span className="text-sm text-neutral-500">KSH</span>
+                    </div>
+                    <Button
+                      onClick={handleAddUtilityToNew}
+                      className="bg-primary hover:bg-secondary"
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex justify-end space-x-4 pt-6 border-t">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowAddPropertyDialog(false);
+                  resetNewPropertyForm();
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleCreateProperty}
+                className="bg-primary hover:bg-secondary"
+                disabled={createPropertyMutation.isPending}
+              >
+                {createPropertyMutation.isPending ? 'Creating...' : 'Create Property'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
