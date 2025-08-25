@@ -20,8 +20,7 @@ import {
   Play,
   Zap
 } from 'lucide-react';
-import './landing-new.css';
-import './landing-new.css';
+import './landing.css';
 
 export default function LandingPage() {
   const [, setLocation] = useLocation();
