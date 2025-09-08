@@ -12,11 +12,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useDashboard } from "@/hooks/dashboard/useDashboard";
+import AddTenantDialog from "@/components/dashboard/landlord/AddTenantDialog";
 import type { Tenant } from "@/types/dashboard";
 
 export default function TenantsTab() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<"all" | "active" | "pending" | "inactive">("all");
+  const [showAddTenantDialog, setShowAddTenantDialog] = useState(false);
   
   const { tenants, tenantsQuery } = useDashboard();
 
@@ -76,7 +78,10 @@ export default function TenantsTab() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-semibold text-neutral-900">Tenants</h2>
-        <Button className="bg-primary hover:bg-secondary">
+        <Button 
+          className="bg-primary hover:bg-secondary"
+          onClick={() => setShowAddTenantDialog(true)}
+        >
           <Plus className="mr-2 h-4 w-4" />
           Add Tenant
         </Button>
@@ -194,7 +199,10 @@ export default function TenantsTab() {
               }
             </p>
             {tenants.length === 0 && (
-              <Button className="bg-primary hover:bg-secondary">
+              <Button 
+                className="bg-primary hover:bg-secondary"
+                onClick={() => setShowAddTenantDialog(true)}
+              >
                 <Plus className="mr-2 h-4 w-4" />
                 Add Your First Tenant
               </Button>
@@ -275,6 +283,12 @@ export default function TenantsTab() {
           ))}
         </div>
       )}
+
+      {/* Add Tenant Dialog */}
+      <AddTenantDialog 
+        open={showAddTenantDialog}
+        onOpenChange={setShowAddTenantDialog}
+      />
     </div>
   );
 }
