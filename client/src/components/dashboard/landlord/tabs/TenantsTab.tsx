@@ -13,12 +13,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useDashboard } from "@/hooks/dashboard/useDashboard";
 import AddTenantDialog from "@/components/dashboard/landlord/AddTenantDialog";
+import TenantDetailsDialog from "@/components/dashboard/landlord/TenantDetailsDialog";
 import type { Tenant } from "@/types/dashboard";
 
 export default function TenantsTab() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<"all" | "active" | "pending" | "inactive">("all");
   const [showAddTenantDialog, setShowAddTenantDialog] = useState(false);
+  const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
+  const [showTenantDetails, setShowTenantDetails] = useState(false);
   
   const { tenants, tenantsQuery } = useDashboard();
 
@@ -47,6 +50,11 @@ export default function TenantsTab() {
 
   const getInitials = (name: string) => {
     return name.split(" ").map(n => n[0]).join("").toUpperCase();
+  };
+
+  const handleViewDetails = (tenant: Tenant) => {
+    setSelectedTenant(tenant);
+    setShowTenantDetails(true);
   };
 
   // Show loading state
@@ -258,7 +266,9 @@ export default function TenantsTab() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem>View Details</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleViewDetails(tenant)}>
+                          View Details
+                        </DropdownMenuItem>
                         <DropdownMenuItem>Send Message</DropdownMenuItem>
                         <DropdownMenuItem>Edit Lease</DropdownMenuItem>
                         <DropdownMenuItem>View Payments</DropdownMenuItem>
@@ -288,6 +298,13 @@ export default function TenantsTab() {
       <AddTenantDialog 
         open={showAddTenantDialog}
         onOpenChange={setShowAddTenantDialog}
+      />
+
+      {/* Tenant Details Dialog */}
+      <TenantDetailsDialog 
+        open={showTenantDetails}
+        onOpenChange={setShowTenantDetails}
+        tenant={selectedTenant}
       />
     </div>
   );
