@@ -1,5 +1,6 @@
 import { type User, type InsertUser, type Property, type InsertProperty, type TenantProperty, type InsertTenantProperty, type Landlord, type Tenant, type InsertLandlord, type InsertTenant } from "@shared/schema";
 import { Landlord as LandlordModel, Tenant as TenantModel, Property as PropertyModel } from "./database";
+import { ObjectId } from "mongodb";
 
 // Helper function to validate ObjectId format
 function isValidObjectId(id: string): boolean {
@@ -23,6 +24,7 @@ export interface IStorage {
   getTenantProperty(tenantId: string): Promise<TenantProperty | undefined>;
   createTenantProperty(tenantProperty: InsertTenantProperty): Promise<TenantProperty>;
   getTenantsByProperty(propertyId: string): Promise<TenantProperty[]>;
+  getTenantsByLandlord(landlordId: string): Promise<any[]>;
 }
 
 export class MongoStorage implements IStorage {
@@ -346,20 +348,40 @@ export class MongoStorage implements IStorage {
 
   async createTenantProperty(insertTenantProperty: InsertTenantProperty): Promise<TenantProperty> {
     try {
+      console.log('Creating tenant property with data:', insertTenantProperty);
+      
       // Validate ObjectId format for tenantId
       if (!isValidObjectId(insertTenantProperty.tenantId)) {
         throw new Error('Invalid tenant ID format');
       }
 
-      // Update tenant with apartment info
+      // Validate ObjectId format for propertyId
+      if (!isValidObjectId(insertTenantProperty.propertyId)) {
+        throw new Error('Invalid property ID format');
+      }
+
+      // Get the property to find the landlordId
+      const property = await PropertyModel.findById(insertTenantProperty.propertyId);
+      console.log('Found property:', property);
+      
+      if (!property) {
+        // Let's see what properties exist
+        const allProperties = await PropertyModel.find({}).lean();
+        console.log('All existing properties:', allProperties.map(p => ({ id: p._id, name: p.name })));
+        throw new Error(`Property not found with ID: ${insertTenantProperty.propertyId}`);
+      }
+
+      // Update tenant with apartment info including landlordId
       const tenant = await TenantModel.findByIdAndUpdate(
         insertTenantProperty.tenantId,
         {
           apartmentInfo: {
             propertyId: insertTenantProperty.propertyId,
+            propertyName: property.name,
             propertyType: insertTenantProperty.propertyType,
             unitNumber: insertTenantProperty.unitNumber,
             rentAmount: insertTenantProperty.rentAmount,
+            landlordId: property.landlordId,
           }
         },
         { new: true }
@@ -403,6 +425,44 @@ export class MongoStorage implements IStorage {
       }));
     } catch (error) {
       console.error('Error getting tenants by property:', error);
+      return [];
+    }
+  }
+
+  async getTenantsByLandlord(landlordId: string): Promise<any[]> {
+    try {
+      // Validate ObjectId format
+      if (!isValidObjectId(landlordId)) {
+        console.log('Invalid ObjectId format for landlord ID:', landlordId);
+        return [];
+      }
+
+      // Convert landlordId to ObjectId for proper comparison
+      const landlordObjectId = new ObjectId(landlordId);
+
+      // Find all tenants associated with this landlord
+      const tenants = await TenantModel.find({
+        'apartmentInfo.landlordId': landlordObjectId
+      }).populate('apartmentInfo.propertyId').lean();
+
+      console.log(`Finding tenants for landlordId: ${landlordObjectId}, found ${tenants.length} tenants`);
+
+      return tenants.map(tenant => ({
+        id: tenant._id.toString(),
+        name: tenant.fullName,
+        email: tenant.email,
+        phone: tenant.apartmentInfo?.unitNumber || '', // For now, using unitNumber as phone placeholder
+        propertyId: tenant.apartmentInfo?.propertyId?.toString() || '',
+        propertyName: tenant.apartmentInfo?.propertyName || '',
+        unitType: tenant.apartmentInfo?.propertyType || '',
+        rentAmount: tenant.apartmentInfo?.rentAmount ? parseInt(tenant.apartmentInfo.rentAmount) : 0,
+        status: 'active' as const, // Default to active, you can add status field to schema later
+        leaseStart: tenant.createdAt?.toISOString().split('T')[0] || '',
+        leaseEnd: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Default 1 year lease
+        avatar: '', // Can be added to schema later
+      }));
+    } catch (error) {
+      console.error('Error getting tenants by landlord:', error);
       return [];
     }
   }

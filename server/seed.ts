@@ -46,10 +46,11 @@ export async function seedDatabase() {
                 const updatedLandlordProperties = await storage.getPropertiesByLandlord(existingLandlord.id);
                 if (updatedLandlordProperties.length > 0) {
                     const property = updatedLandlordProperties[0];
+                    console.log('Using property ID:', property._id?.toString());
 
                     await storage.createTenantProperty({
                         tenantId: existingTenant.id,
-                        propertyId: property._id as string,
+                        propertyId: property._id?.toString() || property.id,
                         propertyType: '2bedroom',
                         unitNumber: 'A101',
                         rentAmount: '1200'

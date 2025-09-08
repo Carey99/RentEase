@@ -193,6 +193,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all tenants for a specific landlord
+  app.get("/api/tenants/landlord/:landlordId", async (req, res) => {
+    try {
+      console.log('🔍 Frontend requesting tenants for landlord ID:', req.params.landlordId);
+      const tenants = await storage.getTenantsByLandlord(req.params.landlordId);
+      console.log('📊 Found tenants:', tenants.length);
+      res.json(tenants);
+    } catch (error) {
+      console.error('Error getting tenants by landlord:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Get tenants for a specific property
+  app.get("/api/tenants/property/:propertyId", async (req, res) => {
+    try {
+      const tenants = await storage.getTenantsByProperty(req.params.propertyId);
+      res.json(tenants);
+    } catch (error) {
+      console.error('Error getting tenants by property:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
