@@ -70,7 +70,7 @@ export default function TenantDetailsDialog({ open, onOpenChange, tenant }: Tena
     }
   };
 
-  // Mock payment history data (replace with real data later)
+  // Mock payment history data 
   const paymentHistory = [
     { id: 1, month: "August 2025", amount: tenant.rentAmount, status: "paid", date: "2025-08-01", method: "Bank Transfer" },
     { id: 2, month: "July 2025", amount: tenant.rentAmount, status: "paid", date: "2025-07-01", method: "M-Pesa" },
@@ -78,7 +78,7 @@ export default function TenantDetailsDialog({ open, onOpenChange, tenant }: Tena
     { id: 4, month: "May 2025", amount: tenant.rentAmount, status: "late", date: "2025-05-05", method: "Cash" },
   ];
 
-  // Mock lease documents (replace with real data later)
+  // Mock lease documents 
   const leaseDocuments = [
     { id: 1, name: "Lease Agreement", type: "PDF", size: "2.1 MB", uploadDate: "2025-08-01" },
     { id: 2, name: "ID Copy", type: "PDF", size: "1.5 MB", uploadDate: "2025-08-01" },

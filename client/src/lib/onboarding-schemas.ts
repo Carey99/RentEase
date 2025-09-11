@@ -4,6 +4,10 @@ import { z } from "zod";
 export const personalInfoSchema = z.object({
   fullName: z.string().min(2, "Full name must be at least 2 characters"),
   email: z.string().email("Please enter a valid email"),
+  phone: z.string().optional().or(z.literal("")).refine((val) => {
+    if (!val || val === "") return true; // Allow empty values
+    return /^[\+]?[0-9\(\)\-\s]+$/.test(val) && val.replace(/\D/g, "").length >= 10;
+  }, "Please enter a valid phone number with at least 10 digits"),
 });
 
 export const passwordSchema = z.object({

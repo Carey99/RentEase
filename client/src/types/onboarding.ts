@@ -15,6 +15,7 @@ export interface Utility {
 export interface PersonalInfo {
   fullName: string;
   email: string;
+  phone: string;
 }
 
 export interface PasswordInfo {
@@ -37,6 +38,7 @@ export interface TenantPropertyInfo {
 export interface OnboardingFormData {
   fullName?: string;
   email?: string;
+  phone?: string;
   password?: string;
   role?: UserRole;
 }

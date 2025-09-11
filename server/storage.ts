@@ -126,6 +126,7 @@ export class MongoStorage implements IStorage {
         const tenant = new TenantModel({
           fullName: insertUser.fullName,
           email: insertUser.email,
+          phone: insertUser.phone,
           password: insertUser.password,
           role: 'tenant',
         });
@@ -451,7 +452,7 @@ export class MongoStorage implements IStorage {
         id: tenant._id.toString(),
         name: tenant.fullName,
         email: tenant.email,
-        phone: tenant.apartmentInfo?.unitNumber || '', // For now, using unitNumber as phone placeholder
+        phone: tenant.phone || '', // Use actual phone field instead of unitNumber
         propertyId: tenant.apartmentInfo?.propertyId?.toString() || '',
         propertyName: tenant.apartmentInfo?.propertyName || '',
         unitType: tenant.apartmentInfo?.propertyType || '',

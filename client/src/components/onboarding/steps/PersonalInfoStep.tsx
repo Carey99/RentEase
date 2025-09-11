@@ -13,7 +13,7 @@ interface PersonalInfoStepProps {
 
 export function PersonalInfoStep({ form, onSubmit, isAddingAnotherProperty }: PersonalInfoStepProps) {
   if (isAddingAnotherProperty) {
-    return null; // Skip this step when adding another property
+    return null;
   }
 
   return (
@@ -52,6 +52,22 @@ export function PersonalInfoStep({ form, onSubmit, isAddingAnotherProperty }: Pe
           {form.formState.errors.email && (
             <p className="text-sm text-red-600 mt-1">
               {form.formState.errors.email.message as string}
+            </p>
+          )}
+        </div>
+
+        <div>
+          <Label htmlFor="phone">WhatsApp Number</Label>
+          <Input
+            id="phone"
+            type="tel"
+            {...form.register("phone")}
+            placeholder="0712345678"
+            data-testid="input-phone"
+          />
+          {form.formState.errors.phone && (
+            <p className="text-sm text-red-600 mt-1">
+              {form.formState.errors.phone.message as string}
             </p>
           )}
         </div>

@@ -77,7 +77,7 @@ export default function AddTenantDialog({ open, onOpenChange }: AddTenantDialogP
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.fullName || !formData.email || !formData.propertyId || !formData.unitType) {
+    if (!formData.fullName || !formData.email || !formData.phone || !formData.propertyId || !formData.unitType) {
       return;
     }
 
@@ -90,6 +90,7 @@ export default function AddTenantDialog({ open, onOpenChange }: AddTenantDialogP
         body: JSON.stringify({
           fullName: formData.fullName,
           email: formData.email,
+          phone: formData.phone,
           password: 'temporary123', // Default password - tenant should change this
           role: 'tenant',
         }),
@@ -182,12 +183,13 @@ export default function AddTenantDialog({ open, onOpenChange }: AddTenantDialogP
             </div>
 
             <div>
-              <Label htmlFor="phone">Phone Number</Label>
+              <Label htmlFor="phone">WhatsApp Number *</Label>
               <Input
                 id="phone"
                 value={formData.phone}
                 onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
                 placeholder="+254 700 000 000"
+                required
               />
             </div>
           </div>
@@ -282,7 +284,7 @@ export default function AddTenantDialog({ open, onOpenChange }: AddTenantDialogP
             </Button>
             <Button 
               type="submit" 
-              disabled={isLoading || !formData.fullName || !formData.email || !formData.propertyId || !formData.unitType}
+              disabled={isLoading || !formData.fullName || !formData.email || !formData.phone || !formData.propertyId || !formData.unitType}
               className="bg-primary hover:bg-secondary"
             >
               {isLoading ? "Adding Tenant..." : "Add Tenant"}

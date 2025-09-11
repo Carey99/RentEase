@@ -8,6 +8,7 @@ export const landlordSchema = z.object({
   _id: z.string().optional(),
   fullName: z.string().min(2, "Full name must be at least 2 characters"),
   email: z.string().email("Please enter a valid email"),
+  phone: z.string().optional(),
   password: z.string().min(6, "Password must be at least 6 characters"),
   role: z.literal("landlord"),
   properties: z.array(z.string()).optional(), // Array of property IDs
@@ -20,6 +21,7 @@ export const tenantSchema = z.object({
   _id: z.string().optional(),
   fullName: z.string().min(2, "Full name must be at least 2 characters"),
   email: z.string().email("Please enter a valid email"),
+  phone: z.string().optional(),
   password: z.string().min(6, "Password must be at least 6 characters"),
   role: z.literal("tenant"),
   apartmentInfo: z.object({
@@ -80,6 +82,7 @@ export const insertPropertySchema = propertySchema.omit({
 export const insertUserSchema = z.object({
   fullName: z.string().min(2, "Full name must be at least 2 characters"),
   email: z.string().email("Please enter a valid email"),
+  phone: z.string().optional(),
   password: z.string().min(6, "Password must be at least 6 characters"),
   role: z.enum(["landlord", "tenant"]),
 });

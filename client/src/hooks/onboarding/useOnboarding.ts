@@ -27,6 +27,7 @@ export function useOnboardingForms(role: UserRole) {
     defaultValues: {
       fullName: formData.fullName || "",
       email: formData.email || "",
+      phone: formData.phone || "",
     },
   });
 
