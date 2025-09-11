@@ -456,6 +456,7 @@ export class MongoStorage implements IStorage {
         propertyId: tenant.apartmentInfo?.propertyId?.toString() || '',
         propertyName: tenant.apartmentInfo?.propertyName || '',
         unitType: tenant.apartmentInfo?.propertyType || '',
+        unitNumber: tenant.apartmentInfo?.unitNumber || '', // Include unit number
         rentAmount: tenant.apartmentInfo?.rentAmount ? parseInt(tenant.apartmentInfo.rentAmount) : 0,
         status: 'active' as const, // Default to active, you can add status field to schema later
         leaseStart: tenant.createdAt?.toISOString().split('T')[0] || '',

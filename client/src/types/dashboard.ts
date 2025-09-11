@@ -60,6 +60,7 @@ export interface Tenant {
   propertyId: string;
   propertyName: string;
   unitType: string;
+  unitNumber: string;
   rentAmount: number;
   status: 'active' | 'inactive' | 'pending';
   leaseStart: string;

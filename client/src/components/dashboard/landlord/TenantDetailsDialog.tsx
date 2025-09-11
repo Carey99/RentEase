@@ -177,6 +177,13 @@ export default function TenantDetailsDialog({ open, onOpenChange, tenant }: Tena
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
+                    <MapPin className="h-4 w-4 text-neutral-500" />
+                    <div>
+                      <p className="text-sm font-medium">Unit Number</p>
+                      <p className="text-sm text-neutral-600">{tenant.unitNumber || "Not assigned"}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
                     <DollarSign className="h-4 w-4 text-neutral-500" />
                     <div>
                       <p className="text-sm font-medium">Monthly Rent</p>
