@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-// MongoDB Schema Definitions for RentFlow Database
+// Database schema definitions for RentFlow MongoDB collections
 // Collections: landlords, tenants, properties
 
 // Landlord Schema (stored in landlords collection)
@@ -24,6 +24,7 @@ export const tenantSchema = z.object({
   phone: z.string().optional(),
   password: z.string().min(6, "Password must be at least 6 characters"),
   role: z.literal("tenant"),
+  status: z.enum(["active", "pending", "inactive"]).default("active").optional(),
   apartmentInfo: z.object({
     propertyId: z.string().optional(),
     propertyName: z.string().optional(),

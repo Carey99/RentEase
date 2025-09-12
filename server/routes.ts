@@ -217,6 +217,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // PUT endpoint for updating tenant details from dashboard
+  app.put("/api/tenants/:tenantId", async (req, res) => {
+    try {
+      const tenantId = req.params.tenantId;
+      const updates = req.body;
+      
+      console.log('🔄 Updating tenant ID:', tenantId, 'with data:', updates);
+      
+      const updatedTenant = await storage.updateTenant(tenantId, updates);
+      
+      if (!updatedTenant) {
+        return res.status(404).json({ message: "Tenant not found" });
+      }
+      
+      console.log('✅ Tenant updated successfully');
+      res.json(updatedTenant);
+    } catch (error) {
+      console.error('Error updating tenant:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // DELETE endpoint for removing tenant and their credentials
+  app.delete("/api/tenants/:tenantId", async (req, res) => {
+    try {
+      const tenantId = req.params.tenantId;
+      
+      console.log('🗑️ Deleting tenant ID:', tenantId);
+      
+      const deletedTenant = await storage.deleteTenant(tenantId);
+      
+      if (!deletedTenant) {
+        return res.status(404).json({ message: "Tenant not found" });
+      }
+      
+      console.log('✅ Tenant deleted successfully');
+      res.json({ message: "Tenant deleted successfully" });
+    } catch (error) {
+      console.error('Error deleting tenant:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

@@ -40,6 +40,7 @@ const tenantSchema = new mongoose.Schema({
   phone: { type: String },
   password: { type: String, required: true },
   role: { type: String, default: 'tenant' },
+  status: { type: String, enum: ['active', 'pending', 'inactive'], default: 'active' },
   apartmentInfo: {
     propertyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Property' },
     propertyName: String,

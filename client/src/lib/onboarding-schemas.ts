@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-// Form Validation Schemas
+// Zod validation schemas for onboarding forms
 export const personalInfoSchema = z.object({
   fullName: z.string().min(2, "Full name must be at least 2 characters"),
   email: z.string().email("Please enter a valid email"),

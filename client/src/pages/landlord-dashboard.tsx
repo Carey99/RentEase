@@ -4,7 +4,7 @@ import Sidebar from "@/components/dashboard/sidebar";
 import DashboardTab from "@/components/dashboard/landlord/tabs/DashboardTab";
 import PropertiesTab from "@/components/dashboard/landlord/tabs/PropertiesTab";
 import TenantsTab from "@/components/dashboard/landlord/tabs/TenantsTab";
-import AddPropertyDialog from "@/components/dashboard/landlord/AddPropertyDialog";
+import AddPropertyDialog from "@/components/dashboard/landlord/properties/AddPropertyDialog";
 import { useDashboard, useCurrentUser } from "@/hooks/dashboard/useDashboard";
 import type { Property } from "@/types/dashboard";
 

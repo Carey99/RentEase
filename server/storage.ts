@@ -25,6 +25,8 @@ export interface IStorage {
   createTenantProperty(tenantProperty: InsertTenantProperty): Promise<TenantProperty>;
   getTenantsByProperty(propertyId: string): Promise<TenantProperty[]>;
   getTenantsByLandlord(landlordId: string): Promise<any[]>;
+  updateTenant(tenantId: string, updates: Partial<Tenant>): Promise<Tenant | undefined>; // Update tenant details from dashboard
+  deleteTenant(tenantId: string): Promise<boolean>; // Remove tenant and their credentials
 }
 
 export class MongoStorage implements IStorage {
@@ -458,7 +460,7 @@ export class MongoStorage implements IStorage {
         unitType: tenant.apartmentInfo?.propertyType || '',
         unitNumber: tenant.apartmentInfo?.unitNumber || '', // Include unit number
         rentAmount: tenant.apartmentInfo?.rentAmount ? parseInt(tenant.apartmentInfo.rentAmount) : 0,
-        status: 'active' as const, // Default to active, you can add status field to schema later
+        status: tenant.status || 'active', // Use actual status field from tenant record
         leaseStart: tenant.createdAt?.toISOString().split('T')[0] || '',
         leaseEnd: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Default 1 year lease
         avatar: '', // Can be added to schema later
@@ -466,6 +468,92 @@ export class MongoStorage implements IStorage {
     } catch (error) {
       console.error('Error getting tenants by landlord:', error);
       return [];
+    }
+  }
+
+  async updateTenant(tenantId: string, updates: Partial<Tenant>): Promise<Tenant | undefined> {
+    try {
+      // Ensure we have a valid MongoDB ObjectId
+      if (!isValidObjectId(tenantId)) {
+        console.log('Invalid ObjectId format for tenant ID:', tenantId);
+        return undefined;
+      }
+
+      const allowedUpdates: Partial<Tenant> = {};
+      
+      // Whitelist specific fields that can be updated for security
+      if (updates.fullName) allowedUpdates.fullName = updates.fullName;
+      if (updates.email) allowedUpdates.email = updates.email;
+      if (updates.phone !== undefined) allowedUpdates.phone = updates.phone;
+      if (updates.status) allowedUpdates.status = updates.status;
+
+      // Get current tenant data to preserve existing apartmentInfo
+      const currentTenant = await TenantModel.findById(tenantId);
+      if (!currentTenant) {
+        return undefined;
+      }
+
+      const updateDoc: any = {
+        ...allowedUpdates,
+        updatedAt: new Date(),
+      };
+
+      // Update apartment-specific fields within apartmentInfo object
+      if (updates.unitNumber !== undefined || updates.rentAmount !== undefined) {
+        updateDoc.apartmentInfo = {
+          ...currentTenant.apartmentInfo,
+          ...(updates.unitNumber !== undefined && { unitNumber: updates.unitNumber }),
+          ...(updates.rentAmount !== undefined && { rentAmount: updates.rentAmount.toString() }),
+        };
+      }
+
+      const updatedTenant = await TenantModel.findByIdAndUpdate(
+        tenantId,
+        updateDoc,
+        { new: true, runValidators: true }
+      ).lean();
+
+      if (!updatedTenant) {
+        return undefined;
+      }
+
+      return {
+        id: updatedTenant._id.toString(),
+        fullName: updatedTenant.fullName,
+        email: updatedTenant.email,
+        phone: updatedTenant.phone,
+        password: updatedTenant.password,
+        role: 'tenant' as const,
+        apartmentInfo: updatedTenant.apartmentInfo,
+        createdAt: updatedTenant.createdAt,
+        updatedAt: updatedTenant.updatedAt,
+      };
+    } catch (error) {
+      console.error('Error updating tenant:', error);
+      return undefined;
+    }
+  }
+
+  async deleteTenant(tenantId: string): Promise<boolean> {
+    try {
+      const tenant = await TenantModel.findById(tenantId);
+      if (!tenant) return false;
+
+      // Remove the tenant from their property's tenant array if they have apartmentInfo
+      if (tenant.apartmentInfo?.propertyId) {
+        await PropertyModel.updateOne(
+          { _id: tenant.apartmentInfo.propertyId },
+          { $pull: { tenants: tenantId } }
+        );
+      }
+
+      // Delete the tenant document
+      const result = await TenantModel.deleteOne({ _id: tenantId });
+      return result.deletedCount === 1;
+
+    } catch (error) {
+      console.error('Error deleting tenant:', error);
+      return false;
     }
   }
 }

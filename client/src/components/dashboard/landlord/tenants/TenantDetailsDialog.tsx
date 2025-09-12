@@ -1,5 +1,8 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -12,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/hooks/use-toast";
 import { 
   Mail, 
   Phone, 
@@ -25,7 +29,9 @@ import {
   Clock,
   AlertCircle,
   CheckCircle,
-  Edit
+  Edit,
+  Save,
+  X
 } from "lucide-react";
 import type { Tenant } from "@/types/dashboard";
 
@@ -33,17 +39,100 @@ interface TenantDetailsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   tenant: Tenant | null;
+  onTenantUpdate?: (updatedTenant: Tenant) => void; // Callback to refresh parent component
 }
 
-export default function TenantDetailsDialog({ open, onOpenChange, tenant }: TenantDetailsDialogProps) {
+export default function TenantDetailsDialog({ open, onOpenChange, tenant, onTenantUpdate }: TenantDetailsDialogProps) {
+  // State management for dialog tabs and edit mode
   const [activeTab, setActiveTab] = useState("overview");
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editFormData, setEditFormData] = useState<Partial<Tenant>>({});
+  const { toast } = useToast();
 
   if (!tenant) return null;
 
+  // Initialize form data when user clicks "Edit Details"
+  const handleEditMode = () => {
+    setEditFormData({
+      name: tenant.name,
+      email: tenant.email,
+      phone: tenant.phone,
+      unitNumber: tenant.unitNumber,
+      rentAmount: tenant.rentAmount,
+      status: tenant.status,
+    });
+    setIsEditMode(true);
+  };
+
+  // Save changes to database and update UI
+  const handleSaveEdit = async () => {
+    try {
+      // Send PUT request to update tenant information
+      const response = await fetch(`/api/tenants/${tenant.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          fullName: editFormData.name,
+          email: editFormData.email,
+          phone: editFormData.phone,
+          unitNumber: editFormData.unitNumber,
+          rentAmount: editFormData.rentAmount,
+          status: editFormData.status,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update tenant');
+      }
+
+      const updatedBackendTenant = await response.json();
+      
+      // Create updated tenant object for frontend state
+      const updatedTenant: Tenant = {
+        ...tenant,
+        name: editFormData.name || tenant.name,
+        email: editFormData.email || tenant.email,
+        phone: editFormData.phone || tenant.phone,
+        unitNumber: editFormData.unitNumber || tenant.unitNumber,
+        rentAmount: editFormData.rentAmount || tenant.rentAmount,
+        status: editFormData.status || tenant.status,
+      };
+      
+      toast({
+        title: "Tenant Updated",
+        description: "Tenant details have been successfully updated.",
+      });
+
+      // Notify parent component to refresh tenant list
+      if (onTenantUpdate) {
+        onTenantUpdate(updatedTenant);
+      }
+
+      setIsEditMode(false);
+    } catch (error) {
+      console.error('Error updating tenant:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update tenant details. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Cancel editing and reset form
+  const handleCancelEdit = () => {
+    setEditFormData({});
+    setIsEditMode(false);
+  };
+
+  // Helper function to get user initials for avatar
   const getInitials = (name: string) => {
     return name.split(" ").map(n => n[0]).join("").toUpperCase();
   };
 
+  // Color coding for tenant status badges
   const getStatusColor = (status: string) => {
     switch (status) {
       case "active":
@@ -57,6 +146,7 @@ export default function TenantDetailsDialog({ open, onOpenChange, tenant }: Tena
     }
   };
 
+  // Icons for different tenant statuses
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "active":
@@ -70,7 +160,7 @@ export default function TenantDetailsDialog({ open, onOpenChange, tenant }: Tena
     }
   };
 
-  // Mock payment history data 
+  // Dummy payment data - in real app this would come from API
   const paymentHistory = [
     { id: 1, month: "August 2025", amount: tenant.rentAmount, status: "paid", date: "2025-08-01", method: "Bank Transfer" },
     { id: 2, month: "July 2025", amount: tenant.rentAmount, status: "paid", date: "2025-07-01", method: "M-Pesa" },
@@ -78,7 +168,7 @@ export default function TenantDetailsDialog({ open, onOpenChange, tenant }: Tena
     { id: 4, month: "May 2025", amount: tenant.rentAmount, status: "late", date: "2025-05-05", method: "Cash" },
   ];
 
-  // Mock lease documents 
+  // Dummy document data - in real app this would come from API
   const leaseDocuments = [
     { id: 1, name: "Lease Agreement", type: "PDF", size: "2.1 MB", uploadDate: "2025-08-01" },
     { id: 2, name: "ID Copy", type: "PDF", size: "1.5 MB", uploadDate: "2025-08-01" },
@@ -94,13 +184,40 @@ export default function TenantDetailsDialog({ open, onOpenChange, tenant }: Tena
               <AvatarImage src={tenant.avatar} alt={tenant.name} />
               <AvatarFallback>{getInitials(tenant.name)}</AvatarFallback>
             </Avatar>
-            <div>
+            <div className="flex-1">
               <div className="flex items-center gap-2">
-                <span>{tenant.name}</span>
-                <Badge className={`${getStatusColor(tenant.status)} flex items-center gap-1`}>
-                  {getStatusIcon(tenant.status)}
-                  {tenant.status.charAt(0).toUpperCase() + tenant.status.slice(1)}
-                </Badge>
+                {isEditMode ? (
+                  <Input
+                    value={editFormData.name || ''}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, name: e.target.value }))}
+                    className="text-lg font-semibold"
+                  />
+                ) : (
+                  <span>{tenant.name}</span>
+                )}
+                
+                {isEditMode ? (
+                  <Select
+                    value={editFormData.status || tenant.status}
+                    onValueChange={(value: 'active' | 'inactive' | 'pending') => 
+                      setEditFormData(prev => ({ ...prev, status: value }))
+                    }
+                  >
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Badge className={`${getStatusColor(tenant.status)} flex items-center gap-1`}>
+                    {getStatusIcon(tenant.status)}
+                    {tenant.status.charAt(0).toUpperCase() + tenant.status.slice(1)}
+                  </Badge>
+                )}
               </div>
               <p className="text-sm text-neutral-600 font-normal">{tenant.email}</p>
             </div>
@@ -131,16 +248,35 @@ export default function TenantDetailsDialog({ open, onOpenChange, tenant }: Tena
                 <CardContent className="space-y-4">
                   <div className="flex items-center gap-3">
                     <Mail className="h-4 w-4 text-neutral-500" />
-                    <div>
+                    <div className="flex-1">
                       <p className="text-sm font-medium">Email</p>
-                      <p className="text-sm text-neutral-600">{tenant.email}</p>
+                      {isEditMode ? (
+                        <Input
+                          type="email"
+                          value={editFormData.email || ''}
+                          onChange={(e) => setEditFormData(prev => ({ ...prev, email: e.target.value }))}
+                          className="mt-1"
+                        />
+                      ) : (
+                        <p className="text-sm text-neutral-600">{tenant.email}</p>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
                     <Phone className="h-4 w-4 text-neutral-500" />
-                    <div>
+                    <div className="flex-1">
                       <p className="text-sm font-medium">Phone</p>
-                      <p className="text-sm text-neutral-600">{tenant.phone || "Not provided"}</p>
+                      {isEditMode ? (
+                        <Input
+                          type="tel"
+                          value={editFormData.phone || ''}
+                          onChange={(e) => setEditFormData(prev => ({ ...prev, phone: e.target.value }))}
+                          placeholder="Enter phone number"
+                          className="mt-1"
+                        />
+                      ) : (
+                        <p className="text-sm text-neutral-600">{tenant.phone || "Not provided"}</p>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
@@ -178,16 +314,35 @@ export default function TenantDetailsDialog({ open, onOpenChange, tenant }: Tena
                   </div>
                   <div className="flex items-center gap-3">
                     <MapPin className="h-4 w-4 text-neutral-500" />
-                    <div>
+                    <div className="flex-1">
                       <p className="text-sm font-medium">Unit Number</p>
-                      <p className="text-sm text-neutral-600">{tenant.unitNumber || "Not assigned"}</p>
+                      {isEditMode ? (
+                        <Input
+                          value={editFormData.unitNumber || ''}
+                          onChange={(e) => setEditFormData(prev => ({ ...prev, unitNumber: e.target.value }))}
+                          placeholder="Enter unit number"
+                          className="mt-1"
+                        />
+                      ) : (
+                        <p className="text-sm text-neutral-600">{tenant.unitNumber || "Not assigned"}</p>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
                     <DollarSign className="h-4 w-4 text-neutral-500" />
-                    <div>
+                    <div className="flex-1">
                       <p className="text-sm font-medium">Monthly Rent</p>
-                      <p className="text-sm font-semibold text-green-600">KSH {tenant.rentAmount.toLocaleString()}</p>
+                      {isEditMode ? (
+                        <Input
+                          type="number"
+                          value={editFormData.rentAmount || ''}
+                          onChange={(e) => setEditFormData(prev => ({ ...prev, rentAmount: parseInt(e.target.value) || 0 }))}
+                          placeholder="Enter rent amount"
+                          className="mt-1"
+                        />
+                      ) : (
+                        <p className="text-sm font-semibold text-green-600">KSH {tenant.rentAmount.toLocaleString()}</p>
+                      )}
                     </div>
                   </div>
                 </CardContent>
@@ -359,14 +514,29 @@ export default function TenantDetailsDialog({ open, onOpenChange, tenant }: Tena
             Close
           </Button>
           <div className="flex gap-2">
-            <Button variant="outline">
-              <Edit className="mr-2 h-4 w-4" />
-              Edit Details
-            </Button>
-            <Button>
-              <Mail className="mr-2 h-4 w-4" />
-              Send Message
-            </Button>
+            {isEditMode ? (
+              <>
+                <Button variant="outline" onClick={handleCancelEdit}>
+                  <X className="mr-2 h-4 w-4" />
+                  Cancel
+                </Button>
+                <Button onClick={handleSaveEdit}>
+                  <Save className="mr-2 h-4 w-4" />
+                  Save Changes
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="outline" onClick={handleEditMode}>
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit Details
+                </Button>
+                <Button>
+                  <Mail className="mr-2 h-4 w-4" />
+                  Send Message
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </DialogContent>

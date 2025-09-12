@@ -2,8 +2,7 @@ import { useState } from "react";
 import { Plus, Building } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import PropertyDetailView from "@/components/dashboard/landlord/tabs/PropertyDetailView";
-import PropertyListView from "@/components/dashboard/landlord/tabs/PropertyListView";
+import { PropertyDetailView, PropertyListView } from "@/components/dashboard/landlord/properties";
 import type { Property } from "@/types/dashboard";
 
 interface PropertiesTabProps {
