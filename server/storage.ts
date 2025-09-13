@@ -27,6 +27,13 @@ export interface IStorage {
   getTenantsByLandlord(landlordId: string): Promise<any[]>;
   updateTenant(tenantId: string, updates: Partial<Tenant>): Promise<Tenant | undefined>; // Update tenant details from dashboard
   deleteTenant(tenantId: string): Promise<boolean>; // Remove tenant and their credentials
+  
+  // Landlord settings operations
+  getLandlordSettings(landlordId: string): Promise<any>;
+  updateLandlordSettings(landlordId: string, updates: any): Promise<any>;
+  
+  // Password operations
+  changeLandlordPassword(landlordId: string, currentPassword: string, newPassword: string): Promise<boolean>;
 }
 
 export class MongoStorage implements IStorage {
@@ -554,6 +561,91 @@ export class MongoStorage implements IStorage {
     } catch (error) {
       console.error('Error deleting tenant:', error);
       return false;
+    }
+  }
+
+  async getLandlordSettings(landlordId: string): Promise<any> {
+    try {
+      const landlord = await LandlordModel.findById(landlordId).lean();
+      if (!landlord) throw new Error('Landlord not found');
+
+      return {
+        profile: {
+          fullName: landlord.fullName,
+          email: landlord.email,
+          phone: landlord.phone || '',
+          company: landlord.company || '',
+          address: landlord.address || '',
+        },
+        notifications: {
+          emailNotifications: landlord.settings?.emailNotifications ?? true,
+          smsNotifications: landlord.settings?.smsNotifications ?? false,
+          newTenantAlerts: landlord.settings?.newTenantAlerts ?? true,
+          paymentReminders: landlord.settings?.paymentReminders ?? true,
+        },
+        preferences: {
+          currency: landlord.settings?.currency || 'KSH',
+          timezone: landlord.settings?.timezone || 'Africa/Nairobi',
+          language: landlord.settings?.language || 'en',
+        }
+      };
+    } catch (error) {
+      console.error('Error fetching landlord settings:', error);
+      throw error;
+    }
+  }
+
+  async updateLandlordSettings(landlordId: string, updates: any): Promise<any> {
+    try {
+      const updateData: any = {};
+      
+      if (updates.profile) {
+        Object.assign(updateData, updates.profile);
+      }
+      
+      if (updates.notifications || updates.preferences) {
+        updateData.settings = {
+          ...updates.notifications,
+          ...updates.preferences
+        };
+      }
+
+      const updatedLandlord = await LandlordModel.findByIdAndUpdate(
+        landlordId,
+        { $set: updateData },
+        { new: true }
+      ).lean();
+
+      return this.getLandlordSettings(landlordId);
+    } catch (error) {
+      console.error('Error updating landlord settings:', error);
+      throw error;
+    }
+  }
+
+  async changeLandlordPassword(landlordId: string, currentPassword: string, newPassword: string): Promise<boolean> {
+    try {
+      // First verify the current password
+      const landlord = await LandlordModel.findById(landlordId).lean();
+      if (!landlord) {
+        throw new Error('Landlord not found');
+      }
+
+      if (landlord.password !== currentPassword) {
+        throw new Error('Current password is incorrect');
+      }
+
+      // Update with new password
+      const result = await LandlordModel.findByIdAndUpdate(
+        landlordId,
+        { $set: { password: newPassword } },
+        { new: true }
+      );
+
+      return !!result;
+    } catch (error) {
+      console.error('Error changing landlord password:', error);
+      throw error;
     }
   }
 }

@@ -27,7 +27,19 @@ const landlordSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   role: { type: String, default: 'landlord' },
+  phone: { type: String },
+  company: { type: String },
+  address: { type: String },
   properties: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Property' }],
+  settings: {
+    emailNotifications: { type: Boolean, default: true },
+    smsNotifications: { type: Boolean, default: false },
+    newTenantAlerts: { type: Boolean, default: true },
+    paymentReminders: { type: Boolean, default: true },
+    currency: { type: String, default: 'KSH' },
+    timezone: { type: String, default: 'Africa/Nairobi' },
+    language: { type: String, default: 'en' }
+  },
 }, {
   timestamps: true,
   collection: 'landlords'

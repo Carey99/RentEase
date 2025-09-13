@@ -240,25 +240,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // DELETE endpoint for removing tenant and their credentials
-  app.delete("/api/tenants/:tenantId", async (req, res) => {
-    try {
-      const tenantId = req.params.tenantId;
-      
-      console.log('🗑️ Deleting tenant ID:', tenantId);
-      
-      const deletedTenant = await storage.deleteTenant(tenantId);
-      
-      if (!deletedTenant) {
-        return res.status(404).json({ message: "Tenant not found" });
-      }
-      
+// Delete tenant endpoint
+app.delete('/api/tenants/:tenantId', async (req, res) => {
+  const { tenantId } = req.params;
+  console.log(`🗑️ Deleting tenant ID: ${tenantId}`);
+  
+  try {
+    const success = await storage.deleteTenant(tenantId);
+    if (success) {
       console.log('✅ Tenant deleted successfully');
-      res.json({ message: "Tenant deleted successfully" });
-    } catch (error) {
-      console.error('Error deleting tenant:', error);
-      res.status(500).json({ message: "Internal server error" });
+      res.json({ message: 'Tenant deleted successfully' });
+    } else {
+      res.status(404).json({ error: 'Tenant not found' });
     }
-  });
+  } catch (error) {
+    console.error('❌ Error deleting tenant:', error);
+    res.status(500).json({ error: 'Failed to delete tenant' });
+  }
+});
+
+// Landlord settings endpoints
+app.get('/api/landlords/:landlordId/settings', async (req, res) => {
+  const { landlordId } = req.params;
+  
+  try {
+    const settings = await storage.getLandlordSettings(landlordId);
+    res.json(settings);
+  } catch (error) {
+    console.error('Error fetching landlord settings:', error);
+    res.status(500).json({ error: 'Failed to fetch settings' });
+  }
+});
+
+app.put('/api/landlords/:landlordId/settings', async (req, res) => {
+  const { landlordId } = req.params;
+  const updates = req.body;
+  
+  try {
+    const updatedSettings = await storage.updateLandlordSettings(landlordId, updates);
+    res.json(updatedSettings);
+  } catch (error) {
+    console.error('Error updating landlord settings:', error);
+    res.status(500).json({ error: 'Failed to update settings' });
+  }
+});
+
+// Password change endpoint
+app.put('/api/landlords/:landlordId/password', async (req, res) => {
+  try {
+    const { landlordId } = req.params;
+    const { currentPassword, newPassword } = req.body;
+    
+    const success = await storage.changeLandlordPassword(landlordId, currentPassword, newPassword);
+    
+    if (success) {
+      res.json({ message: 'Password changed successfully' });
+    } else {
+      res.status(400).json({ error: 'Failed to change password' });
+    }
+  } catch (error) {
+    console.error('Error changing password:', error);
+    if (error.message === 'Current password is incorrect') {
+      res.status(400).json({ error: 'Current password is incorrect' });
+    } else {
+      res.status(500).json({ error: 'Failed to change password' });
+    }
+  }
+});
 
   const httpServer = createServer(app);
   return httpServer;
