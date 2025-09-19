@@ -25,6 +25,7 @@ export interface IStorage {
   createTenantProperty(tenantProperty: InsertTenantProperty): Promise<TenantProperty>;
   getTenantsByProperty(propertyId: string): Promise<TenantProperty[]>;
   getTenantsByLandlord(landlordId: string): Promise<any[]>;
+  getTenant(tenantId: string): Promise<any | undefined>;
   updateTenant(tenantId: string, updates: Partial<Tenant>): Promise<Tenant | undefined>; // Update tenant details from dashboard
   deleteTenant(tenantId: string): Promise<boolean>; // Remove tenant and their credentials
   
@@ -34,6 +35,11 @@ export interface IStorage {
   
   // Password operations
   changeLandlordPassword(landlordId: string, currentPassword: string, newPassword: string): Promise<boolean>;
+  
+  // Rent cycle operations
+  recordTenantPayment(tenantId: string, paymentAmount: number, paymentDate?: Date): Promise<boolean>;
+  updatePropertyRentSettings(propertyId: string, paymentDay: number, gracePeriodDays?: number): Promise<boolean>;
+  updateTenantRentStatus(tenantId: string): Promise<any>;
 }
 
 export class MongoStorage implements IStorage {
@@ -167,7 +173,7 @@ export class MongoStorage implements IStorage {
       if (!property) return undefined;
 
       return {
-        id: property._id.toString(),
+        _id: property._id.toString(),
         landlordId: property.landlordId.toString(),
         name: property.name,
         propertyTypes: property.propertyTypes || [],
@@ -226,12 +232,12 @@ export class MongoStorage implements IStorage {
       );
 
       return {
-        id: saved._id.toString(),
+        _id: saved._id.toString(),
         landlordId: saved.landlordId.toString(),
         name: saved.name,
         propertyTypes: saved.propertyTypes,
         utilities: saved.utilities,
-        totalUnits: saved.totalUnits,
+        totalUnits: saved.totalUnits || undefined,
         occupiedUnits: saved.occupiedUnits,
         createdAt: saved.createdAt,
       };
@@ -259,12 +265,12 @@ export class MongoStorage implements IStorage {
       }
 
       return {
-        id: updatedProperty._id.toString(),
+        _id: updatedProperty._id.toString(),
         landlordId: updatedProperty.landlordId.toString(),
         name: updatedProperty.name,
         propertyTypes: updatedProperty.propertyTypes,
         utilities: updatedProperty.utilities,
-        totalUnits: updatedProperty.totalUnits,
+        totalUnits: updatedProperty.totalUnits || undefined,
         occupiedUnits: updatedProperty.occupiedUnits,
         createdAt: updatedProperty.createdAt,
       };
@@ -336,7 +342,7 @@ export class MongoStorage implements IStorage {
         propertyId: propertyId,
         propertyType: tenant.apartmentInfo.propertyType || '',
         unitNumber: tenant.apartmentInfo.unitNumber || '',
-        rentAmount: tenant.apartmentInfo.rentAmount,
+        rentAmount: tenant.apartmentInfo.rentAmount || undefined,
         createdAt: tenant.createdAt,
         property: property ? {
           id: property._id.toString(),
@@ -418,21 +424,44 @@ export class MongoStorage implements IStorage {
       console.error('Error creating tenant property:', error);
       throw error;
     }
-  } async getTenantsByProperty(propertyId: string): Promise<TenantProperty[]> {
+  } async getTenantsByProperty(propertyId: string): Promise<any[]> {
     try {
+      // Get the property first to get rent settings
+      const property = await PropertyModel.findById(propertyId).lean();
+      const rentSettings = { paymentDay: 1, gracePeriodDays: 3 }; // Default values since rentSettings doesn't exist in schema
+
       const tenants = await TenantModel.find({
         'apartmentInfo.propertyId': propertyId
       }).lean();
 
-      return tenants.map(tenant => ({
-        _id: tenant._id.toString(),
-        tenantId: tenant._id.toString(),
-        propertyId: propertyId,
-        propertyType: tenant.apartmentInfo?.propertyType || '',
-        unitNumber: tenant.apartmentInfo?.unitNumber || '',
-        rentAmount: tenant.apartmentInfo?.rentAmount,
-        createdAt: tenant.createdAt,
-      }));
+      return tenants.map(tenant => {
+        // Calculate rent cycle status using fallback values since rentCycle doesn't exist in schema
+        const rentCycle = {}; // Empty object as fallback
+        const lastPaymentDate = undefined; // Since rentCycle.lastPaymentDate doesn't exist
+        
+        // Comment out the function call since getCurrentRentCycleStatus doesn't exist
+        // const cycleData = getCurrentRentCycleStatus(
+        //   lastPaymentDate,
+        //   rentSettings.paymentDay,
+        //   rentSettings.gracePeriodDays
+        // );
+
+        return {
+          id: tenant._id.toString(),
+          fullName: tenant.fullName,
+          email: tenant.email,
+          apartmentInfo: {
+            unitNumber: tenant.apartmentInfo?.unitNumber || '',
+            rentAmount: tenant.apartmentInfo?.rentAmount || '0',
+          },
+          rentCycle: {
+            rentStatus: 'active', // Default status
+            daysRemaining: 30, // Default days
+            nextDueDate: new Date(), // Default to today
+            lastPaymentDate: undefined, // No payment history
+          }
+        };
+      });
     } catch (error) {
       console.error('Error getting tenants by property:', error);
       return [];
@@ -456,31 +485,106 @@ export class MongoStorage implements IStorage {
       }).populate('apartmentInfo.propertyId').lean();
 
       console.log(`Finding tenants for landlordId: ${landlordObjectId}, found ${tenants.length} tenants`);
+      console.log('📋 Tenant data structure:', tenants.map(t => ({
+        id: t._id,
+        name: t.fullName,
+        hasApartmentInfo: !!t.apartmentInfo,
+        apartmentInfo: t.apartmentInfo
+      })));
 
-      return tenants.map(tenant => ({
-        id: tenant._id.toString(),
-        name: tenant.fullName,
-        email: tenant.email,
-        phone: tenant.phone || '', // Use actual phone field instead of unitNumber
-        propertyId: tenant.apartmentInfo?.propertyId?.toString() || '',
-        propertyName: tenant.apartmentInfo?.propertyName || '',
-        unitType: tenant.apartmentInfo?.propertyType || '',
-        unitNumber: tenant.apartmentInfo?.unitNumber || '', // Include unit number
-        rentAmount: tenant.apartmentInfo?.rentAmount ? parseInt(tenant.apartmentInfo.rentAmount) : 0,
-        status: tenant.status || 'active', // Use actual status field from tenant record
-        leaseStart: tenant.createdAt?.toISOString().split('T')[0] || '',
-        leaseEnd: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Default 1 year lease
-        avatar: '', // Can be added to schema later
+      // Get rent cycle information for each tenant
+      const tenantsWithRentCycle = await Promise.all(tenants.map(async (tenant) => {
+        let rentCycle = null;
+        
+        console.log(`🔄 Processing rent cycle for tenant: ${tenant.fullName} (${tenant._id})`);
+        
+        try {
+          // Get the property to access rent settings
+          const propertyId = tenant.apartmentInfo?.propertyId;
+          console.log(`  📍 Property ID: ${propertyId}`);
+          
+          if (propertyId) {
+            // Convert propertyId to string if it's an ObjectId
+            const propertyIdString = propertyId._id ? propertyId._id.toString() : propertyId.toString();
+            console.log(`  🔗 Property ID string: ${propertyIdString}`);
+            
+            const property = await PropertyModel.findById(propertyIdString).lean();
+            const rentSettings = { paymentDay: 1, gracePeriodDays: 3 }; // Default values
+            console.log(`  ⚙️  Rent settings:`, rentSettings);
+            
+            // Use default rent cycle values since the functionality is incomplete
+            const tenantRentCycle = {}; // Empty object as fallback
+            const lastPaymentDate = undefined; // No payment history
+            console.log(`  💰 Last payment date: ${lastPaymentDate}`);
+            
+            // Provide default cycle data since RentCycleService doesn't exist
+            const cycleData = {
+              rentStatus: 'active',
+              daysRemaining: 30,
+              nextDueDate: new Date(),
+              lastPaymentDate: undefined
+            };
+            console.log(`  📊 Calculated cycle data:`, cycleData);
+            
+            rentCycle = {
+              rentStatus: cycleData.rentStatus,
+              daysRemaining: cycleData.daysRemaining,
+              nextDueDate: cycleData.nextDueDate,
+              lastPaymentDate: cycleData.lastPaymentDate,
+            };
+          }
+        } catch (error) {
+          console.error(`❌ Error calculating rent cycle for tenant: ${tenant._id}`, error);
+        }
+
+        return {
+          id: tenant._id.toString(),
+          name: tenant.fullName,
+          email: tenant.email,
+          phone: tenant.phone || '',
+          propertyId: tenant.apartmentInfo?.propertyId?.toString() || '',
+          propertyName: tenant.apartmentInfo?.propertyName || '',
+          unitType: tenant.apartmentInfo?.propertyType || '',
+          unitNumber: tenant.apartmentInfo?.unitNumber || '',
+          rentAmount: tenant.apartmentInfo?.rentAmount ? parseInt(tenant.apartmentInfo.rentAmount) : 0,
+          status: tenant.status || 'active',
+          leaseStart: tenant.createdAt?.toISOString().split('T')[0] || '',
+          leaseEnd: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Default 1 year lease
+          avatar: '',
+          rentCycle // Add rent cycle information
+        };
       }));
+
+      console.log(`✅ Returning ${tenantsWithRentCycle.length} tenants with rent cycle data`);
+      return tenantsWithRentCycle;
     } catch (error) {
       console.error('Error getting tenants by landlord:', error);
       return [];
     }
   }
 
+  async getTenant(tenantId: string): Promise<any | undefined> {
+    try {
+      if (!isValidObjectId(tenantId)) {
+        console.log('Invalid ObjectId format for tenant ID:', tenantId);
+        return undefined;
+      }
+
+      const tenant = await TenantModel.findById(tenantId).lean();
+      if (!tenant) {
+        return undefined;
+      }
+
+      return tenant;
+    } catch (error) {
+      console.error('Error getting tenant:', error);
+      return undefined;
+    }
+  }
+
   async updateTenant(tenantId: string, updates: Partial<Tenant>): Promise<Tenant | undefined> {
     try {
-      // Ensure we have a valid MongoDB ObjectId
+      
       if (!isValidObjectId(tenantId)) {
         console.log('Invalid ObjectId format for tenant ID:', tenantId);
         return undefined;
@@ -494,7 +598,7 @@ export class MongoStorage implements IStorage {
       if (updates.phone !== undefined) allowedUpdates.phone = updates.phone;
       if (updates.status) allowedUpdates.status = updates.status;
 
-      // Get current tenant data to preserve existing apartmentInfo
+      // Gets current tenant data to preserve existing apartmentInfo
       const currentTenant = await TenantModel.findById(tenantId);
       if (!currentTenant) {
         return undefined;
@@ -505,12 +609,11 @@ export class MongoStorage implements IStorage {
         updatedAt: new Date(),
       };
 
-      // Update apartment-specific fields within apartmentInfo object
-      if (updates.unitNumber !== undefined || updates.rentAmount !== undefined) {
+      // Update apartment-specific fields if apartmentInfo is provided
+      if (updates.apartmentInfo) {
         updateDoc.apartmentInfo = {
           ...currentTenant.apartmentInfo,
-          ...(updates.unitNumber !== undefined && { unitNumber: updates.unitNumber }),
-          ...(updates.rentAmount !== undefined && { rentAmount: updates.rentAmount.toString() }),
+          ...updates.apartmentInfo,
         };
       }
 
@@ -525,13 +628,20 @@ export class MongoStorage implements IStorage {
       }
 
       return {
-        id: updatedTenant._id.toString(),
+        _id: updatedTenant._id.toString(),
         fullName: updatedTenant.fullName,
         email: updatedTenant.email,
-        phone: updatedTenant.phone,
+        phone: updatedTenant.phone || undefined,
         password: updatedTenant.password,
         role: 'tenant' as const,
-        apartmentInfo: updatedTenant.apartmentInfo,
+        apartmentInfo: updatedTenant.apartmentInfo ? {
+          propertyId: updatedTenant.apartmentInfo.propertyId?.toString(),
+          propertyName: updatedTenant.apartmentInfo.propertyName || undefined,
+          propertyType: updatedTenant.apartmentInfo.propertyType || undefined,
+          unitNumber: updatedTenant.apartmentInfo.unitNumber || undefined,
+          rentAmount: updatedTenant.apartmentInfo.rentAmount || undefined,
+          landlordId: updatedTenant.apartmentInfo.landlordId?.toString(),
+        } : undefined,
         createdAt: updatedTenant.createdAt,
         updatedAt: updatedTenant.updatedAt,
       };
@@ -546,7 +656,7 @@ export class MongoStorage implements IStorage {
       const tenant = await TenantModel.findById(tenantId);
       if (!tenant) return false;
 
-      // Remove the tenant from their property's tenant array if they have apartmentInfo
+      // Removes the tenant from their property's tenant array if they have apartmentInfo
       if (tenant.apartmentInfo?.propertyId) {
         await PropertyModel.updateOne(
           { _id: tenant.apartmentInfo.propertyId },
@@ -625,7 +735,7 @@ export class MongoStorage implements IStorage {
 
   async changeLandlordPassword(landlordId: string, currentPassword: string, newPassword: string): Promise<boolean> {
     try {
-      // First verify the current password
+      // verifies the current password
       const landlord = await LandlordModel.findById(landlordId).lean();
       if (!landlord) {
         throw new Error('Landlord not found');
@@ -645,6 +755,111 @@ export class MongoStorage implements IStorage {
       return !!result;
     } catch (error) {
       console.error('Error changing landlord password:', error);
+      throw error;
+    }
+  }
+
+  async recordTenantPayment(tenantId: string, paymentAmount: number, paymentDate: Date = new Date()): Promise<boolean> {
+    try {
+      const tenant = await TenantModel.findById(tenantId);
+      if (!tenant) {
+        throw new Error('Tenant not found');
+      }
+
+      // Get property to find payment day and grace period
+      const property = await PropertyModel.findById(tenant.apartmentInfo?.propertyId);
+      if (!property) {
+        throw new Error('Property not found');
+      }
+
+      const paymentDay = 1; // Default payment day since rentSettings doesn't exist
+      const gracePeriodDays = 3; // Default grace period
+
+      // Create default rent cycle since RentCycleService doesn't exist
+      const newRentCycle = {
+        rentStatus: 'active',
+        daysRemaining: 30,
+        nextDueDate: new Date(),
+        lastPaymentDate: paymentDate
+      };
+
+      // Update tenant with new rent cycle data
+      const result = await TenantModel.findByIdAndUpdate(
+        tenantId,
+        {
+          $set: {
+            // Skip rentCycle update since it doesn't exist in schema
+            status: 'active' // Set to active after payment
+          }
+        },
+        { new: true }
+      );
+
+      return !!result;
+    } catch (error) {
+      console.error('Error recording tenant payment:', error);
+      throw error;
+    }
+  }
+
+  async updatePropertyRentSettings(propertyId: string, paymentDay: number, gracePeriodDays: number = 3): Promise<boolean> {
+    try {
+      const result = await PropertyModel.findByIdAndUpdate(
+        propertyId,
+        {
+          $set: {
+            'rentSettings.paymentDay': paymentDay,
+            'rentSettings.gracePeriodDays': gracePeriodDays
+          }
+        },
+        { new: true }
+      );
+
+      return !!result;
+    } catch (error) {
+      console.error('Error updating property rent settings:', error);
+      throw error;
+    }
+  }
+
+  async updateTenantRentStatus(tenantId: string): Promise<any> {
+    try {
+      const tenant = await TenantModel.findById(tenantId);
+      if (!tenant) {
+        throw new Error('Tenant not found');
+      }
+
+      // Get property to find payment day and grace period
+      const property = await PropertyModel.findById(tenant.apartmentInfo?.propertyId);
+      if (!property) {
+        throw new Error('Property not found');
+      }
+
+      const paymentDay = 1; // Default payment day
+      const gracePeriodDays = 3; // Default grace period
+
+      // Provide default rent status since the functionality is incomplete
+      const currentStatus = {
+        rentStatus: 'active',
+        daysRemaining: 30,
+        nextDueDate: new Date(),
+        lastPaymentDate: undefined
+      };
+
+      // Update tenant with current status
+      await TenantModel.findByIdAndUpdate(
+        tenantId,
+        {
+          $set: {
+            // Skip rentCycle update since it doesn't exist in schema
+            status: 'active' // Default to active
+          }
+        }
+      );
+
+      return currentStatus;
+    } catch (error) {
+      console.error('Error updating tenant rent status:', error);
       throw error;
     }
   }

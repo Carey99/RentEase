@@ -26,14 +26,11 @@ export async function seedDatabase() {
                         { type: '2bedroom', price: '1200' },
                         { type: 'studio', price: '800' }
                     ],
-                    utilities: {
-                        electricity: true,
-                        water: true,
-                        internet: false,
-                        garbage: true,
-                        security: false,
-                        other: false
-                    },
+                    utilities: [
+                        { type: 'electricity', price: '50' },
+                        { type: 'water', price: '30' },
+                        { type: 'garbage', price: '20' }
+                    ],
                     totalUnits: '20'
                 });
                 console.log('✅ Created test property: Sunset Apartments');
@@ -50,7 +47,7 @@ export async function seedDatabase() {
 
                     await storage.createTenantProperty({
                         tenantId: existingTenant.id,
-                        propertyId: property._id?.toString() || property.id,
+                        propertyId: property._id?.toString() || '',
                         propertyType: '2bedroom',
                         unitNumber: 'A101',
                         rentAmount: '1200'
@@ -83,14 +80,11 @@ export async function seedDatabase() {
                     { type: '2bedroom', price: '1200' },
                     { type: 'studio', price: '800' }
                 ],
-                utilities: {
-                    electricity: true,
-                    water: true,
-                    internet: false,
-                    garbage: true,
-                    security: false,
-                    other: false
-                },
+                utilities: [
+                    { type: 'electricity', price: '50' },
+                    { type: 'water', price: '30' },
+                    { type: 'garbage', price: '20' }
+                ],
                 totalUnits: '20'
             });
             console.log('✅ Created test property: Sunset Apartments');
@@ -103,14 +97,13 @@ export async function seedDatabase() {
                     { type: '1bedroom', price: '900' },
                     { type: '2bedroom', price: '1100' }
                 ],
-                utilities: {
-                    electricity: true,
-                    water: true,
-                    internet: true,
-                    garbage: true,
-                    security: true,
-                    other: false
-                },
+                utilities: [
+                    { type: 'electricity', price: '60' },
+                    { type: 'water', price: '40' },
+                    { type: 'internet', price: '50' },
+                    { type: 'garbage', price: '25' },
+                    { type: 'security', price: '15' }
+                ],
                 totalUnits: '15'
             });
             console.log('✅ Created test property: Green Valley Complex');

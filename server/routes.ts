@@ -1,312 +1,48 @@
+/**
+ * Route Registration
+ * Organized route setup using controllers
+ */
+
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
-import { insertUserSchema, insertPropertySchema, insertTenantPropertySchema } from "@shared/schema";
-import { connectToDatabase } from "./database";
-import { ZodError } from "zod";
+import { AuthController } from "./controllers/authController";
+import { PropertyController } from "./controllers/propertyController";
+import { TenantController } from "./controllers/tenantController";
+import { LandlordController } from "./controllers/landlordController";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // User registration
-  app.post("/api/auth/register", async (req, res) => {
-    try {
-      const userData = insertUserSchema.parse(req.body);
+  // Authentication routes
+  app.post("/api/auth/register", AuthController.register);
+  app.post("/api/auth/login", AuthController.login);
+  app.post("/api/auth/signin", AuthController.signin);
+  app.get("/api/users/:id", AuthController.getUserById);
+  app.get("/api/auth/current/:id", AuthController.getUserById);
 
-      // Check if user already exists
-      const existingUser = await storage.getUserByEmail(userData.email);
-      if (existingUser) {
-        return res.status(400).json({ message: "User already exists" });
-      }
+  // Property routes
+  app.post("/api/properties", PropertyController.createProperty);
+  app.get("/api/properties/landlord/:landlordId", PropertyController.getPropertiesByLandlord);
+  app.put("/api/properties/:propertyId", PropertyController.updateProperty);
+  app.get("/api/properties/search", PropertyController.searchProperties);
+  app.get("/api/properties/:propertyId/types", PropertyController.getPropertyTypes);
+  app.get("/api/properties/:propertyId/tenants", PropertyController.getTenantsByProperty);
+  app.put("/api/properties/:propertyId/rent-settings", PropertyController.updateRentSettings);
 
-      const user = await storage.createUser(userData);
-      const { password, ...userWithoutPassword } = user;
+  // Tenant routes
+  app.get("/api/tenants/landlord/:landlordId", TenantController.getTenantsByLandlord);
+  app.get("/api/tenants/property/:propertyId", TenantController.getTenantsByProperty);
+  app.get("/api/tenants/:tenantId", TenantController.getTenant);
+  app.put("/api/tenants/:tenantId", TenantController.updateTenant);
+  app.delete("/api/tenants/:tenantId", TenantController.deleteTenant);
+  app.post("/api/tenants/:tenantId/payment", TenantController.recordPayment);
 
-      res.json({ user: userWithoutPassword });
-    } catch (error) {
-      if (error instanceof ZodError) {
-        return res.status(400).json({ message: "Invalid user data", errors: error.errors });
-      }
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
+  // Tenant property relationships
+  app.post("/api/tenant-properties", TenantController.createTenantProperty);
+  app.get("/api/tenant-properties/tenant/:tenantId", TenantController.getTenantProperty);
 
-  // User login
-  app.post("/api/auth/login", async (req, res) => {
-    try {
-      const { email, password } = req.body;
-
-      const user = await storage.getUserByEmail(email);
-      if (!user || user.password !== password) {
-        return res.status(401).json({ message: "Invalid credentials" });
-      }
-
-      const { password: _, ...userWithoutPassword } = user;
-      res.json({ user: userWithoutPassword });
-    } catch (error) {
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  // User signin (alias for login)
-  app.post("/api/auth/signin", async (req, res) => {
-    try {
-      const { email, password } = req.body;
-
-      const user = await storage.getUserByEmail(email);
-      if (!user || user.password !== password) {
-        return res.status(401).json({ message: "Invalid credentials" });
-      }
-
-      const { password: _, ...userWithoutPassword } = user;
-      res.json({ user: userWithoutPassword });
-    } catch (error) {
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  // Get user by ID
-  app.get("/api/users/:id", async (req, res) => {
-    try {
-      const user = await storage.getUser(req.params.id);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-
-      const { password, ...userWithoutPassword } = user;
-      res.json(userWithoutPassword);
-    } catch (error) {
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  // Create property
-  app.post("/api/properties", async (req, res) => {
-    try {
-      const propertyData = insertPropertySchema.parse(req.body);
-      const property = await storage.createProperty(propertyData);
-      res.json(property);
-    } catch (error) {
-      if (error instanceof ZodError) {
-        return res.status(400).json({ message: "Invalid property data", errors: error.errors });
-      }
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  // Get properties by landlord
-  app.get("/api/properties/landlord/:landlordId", async (req, res) => {
-    try {
-      const properties = await storage.getPropertiesByLandlord(req.params.landlordId);
-      res.json(properties);
-    } catch (error) {
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  // Update property
-  app.put("/api/properties/:propertyId", async (req, res) => {
-    try {
-      console.log('PUT /api/properties/:propertyId called');
-      console.log('Property ID:', req.params.propertyId);
-      console.log('Request body:', req.body);
-      
-      const { propertyTypes, utilities } = req.body;
-      
-      if (!propertyTypes || !Array.isArray(propertyTypes)) {
-        return res.status(400).json({ message: "Invalid property types data" });
-      }
-      
-      const updateData: any = { propertyTypes };
-      
-      // Include utilities in update if provided
-      if (utilities && Array.isArray(utilities)) {
-        updateData.utilities = utilities;
-      }
-      
-      const property = await storage.updateProperty(req.params.propertyId, updateData);
-      
-      if (!property) {
-        return res.status(404).json({ message: "Property not found" });
-      }
-      
-      console.log('Property updated successfully:', property);
-      res.json(property);
-    } catch (error) {
-      console.error('Property update error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      res.status(500).json({ message: "Internal server error", error: errorMessage });
-    }
-  });
-
-  // Search properties by name
-  app.get("/api/properties/search", async (req, res) => {
-    try {
-      const { name } = req.query;
-      const searchTerm = typeof name === 'string' ? name : '';
-
-      const properties = await storage.searchPropertiesByName(searchTerm);
-      res.json(properties);
-    } catch (error) {
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  // Get property types for a specific property
-  app.get("/api/properties/:propertyId/types", async (req, res) => {
-    try {
-      const property = await storage.getProperty(req.params.propertyId);
-      if (!property) {
-        return res.status(404).json({ message: "Property not found" });
-      }
-
-      // Return property types - this will be the propertyTypes array from the property
-      res.json(property.propertyTypes || []);
-    } catch (error) {
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  // Create tenant property relationship
-  app.post("/api/tenant-properties", async (req, res) => {
-    try {
-      const tenantPropertyData = insertTenantPropertySchema.parse(req.body);
-      const tenantProperty = await storage.createTenantProperty(tenantPropertyData);
-      res.json(tenantProperty);
-    } catch (error) {
-      if (error instanceof ZodError) {
-        return res.status(400).json({ message: "Invalid tenant property data", errors: error.errors });
-      }
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  // Get tenant property info
-  app.get("/api/tenant-properties/tenant/:tenantId", async (req, res) => {
-    try {
-      const tenantProperty = await storage.getTenantProperty(req.params.tenantId);
-      if (!tenantProperty) {
-        return res.status(404).json({ message: "Tenant property not found" });
-      }
-
-      res.json(tenantProperty);
-    } catch (error) {
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  // Get all tenants for a specific landlord
-  app.get("/api/tenants/landlord/:landlordId", async (req, res) => {
-    try {
-      console.log('🔍 Frontend requesting tenants for landlord ID:', req.params.landlordId);
-      const tenants = await storage.getTenantsByLandlord(req.params.landlordId);
-      console.log('📊 Found tenants:', tenants.length);
-      res.json(tenants);
-    } catch (error) {
-      console.error('Error getting tenants by landlord:', error);
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  // Get tenants for a specific property
-  app.get("/api/tenants/property/:propertyId", async (req, res) => {
-    try {
-      const tenants = await storage.getTenantsByProperty(req.params.propertyId);
-      res.json(tenants);
-    } catch (error) {
-      console.error('Error getting tenants by property:', error);
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  // PUT endpoint for updating tenant details from dashboard
-  app.put("/api/tenants/:tenantId", async (req, res) => {
-    try {
-      const tenantId = req.params.tenantId;
-      const updates = req.body;
-      
-      console.log('🔄 Updating tenant ID:', tenantId, 'with data:', updates);
-      
-      const updatedTenant = await storage.updateTenant(tenantId, updates);
-      
-      if (!updatedTenant) {
-        return res.status(404).json({ message: "Tenant not found" });
-      }
-      
-      console.log('✅ Tenant updated successfully');
-      res.json(updatedTenant);
-    } catch (error) {
-      console.error('Error updating tenant:', error);
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  // DELETE endpoint for removing tenant and their credentials
-// Delete tenant endpoint
-app.delete('/api/tenants/:tenantId', async (req, res) => {
-  const { tenantId } = req.params;
-  console.log(`🗑️ Deleting tenant ID: ${tenantId}`);
-  
-  try {
-    const success = await storage.deleteTenant(tenantId);
-    if (success) {
-      console.log('✅ Tenant deleted successfully');
-      res.json({ message: 'Tenant deleted successfully' });
-    } else {
-      res.status(404).json({ error: 'Tenant not found' });
-    }
-  } catch (error) {
-    console.error('❌ Error deleting tenant:', error);
-    res.status(500).json({ error: 'Failed to delete tenant' });
-  }
-});
-
-// Landlord settings endpoints
-app.get('/api/landlords/:landlordId/settings', async (req, res) => {
-  const { landlordId } = req.params;
-  
-  try {
-    const settings = await storage.getLandlordSettings(landlordId);
-    res.json(settings);
-  } catch (error) {
-    console.error('Error fetching landlord settings:', error);
-    res.status(500).json({ error: 'Failed to fetch settings' });
-  }
-});
-
-app.put('/api/landlords/:landlordId/settings', async (req, res) => {
-  const { landlordId } = req.params;
-  const updates = req.body;
-  
-  try {
-    const updatedSettings = await storage.updateLandlordSettings(landlordId, updates);
-    res.json(updatedSettings);
-  } catch (error) {
-    console.error('Error updating landlord settings:', error);
-    res.status(500).json({ error: 'Failed to update settings' });
-  }
-});
-
-// Password change endpoint
-app.put('/api/landlords/:landlordId/password', async (req, res) => {
-  try {
-    const { landlordId } = req.params;
-    const { currentPassword, newPassword } = req.body;
-    
-    const success = await storage.changeLandlordPassword(landlordId, currentPassword, newPassword);
-    
-    if (success) {
-      res.json({ message: 'Password changed successfully' });
-    } else {
-      res.status(400).json({ error: 'Failed to change password' });
-    }
-  } catch (error) {
-    console.error('Error changing password:', error);
-    if (error.message === 'Current password is incorrect') {
-      res.status(400).json({ error: 'Current password is incorrect' });
-    } else {
-      res.status(500).json({ error: 'Failed to change password' });
-    }
-  }
-});
+  // Landlord routes
+  app.get("/api/landlords/:landlordId/settings", LandlordController.getSettings);
+  app.put("/api/landlords/:landlordId/settings", LandlordController.updateSettings);
+  app.put("/api/landlords/:landlordId/password", LandlordController.changePassword);
 
   const httpServer = createServer(app);
   return httpServer;
