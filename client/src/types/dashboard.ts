@@ -16,6 +16,10 @@ export interface Property {
   propertyTypes: PropertyType[];
   utilities: Utility[];
   landlordId: string;
+  rentSettings?: {
+    paymentDay: number;
+    gracePeriodDays: number;
+  };
 }
 
 export interface NewPropertyForm {
@@ -62,8 +66,14 @@ export interface Tenant {
   unitType: string;
   unitNumber: string;
   rentAmount: number;
-  status: 'active' | 'inactive' | 'pending';
+  status: 'active' | 'inactive' | 'pending' | 'overdue';
   leaseStart: string;
   leaseEnd: string;
   avatar?: string;
+  rentCycle?: {
+    lastPaymentDate?: string;
+    nextDueDate?: string;
+    daysRemaining?: number;
+    rentStatus: 'active' | 'overdue' | 'grace_period';
+  };
 }

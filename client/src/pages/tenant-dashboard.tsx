@@ -1,15 +1,21 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { Bell, DollarSign, Calendar, CheckCircle, AlertTriangle } from "lucide-react";
+import { Bell, DollarSign, Calendar, CheckCircle, AlertTriangle, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
 import Sidebar from "@/components/dashboard/sidebar";
 import StatsCard from "@/components/dashboard/stats-card";
 
 export default function TenantDashboard() {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [isPaymentLoading, setIsPaymentLoading] = useState(false);
   const [, setLocation] = useLocation();
+  const queryClient = useQueryClient();
 
   // Get user data from localStorage (set during registration/signin)
   const getCurrentUser = () => {
@@ -27,6 +33,67 @@ export default function TenantDashboard() {
   };
 
   const currentUser = getCurrentUser();
+  const { toast } = useToast();
+
+  // Handle rent payment
+  const handleMakePayment = async () => {
+    if (!currentUser?.id) {
+      toast({
+        title: "Error",
+        description: "User not found",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!paymentAmount || parseFloat(paymentAmount) <= 0) {
+      toast({
+        title: "Error", 
+        description: "Please enter a valid payment amount",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsPaymentLoading(true);
+    try {
+      const response = await fetch(`/api/tenants/${currentUser.id}/payment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          paymentAmount: parseFloat(paymentAmount),
+          paymentDate: new Date().toISOString(),
+        }),
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: "Payment recorded successfully!",
+        });
+        setPaymentAmount('');
+        
+        // Invalidate tenant property query to refresh the data
+        await queryClient.invalidateQueries({ 
+          queryKey: ['/api/tenant-properties/tenant', currentUser?.id] 
+        });
+      } else {
+        const error = await response.json();
+        throw new Error(error.error || 'Payment failed');
+      }
+    } catch (error: any) {
+      console.error('Payment error:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Payment failed",
+        variant: "destructive",
+      });
+    } finally {
+      setIsPaymentLoading(false);
+    }
+  };
 
   const { data: tenantProperty, isLoading, error } = useQuery({
     queryKey: ['/api/tenant-properties/tenant', currentUser?.id],
@@ -158,16 +225,44 @@ export default function TenantDashboard() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Recent Bills</CardTitle>
+                  <CardTitle className="flex items-center">
+                    <CreditCard className="mr-2 h-5 w-5" />
+                    Make Rent Payment
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
-                    <div className="text-center py-8">
-                      <p className="text-neutral-500">No bills yet</p>
-                      <p className="text-sm text-neutral-400 mt-2">
-                        Your billing history will appear here once available.
-                      </p>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="paymentAmount">Payment Amount (KSH)</Label>
+                      <Input
+                        id="paymentAmount"
+                        type="number"
+                        placeholder="Enter amount"
+                        value={paymentAmount}
+                        onChange={(e) => setPaymentAmount(e.target.value)}
+                        disabled={isPaymentLoading}
+                      />
                     </div>
+                    
+                    {tenantProperty && (
+                      <div className="text-sm text-neutral-600 bg-neutral-50 p-3 rounded-md">
+                        <p><strong>Expected Rent:</strong> KSH {tenantProperty.rentAmount || '0'}</p>
+                        <p><strong>Property:</strong> {tenantProperty.property?.name}</p>
+                        <p><strong>Unit:</strong> {tenantProperty.propertyType} - {tenantProperty.unitNumber}</p>
+                      </div>
+                    )}
+                    
+                    <Button 
+                      onClick={handleMakePayment}
+                      disabled={isPaymentLoading || !paymentAmount}
+                      className="w-full"
+                    >
+                      {isPaymentLoading ? "Processing..." : "Make Payment"}
+                    </Button>
+                    
+                    <p className="text-xs text-neutral-500 text-center">
+                      Payment will be recorded immediately and your landlord will be notified
+                    </p>
                   </div>
                 </CardContent>
               </Card>
@@ -214,7 +309,7 @@ export default function TenantDashboard() {
                   <div className="flex items-center space-x-3">
                     <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
                       <span className="text-white text-sm font-semibold">
-                        {(currentUser.name || currentUser.fullName || 'U').split(' ').map(n => n[0]).join('')}
+                        {(currentUser.name || currentUser.fullName || 'U').split(' ').map((n: string) => n[0]).join('')}
                       </span>
                     </div>
                   </div>

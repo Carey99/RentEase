@@ -11,3 +11,8 @@ vite.config.ts.*
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Prevent auto-generated empty files
+shared/rent-cycle-utils.ts
+server/newRoutes.ts
+server/new-route.ts

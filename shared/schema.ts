@@ -24,7 +24,7 @@ export const tenantSchema = z.object({
   phone: z.string().optional(),
   password: z.string().min(6, "Password must be at least 6 characters"),
   role: z.literal("tenant"),
-  status: z.enum(["active", "pending", "inactive"]).default("active").optional(),
+  status: z.enum(["active", "pending", "inactive", "overdue"]).default("active").optional(),
   apartmentInfo: z.object({
     propertyId: z.string().optional(),
     propertyName: z.string().optional(),
@@ -32,6 +32,12 @@ export const tenantSchema = z.object({
     unitNumber: z.string().optional(),
     rentAmount: z.string().optional(),
     landlordId: z.string().optional(),
+  }).optional(),
+  rentCycle: z.object({
+    lastPaymentDate: z.date().optional(), // When tenant last paid rent
+    nextDueDate: z.date().optional(), // Next rent due date
+    daysRemaining: z.number().optional(), // Days until next due date
+    rentStatus: z.enum(["active", "overdue", "grace_period"]).default("active").optional(),
   }).optional(),
   createdAt: z.date().optional(),
   updatedAt: z.date().optional(),
@@ -46,6 +52,10 @@ export const propertySchema = z.object({
     type: z.string().min(1, "Property type is required"),
     price: z.string().min(1, "Price is required"),
   })).min(1, "At least one property type is required"),
+  rentSettings: z.object({
+    paymentDay: z.number().min(1).max(31).default(1), // Day of month for rent payment (1-31)
+    gracePeriodDays: z.number().min(0).max(30).default(3), // Grace period before overdue
+  }).optional(),
   utilities: z.array(z.object({
     type: z.string().min(1, "Utility type is required"),
     price: z.string().min(1, "Price per unit is required"),

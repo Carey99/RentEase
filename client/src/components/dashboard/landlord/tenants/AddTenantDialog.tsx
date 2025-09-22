@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -18,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
 import { useDashboard } from "@/hooks/dashboard/useDashboard";
 import type { Property } from "@/types/dashboard";
 
@@ -37,8 +39,9 @@ interface TenantFormData {
 }
 
 export default function AddTenantDialog({ open, onOpenChange }: AddTenantDialogProps) {
-  const { properties } = useDashboard();
-  const [isLoading, setIsLoading] = useState(false);
+  const { properties, currentUser } = useDashboard();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
   
   const [formData, setFormData] = useState<TenantFormData>({
@@ -51,8 +54,106 @@ export default function AddTenantDialog({ open, onOpenChange }: AddTenantDialogP
     rentAmount: "",
   });
 
+  // Create tenant registration mutation
+  const registerTenantMutation = useMutation({
+    mutationFn: async (tenantData: any) => {
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(tenantData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to register tenant');
+      }
+
+      return response.json();
+    },
+  });
+
+  // Create tenant property assignment mutation
+  const assignTenantMutation = useMutation({
+    mutationFn: async (assignmentData: any) => {
+      const response = await fetch('/api/tenant-properties', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(assignmentData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to assign tenant to property');
+      }
+
+      return response.json();
+    },
+  });
+
+  // Combined mutation for the complete tenant creation process
+  const addTenantMutation = useMutation({
+    mutationFn: async (formData: TenantFormData) => {
+      // Step 1: Register the tenant user
+      const registerResult = await registerTenantMutation.mutateAsync({
+        fullName: formData.fullName,
+        email: formData.email,
+        phone: formData.phone,
+        password: 'temporary123', // Default password - tenant should change this
+        role: 'tenant',
+      });
+
+      // Step 2: Assign tenant to property
+      await assignTenantMutation.mutateAsync({
+        tenantId: registerResult.user.id,
+        propertyId: formData.propertyId,
+        propertyType: formData.unitType,
+        unitNumber: formData.unitNumber,
+        rentAmount: formData.rentAmount,
+      });
+
+      return { user: registerResult.user, formData };
+    },
+    onSuccess: (data) => {
+      // Reset form and close dialog
+      setFormData({
+        fullName: "",
+        email: "",
+        phone: "",
+        propertyId: "",
+        unitType: "",
+        unitNumber: "",
+        rentAmount: "",
+      });
+      setSelectedProperty(null);
+      onOpenChange(false);
+
+      // Show success message
+      toast({
+        title: "Success!",
+        description: `Tenant ${data.formData.fullName} has been added successfully.`,
+      });
+
+      // Invalidate queries to refresh UI
+      queryClient.invalidateQueries({ 
+        queryKey: ['/api/tenants/landlord', currentUser?.id] 
+      });
+      // Also invalidate properties query as tenant counts might have changed
+      queryClient.invalidateQueries({ 
+        queryKey: ['/api/properties/landlord', currentUser?.id] 
+      });
+    },
+    onError: (error: any) => {
+      console.error('Error adding tenant:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add tenant. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const isLoading = addTenantMutation.isPending;
+
   const handlePropertyChange = (propertyId: string) => {
-    const property = properties.find(p => p.id === propertyId);
+    const property = properties.find((p: any) => p.id === propertyId);
     setSelectedProperty(property || null);
     setFormData(prev => ({
       ...prev,
@@ -81,66 +182,8 @@ export default function AddTenantDialog({ open, onOpenChange }: AddTenantDialogP
       return;
     }
 
-    setIsLoading(true);
-    try {
-      // Step 1: Register the tenant user
-      const registerResponse = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fullName: formData.fullName,
-          email: formData.email,
-          phone: formData.phone,
-          password: 'temporary123', // Default password - tenant should change this
-          role: 'tenant',
-        }),
-      });
-
-      if (!registerResponse.ok) {
-        throw new Error('Failed to register tenant');
-      }
-
-      const { user } = await registerResponse.json();
-
-      // Step 2: Assign tenant to property
-      const assignResponse = await fetch('/api/tenant-properties', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tenantId: user.id,
-          propertyId: formData.propertyId,
-          propertyType: formData.unitType,
-          unitNumber: formData.unitNumber,
-          rentAmount: formData.rentAmount,
-        }),
-      });
-
-      if (!assignResponse.ok) {
-        throw new Error('Failed to assign tenant to property');
-      }
-
-      // Reset form and close dialog
-      setFormData({
-        fullName: "",
-        email: "",
-        phone: "",
-        propertyId: "",
-        unitType: "",
-        unitNumber: "",
-        rentAmount: "",
-      });
-      setSelectedProperty(null);
-      onOpenChange(false);
-
-      // Refresh tenants list (this will be handled by react-query refetch)
-      window.location.reload(); // Temporary - we can improve this later
-
-    } catch (error) {
-      console.error('Error adding tenant:', error);
-      alert('Failed to add tenant. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
+    // Use the mutation instead of manual fetch calls
+    addTenantMutation.mutate(formData);
   };
 
   return (
@@ -205,7 +248,7 @@ export default function AddTenantDialog({ open, onOpenChange }: AddTenantDialogP
                   <SelectValue placeholder="Choose a property" />
                 </SelectTrigger>
                 <SelectContent>
-                  {properties.map((property) => (
+                  {properties.map((property: any) => (
                     <SelectItem key={property.id} value={property.id}>
                       {property.name}
                     </SelectItem>
@@ -261,14 +304,11 @@ export default function AddTenantDialog({ open, onOpenChange }: AddTenantDialogP
                     <h4 className="font-medium text-blue-900 mb-2">Property Details</h4>
                     <div className="text-sm text-blue-800 space-y-1">
                       <p><strong>Property:</strong> {selectedProperty.name}</p>
-                      <p><strong>Total Units:</strong> {selectedProperty.totalUnits}</p>
-                      <p><strong>Occupied Units:</strong> {selectedProperty.occupiedUnits}</p>
-                      {selectedProperty.utilities && (
-                        <p><strong>Included Utilities:</strong> {
-                          Object.entries(selectedProperty.utilities)
-                            .filter(([, included]) => included)
-                            .map(([utility]) => utility)
-                            .join(', ') || 'None'
+                      <p><strong>Total Units:</strong> {(selectedProperty as any).totalUnits || 'N/A'}</p>
+                      <p><strong>Occupied Units:</strong> {(selectedProperty as any).occupiedUnits || '0'}</p>
+                      {selectedProperty.utilities && selectedProperty.utilities.length > 0 && (
+                        <p><strong>Utilities:</strong> {
+                          selectedProperty.utilities.map((utility: any) => utility.type).join(', ')
                         }</p>
                       )}
                     </div>
