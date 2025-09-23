@@ -32,9 +32,6 @@ export class RentCycleService {
       };
     }
     
-    const nextDueDate = calculateNextDueDate(paymentDay, lastPaymentDate);
-    const daysRemaining = calculateDaysRemaining(nextDueDate);
-    
     let advancePaymentDays = 0;
     let advancePaymentMonths = 0;
     
@@ -45,6 +42,9 @@ export class RentCycleService {
       advancePaymentMonths = advancePayment.advancePaymentMonths;
     }
     
+    // Calculate next due date - if there's advance payment, use advance payment logic
+    const nextDueDate = calculateNextDueDate(paymentDay, lastPaymentDate, advancePaymentDays);
+    const daysRemaining = calculateDaysRemaining(nextDueDate);
     const rentStatus = calculateRentStatus(daysRemaining, gracePeriodDays, advancePaymentDays);
     
     return {

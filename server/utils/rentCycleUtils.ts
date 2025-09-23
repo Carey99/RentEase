@@ -66,9 +66,22 @@ export function calculateAdvancePayment(
   return { advancePaymentDays: 0, advancePaymentMonths: 0 };
 }
 
-export function calculateNextDueDate(paymentDay: number, lastPaymentDate?: Date): Date {
+export function calculateNextDueDate(
+  paymentDay: number, 
+  lastPaymentDate?: Date, 
+  advancePaymentDays?: number
+): Date {
   const now = new Date();
   let nextDue: Date;
+
+  // If tenant has paid in advance, calculate when advance payment runs out
+  if (advancePaymentDays && advancePaymentDays > 0) {
+    console.log(`  📅 Calculating next due date for advance payment of ${advancePaymentDays} days`);
+    nextDue = new Date(now);
+    nextDue.setDate(now.getDate() + advancePaymentDays);
+    console.log(`  🎯 Next due date (when advance runs out): ${nextDue.toISOString()}`);
+    return nextDue;
+  }
 
   if (lastPaymentDate) {
     // Calculate next due date based on last payment
@@ -119,9 +132,6 @@ export function updateRentCycleAfterPayment(
   rentAmount?: number,
   totalAmountPaid?: number
 ) {
-  const nextDueDate = calculateNextDueDate(paymentDay, paymentDate);
-  const daysRemaining = calculateDaysRemaining(nextDueDate);
-  
   let advancePaymentDays = 0;
   let advancePaymentMonths = 0;
   
@@ -132,6 +142,9 @@ export function updateRentCycleAfterPayment(
     advancePaymentMonths = advancePayment.advancePaymentMonths;
   }
   
+  // Calculate next due date - if there's advance payment, use advance payment logic
+  const nextDueDate = calculateNextDueDate(paymentDay, paymentDate, advancePaymentDays);
+  const daysRemaining = calculateDaysRemaining(nextDueDate);
   const rentStatus = calculateRentStatus(daysRemaining, gracePeriodDays, advancePaymentDays);
 
   return {
