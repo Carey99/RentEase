@@ -7,7 +7,9 @@ export interface RentCycleData {
   lastPaymentDate?: Date;
   nextDueDate: Date;
   daysRemaining: number;
-  rentStatus: 'active' | 'grace_period' | 'overdue';
+  rentStatus: 'active' | 'grace_period' | 'overdue' | 'paid_in_advance';
+  advancePaymentDays?: number; // Number of days paid in advance
+  advancePaymentMonths?: number; // Number of months paid in advance
 }
 
 export interface RentSettings {

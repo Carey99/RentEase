@@ -44,7 +44,11 @@ export default function TenantCard({
   const getStatusMessage = (status: string) => {
     // Use rent cycle status if available
     if (tenant.rentCycle?.rentStatus && tenant.rentCycle.daysRemaining !== undefined) {
-      return formatRentStatusText(tenant.rentCycle.daysRemaining, tenant.rentCycle.rentStatus);
+      return formatRentStatusText(
+        tenant.rentCycle.daysRemaining, 
+        tenant.rentCycle.rentStatus, 
+        tenant.rentCycle.advancePaymentDays
+      );
     }
     
     switch (status) {
@@ -64,6 +68,11 @@ export default function TenantCard({
   const getRentStatusBadgeText = () => {
     if (tenant.rentCycle?.rentStatus) {
       switch (tenant.rentCycle.rentStatus) {
+        case 'paid_in_advance':
+          if (tenant.rentCycle.advancePaymentMonths && tenant.rentCycle.advancePaymentMonths > 0) {
+            return `${tenant.rentCycle.advancePaymentMonths} month${tenant.rentCycle.advancePaymentMonths > 1 ? 's' : ''} ahead`;
+          }
+          return 'Paid in Advance';
         case 'active':
           if (tenant.rentCycle.daysRemaining && tenant.rentCycle.daysRemaining <= 3) {
             return `Due in ${tenant.rentCycle.daysRemaining}d`;

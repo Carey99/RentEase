@@ -8,7 +8,8 @@ import {
   calculateNextDueDate, 
   calculateDaysRemaining, 
   calculateRentStatus, 
-  updateRentCycleAfterPayment 
+  updateRentCycleAfterPayment,
+  calculateAdvancePayment 
 } from '../utils/rentCycleUtils';
 
 export class RentCycleService {
@@ -18,7 +19,9 @@ export class RentCycleService {
   static getCurrentRentCycleStatus(
     lastPaymentDate: Date | undefined, 
     paymentDay: number, 
-    gracePeriodDays: number = 3
+    gracePeriodDays: number = 3,
+    rentAmount?: number,
+    totalAmountPaid?: number
   ): RentCycleData {
     // Handle case where no payment has been made yet
     if (!lastPaymentDate) {
@@ -31,13 +34,26 @@ export class RentCycleService {
     
     const nextDueDate = calculateNextDueDate(paymentDay, lastPaymentDate);
     const daysRemaining = calculateDaysRemaining(nextDueDate);
-    const rentStatus = calculateRentStatus(daysRemaining, gracePeriodDays);
+    
+    let advancePaymentDays = 0;
+    let advancePaymentMonths = 0;
+    
+    // Calculate advance payment if we have the necessary information
+    if (rentAmount && totalAmountPaid) {
+      const advancePayment = calculateAdvancePayment(lastPaymentDate, paymentDay, rentAmount, totalAmountPaid);
+      advancePaymentDays = advancePayment.advancePaymentDays;
+      advancePaymentMonths = advancePayment.advancePaymentMonths;
+    }
+    
+    const rentStatus = calculateRentStatus(daysRemaining, gracePeriodDays, advancePaymentDays);
     
     return {
       lastPaymentDate,
       nextDueDate,
       daysRemaining,
-      rentStatus
+      rentStatus,
+      advancePaymentDays: advancePaymentDays > 0 ? advancePaymentDays : undefined,
+      advancePaymentMonths: advancePaymentMonths > 0 ? advancePaymentMonths : undefined
     };
   }
 
@@ -47,9 +63,11 @@ export class RentCycleService {
   static processPayment(
     paymentDay: number, 
     gracePeriodDays: number, 
-    paymentDate: Date
+    paymentDate: Date,
+    rentAmount?: number,
+    totalAmountPaid?: number
   ): RentCycleData {
-    return updateRentCycleAfterPayment(paymentDay, gracePeriodDays, paymentDate);
+    return updateRentCycleAfterPayment(paymentDay, gracePeriodDays, paymentDate, rentAmount, totalAmountPaid);
   }
 
   /**

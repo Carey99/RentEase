@@ -205,11 +205,16 @@ export default function TenantDashboard() {
               <StatsCard
                 title="Payment Status"
                 value={tenantProperty?.rentCycle 
-                  ? formatRentStatusText(tenantProperty.rentCycle.daysRemaining, tenantProperty.rentCycle.rentStatus)
+                  ? formatRentStatusText(
+                      tenantProperty.rentCycle.daysRemaining, 
+                      tenantProperty.rentCycle.rentStatus,
+                      tenantProperty.rentCycle.advancePaymentDays
+                    )
                   : "N/A"}
                 icon={<CheckCircle className="h-6 w-6" />}
-                color={tenantProperty?.rentCycle?.rentStatus === 'active' ? 'green' : 
-                      tenantProperty?.rentCycle?.rentStatus === 'grace_period' ? 'yellow' : 'red'}
+                color={tenantProperty?.rentCycle?.rentStatus === 'paid_in_advance' ? 'blue' :
+                      tenantProperty?.rentCycle?.rentStatus === 'active' ? 'green' : 
+                      tenantProperty?.rentCycle?.rentStatus === 'grace_period' ? 'orange' : 'accent'}
                 data-testid="stat-payment-status"
               />
             </div>
@@ -256,7 +261,11 @@ export default function TenantDashboard() {
                           <div className="flex justify-between">
                             <span className="text-neutral-600">Status:</span>
                             <span className={`px-2 py-1 rounded-md text-xs font-medium ${getRentStatusColor(tenantProperty.rentCycle.rentStatus)}`}>
-                              {formatRentStatusText(tenantProperty.rentCycle.daysRemaining, tenantProperty.rentCycle.rentStatus)}
+                              {formatRentStatusText(
+                                tenantProperty.rentCycle.daysRemaining, 
+                                tenantProperty.rentCycle.rentStatus,
+                                tenantProperty.rentCycle.advancePaymentDays
+                              )}
                             </span>
                           </div>
                           <div className="flex justify-between">
@@ -272,6 +281,31 @@ export default function TenantDashboard() {
                                 {new Date(tenantProperty.rentCycle.lastPaymentDate).toLocaleDateString()}
                               </span>
                             </div>
+                          )}
+                          
+                          {/* Show advance payment details if applicable */}
+                          {tenantProperty.rentCycle.rentStatus === 'paid_in_advance' && (
+                            <>
+                              <div className="border-t pt-3 mt-4">
+                                <h4 className="font-medium text-blue-800 mb-2">🎉 Advance Payment</h4>
+                              </div>
+                              {tenantProperty.rentCycle.advancePaymentDays && (
+                                <div className="flex justify-between">
+                                  <span className="text-neutral-600">Days Paid Ahead:</span>
+                                  <span className="font-medium text-blue-600">
+                                    {tenantProperty.rentCycle.advancePaymentDays} days
+                                  </span>
+                                </div>
+                              )}
+                              {tenantProperty.rentCycle.advancePaymentMonths && tenantProperty.rentCycle.advancePaymentMonths > 0 && (
+                                <div className="flex justify-between">
+                                  <span className="text-neutral-600">Months Paid Ahead:</span>
+                                  <span className="font-medium text-blue-600">
+                                    {tenantProperty.rentCycle.advancePaymentMonths} month{tenantProperty.rentCycle.advancePaymentMonths > 1 ? 's' : ''}
+                                  </span>
+                                </div>
+                              )}
+                            </>
                           )}
                         </>
                       )}

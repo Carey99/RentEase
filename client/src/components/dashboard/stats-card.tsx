@@ -13,6 +13,7 @@ export default function StatsCard({ title, value, icon, color = "primary", "data
   const colorClasses = {
     primary: "bg-primary/10 text-primary",
     green: "bg-green-100 text-green-600",
+    blue: "bg-blue-100 text-blue-600",
     orange: "bg-orange-100 text-orange-600",
     accent: "bg-accent/10 text-accent",
   };

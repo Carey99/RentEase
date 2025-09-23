@@ -77,6 +77,8 @@ export interface Tenant {
     lastPaymentDate?: string;
     nextDueDate?: string;
     daysRemaining?: number;
-    rentStatus: 'active' | 'overdue' | 'grace_period';
+    rentStatus: 'active' | 'overdue' | 'grace_period' | 'paid_in_advance';
+    advancePaymentDays?: number;
+    advancePaymentMonths?: number;
   };
 }

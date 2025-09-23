@@ -380,44 +380,53 @@ export class MongoStorage implements IStorage {
     // Helper method to get rent cycle data for a tenant
   private async getRentCycleForTenant(tenant: any, property: any) {
     try {
+      console.log(`🔄 Calculating rent cycle for tenant: ${tenant.fullName} (${tenant._id})`);
+      
       // Get rent settings from property or use defaults
       const rentSettings = {
         paymentDay: (property as any)?.rentSettings?.paymentDay || 1,
         gracePeriodDays: (property as any)?.rentSettings?.gracePeriodDays || 3
       };
+      console.log(`  ⚙️  Rent settings:`, rentSettings);
 
-      // Get tenant's stored rent cycle data
+      // Get tenant's stored rent cycle data for last payment date
       const tenantRentCycle = (tenant as any).rentCycle || {};
       const lastPaymentDate = tenantRentCycle.lastPaymentDate;
+      const rentAmount = tenant.apartmentInfo?.rentAmount ? parseInt(tenant.apartmentInfo.rentAmount) : 0;
+      console.log(`  💰 Last payment date: ${lastPaymentDate}, Rent amount: ${rentAmount}`);
 
-      console.log(`🔍 Reading rent cycle for tenant ${tenant._id}:`, tenantRentCycle);
-
-      // If we have stored rent cycle data, use it; otherwise calculate fresh
-      if (tenantRentCycle.rentStatus && tenantRentCycle.daysRemaining !== undefined) {
-        console.log(`📊 Using stored rent cycle data`);
-        return {
-          lastPaymentDate: tenantRentCycle.lastPaymentDate?.toISOString(),
-          nextDueDate: tenantRentCycle.nextDueDate?.toISOString(),
-          daysRemaining: tenantRentCycle.daysRemaining,
-          rentStatus: tenantRentCycle.rentStatus
-        };
-      } else {
-        // Calculate fresh if no stored data
-        console.log(`🔄 Calculating fresh rent cycle data`);
-        const { RentCycleService } = await import('./services/rentCycleService');
-        const cycleData = RentCycleService.getCurrentRentCycleStatus(
-          lastPaymentDate,
-          rentSettings.paymentDay,
-          rentSettings.gracePeriodDays
-        );
-
-        return {
-          lastPaymentDate: cycleData.lastPaymentDate?.toISOString(),
-          nextDueDate: cycleData.nextDueDate.toISOString(),
-          daysRemaining: cycleData.daysRemaining,
-          rentStatus: cycleData.rentStatus
-        };
+      // Always recalculate with advance payment logic - get total amount paid by tenant
+      let totalAmountPaid = 0;
+      try {
+        const tenantPayments = await PaymentHistoryModel.find({ 
+          tenantId: tenant._id,
+          status: { $in: ['completed', 'partial', 'overpaid'] }
+        }).lean();
+        totalAmountPaid = tenantPayments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
+        console.log(`  💳 Total amount paid: ${totalAmountPaid}`);
+      } catch (error) {
+        console.error(`❌ Error getting payment history for tenant: ${tenant._id}`, error);
       }
+
+      // Always use RentCycleService for proper advance payment calculations
+      const { RentCycleService } = await import('./services/rentCycleService');
+      const cycleData = RentCycleService.getCurrentRentCycleStatus(
+        lastPaymentDate,
+        rentSettings.paymentDay,
+        rentSettings.gracePeriodDays,
+        rentAmount,
+        totalAmountPaid
+      );
+      console.log(`  📊 Calculated cycle data:`, cycleData);
+
+      return {
+        lastPaymentDate: cycleData.lastPaymentDate?.toISOString(),
+        nextDueDate: cycleData.nextDueDate.toISOString(),
+        daysRemaining: cycleData.daysRemaining,
+        rentStatus: cycleData.rentStatus,
+        advancePaymentDays: cycleData.advancePaymentDays,
+        advancePaymentMonths: cycleData.advancePaymentMonths,
+      };
     } catch (error) {
       console.error('Error calculating rent cycle:', error);
       return {
@@ -590,14 +599,30 @@ export class MongoStorage implements IStorage {
             // Get tenant's rent cycle data or use defaults
             const tenantRentCycle = (tenant as any).rentCycle || {};
             const lastPaymentDate = tenantRentCycle.lastPaymentDate;
-            console.log(`  💰 Last payment date: ${lastPaymentDate}`);
+            const rentAmount = tenant.apartmentInfo?.rentAmount ? parseInt(tenant.apartmentInfo.rentAmount) : 0;
+            console.log(`  💰 Last payment date: ${lastPaymentDate}, Rent amount: ${rentAmount}`);
+            
+            // Get total amount paid by tenant to calculate advance payments
+            let totalAmountPaid = 0;
+            try {
+              const tenantPayments = await PaymentHistoryModel.find({ 
+                tenantId: tenant._id,
+                status: { $in: ['completed', 'partial', 'overpaid'] }
+              }).lean();
+              totalAmountPaid = tenantPayments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
+              console.log(`  💳 Total amount paid: ${totalAmountPaid}`);
+            } catch (error) {
+              console.error(`❌ Error getting payment history for tenant: ${tenant._id}`, error);
+            }
             
             // Import and use RentCycleService for proper calculations
             const { RentCycleService } = await import('./services/rentCycleService');
             const cycleData = RentCycleService.getCurrentRentCycleStatus(
               lastPaymentDate,
               rentSettings.paymentDay,
-              rentSettings.gracePeriodDays
+              rentSettings.gracePeriodDays,
+              rentAmount,
+              totalAmountPaid
             );
             console.log(`  📊 Calculated cycle data:`, cycleData);
             
@@ -606,6 +631,8 @@ export class MongoStorage implements IStorage {
               daysRemaining: cycleData.daysRemaining,
               nextDueDate: cycleData.nextDueDate,
               lastPaymentDate: cycleData.lastPaymentDate,
+              advancePaymentDays: cycleData.advancePaymentDays,
+              advancePaymentMonths: cycleData.advancePaymentMonths,
             };
           }
         } catch (error) {
@@ -990,7 +1017,7 @@ export class MongoStorage implements IStorage {
         paymentDate: saved.paymentDate,
         paymentMethod: saved.paymentMethod || 'Not specified',
         status: saved.status || 'completed',
-        notes: saved.notes,
+        notes: saved.notes || undefined,
         forMonth: saved.forMonth,
         forYear: saved.forYear,
         monthlyRentAmount: saved.monthlyRentAmount,
