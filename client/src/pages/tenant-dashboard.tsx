@@ -208,11 +208,14 @@ export default function TenantDashboard() {
                   ? formatRentStatusText(
                       tenantProperty.rentCycle.daysRemaining, 
                       tenantProperty.rentCycle.rentStatus,
-                      tenantProperty.rentCycle.advancePaymentDays
+                      tenantProperty.rentCycle.advancePaymentDays,
+                      tenantProperty.rentCycle.debtAmount,
+                      tenantProperty.rentCycle.monthsOwed
                     )
                   : "N/A"}
                 icon={<CheckCircle className="h-6 w-6" />}
                 color={tenantProperty?.rentCycle?.rentStatus === 'paid_in_advance' ? 'blue' :
+                      tenantProperty?.rentCycle?.rentStatus === 'partial' ? 'orange' :
                       tenantProperty?.rentCycle?.rentStatus === 'active' ? 'green' : 
                       tenantProperty?.rentCycle?.rentStatus === 'grace_period' ? 'orange' : 'accent'}
                 data-testid="stat-payment-status"
@@ -264,7 +267,9 @@ export default function TenantDashboard() {
                               {formatRentStatusText(
                                 tenantProperty.rentCycle.daysRemaining, 
                                 tenantProperty.rentCycle.rentStatus,
-                                tenantProperty.rentCycle.advancePaymentDays
+                                tenantProperty.rentCycle.advancePaymentDays,
+                                tenantProperty.rentCycle.debtAmount,
+                                tenantProperty.rentCycle.monthsOwed
                               )}
                             </span>
                           </div>
@@ -302,6 +307,31 @@ export default function TenantDashboard() {
                                   <span className="text-neutral-600">Months Paid Ahead:</span>
                                   <span className="font-medium text-blue-600">
                                     {tenantProperty.rentCycle.advancePaymentMonths} month{tenantProperty.rentCycle.advancePaymentMonths > 1 ? 's' : ''}
+                                  </span>
+                                </div>
+                              )}
+                            </>
+                          )}
+
+                          {/* Show partial payment debt details if applicable */}
+                          {tenantProperty.rentCycle.rentStatus === 'partial' && (
+                            <>
+                              <div className="border-t pt-3 mt-4">
+                                <h4 className="font-medium text-orange-800 mb-2">⚠️ Partial Payment</h4>
+                              </div>
+                              {tenantProperty.rentCycle.debtAmount && (
+                                <div className="flex justify-between">
+                                  <span className="text-neutral-600">Amount Owed:</span>
+                                  <span className="font-medium text-orange-600">
+                                    KSH {tenantProperty.rentCycle.debtAmount.toLocaleString()}
+                                  </span>
+                                </div>
+                              )}
+                              {tenantProperty.rentCycle.monthsOwed && tenantProperty.rentCycle.monthsOwed > 0 && (
+                                <div className="flex justify-between">
+                                  <span className="text-neutral-600">Months Behind:</span>
+                                  <span className="font-medium text-orange-600">
+                                    {tenantProperty.rentCycle.monthsOwed} month{tenantProperty.rentCycle.monthsOwed > 1 ? 's' : ''}
                                   </span>
                                 </div>
                               )}

@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/dashboard/sidebar";
 import DashboardTab from "@/components/dashboard/landlord/tabs/DashboardTab";
 import PropertiesTab from "@/components/dashboard/landlord/tabs/PropertiesTab";
+import DebtTrackingTab from "@/components/dashboard/landlord/tabs/DebtTrackingTab";
 import TenantsWithPropertyFilter from "@/components/dashboard/landlord/TenantsWithPropertyFilter";
 import PaymentHistoryWithPropertyFilter from "@/components/dashboard/landlord/PaymentHistoryWithPropertyFilter";
 import { SettingsTab } from "@/components/dashboard/landlord/settings";
@@ -37,6 +38,9 @@ export default function LandlordDashboard() {
       
       case 'tenants':
         return <TenantsWithPropertyFilter />;
+      
+      case 'debts':
+        return <DebtTrackingTab />;
       
       case 'bills':
         return <PaymentHistoryWithPropertyFilter />;

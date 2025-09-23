@@ -47,7 +47,9 @@ export default function TenantCard({
       return formatRentStatusText(
         tenant.rentCycle.daysRemaining, 
         tenant.rentCycle.rentStatus, 
-        tenant.rentCycle.advancePaymentDays
+        tenant.rentCycle.advancePaymentDays,
+        tenant.rentCycle.debtAmount,
+        tenant.rentCycle.monthsOwed
       );
     }
     

@@ -45,6 +45,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/landlords/:landlordId/settings", LandlordController.getSettings);
   app.put("/api/landlords/:landlordId/settings", LandlordController.updateSettings);
   app.put("/api/landlords/:landlordId/password", LandlordController.changePassword);
+  app.get("/api/landlords/:landlordId/debts", LandlordController.getTenantsWithDebts);
 
   // Payment history routes
   app.get("/api/payment-history/tenant/:tenantId", PaymentController.getTenantPaymentHistory);

@@ -9,7 +9,8 @@ import {
   calculateDaysRemaining, 
   calculateRentStatus, 
   updateRentCycleAfterPayment,
-  calculateAdvancePayment 
+  calculateAdvancePayment,
+  calculatePartialPaymentDebt
 } from '../utils/rentCycleUtils';
 
 export class RentCycleService {
@@ -34,18 +35,30 @@ export class RentCycleService {
     
     let advancePaymentDays = 0;
     let advancePaymentMonths = 0;
+    let debtAmount = 0;
+    let monthsOwed = 0;
+    let isPartialPayment = false;
     
-    // Calculate advance payment if we have the necessary information
+    // Calculate advance payment and partial payment debt if we have the necessary information
     if (rentAmount && totalAmountPaid) {
-      const advancePayment = calculateAdvancePayment(lastPaymentDate, paymentDay, rentAmount, totalAmountPaid);
-      advancePaymentDays = advancePayment.advancePaymentDays;
-      advancePaymentMonths = advancePayment.advancePaymentMonths;
+      // First check for partial payment debt
+      const partialPaymentData = calculatePartialPaymentDebt(lastPaymentDate, paymentDay, rentAmount, totalAmountPaid);
+      debtAmount = partialPaymentData.debtAmount;
+      monthsOwed = partialPaymentData.monthsOwed;
+      isPartialPayment = partialPaymentData.isPartialPayment;
+      
+      // Only calculate advance payment if there's no debt
+      if (!isPartialPayment) {
+        const advancePayment = calculateAdvancePayment(lastPaymentDate, paymentDay, rentAmount, totalAmountPaid);
+        advancePaymentDays = advancePayment.advancePaymentDays;
+        advancePaymentMonths = advancePayment.advancePaymentMonths;
+      }
     }
     
     // Calculate next due date - if there's advance payment, use advance payment logic
     const nextDueDate = calculateNextDueDate(paymentDay, lastPaymentDate, advancePaymentDays);
     const daysRemaining = calculateDaysRemaining(nextDueDate);
-    const rentStatus = calculateRentStatus(daysRemaining, gracePeriodDays, advancePaymentDays);
+    const rentStatus = calculateRentStatus(daysRemaining, gracePeriodDays, advancePaymentDays, isPartialPayment);
     
     return {
       lastPaymentDate,
@@ -53,7 +66,9 @@ export class RentCycleService {
       daysRemaining,
       rentStatus,
       advancePaymentDays: advancePaymentDays > 0 ? advancePaymentDays : undefined,
-      advancePaymentMonths: advancePaymentMonths > 0 ? advancePaymentMonths : undefined
+      advancePaymentMonths: advancePaymentMonths > 0 ? advancePaymentMonths : undefined,
+      debtAmount: debtAmount > 0 ? debtAmount : undefined,
+      monthsOwed: monthsOwed > 0 ? monthsOwed : undefined
     };
   }
 

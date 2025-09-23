@@ -426,6 +426,8 @@ export class MongoStorage implements IStorage {
         rentStatus: cycleData.rentStatus,
         advancePaymentDays: cycleData.advancePaymentDays,
         advancePaymentMonths: cycleData.advancePaymentMonths,
+        debtAmount: cycleData.debtAmount,
+        monthsOwed: cycleData.monthsOwed,
       };
     } catch (error) {
       console.error('Error calculating rent cycle:', error);
@@ -633,6 +635,8 @@ export class MongoStorage implements IStorage {
               lastPaymentDate: cycleData.lastPaymentDate,
               advancePaymentDays: cycleData.advancePaymentDays,
               advancePaymentMonths: cycleData.advancePaymentMonths,
+              debtAmount: cycleData.debtAmount,
+              monthsOwed: cycleData.monthsOwed,
             };
           }
         } catch (error) {

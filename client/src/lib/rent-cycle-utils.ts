@@ -10,7 +10,9 @@
 export function formatRentStatusText(
   daysRemaining: number, 
   rentStatus: string, 
-  advancePaymentDays?: number
+  advancePaymentDays?: number,
+  debtAmount?: number,
+  monthsOwed?: number
 ): string {
   if (daysRemaining === -999) {
     return "Payment Required";
@@ -24,6 +26,11 @@ export function formatRentStatusText(
           : `Paid ${advancePaymentDays} days in advance`;
       }
       return "Paid in advance";
+    case 'partial':
+      if (debtAmount && monthsOwed) {
+        return `Partial payment - $${debtAmount.toLocaleString()} owed`;
+      }
+      return "Partial payment";
     case 'active':
       return daysRemaining === 1 ? "1 day remaining" : `${daysRemaining} days remaining`;
     case 'grace_period':
@@ -46,6 +53,8 @@ export function getRentStatusColor(rentStatus: string | undefined): string {
   switch (rentStatus) {
     case 'paid_in_advance':
       return "bg-blue-100 text-blue-800";
+    case 'partial':
+      return "bg-orange-100 text-orange-800";
     case 'active':
       return "bg-green-100 text-green-800";
     case 'grace_period':
@@ -68,11 +77,13 @@ export function getRentStatusPriority(rentStatus: string | undefined): number {
       return 1;
     case 'grace_period':
       return 2;
-    case 'active':
+    case 'partial':
       return 3;
-    case 'paid_in_advance':
+    case 'active':
       return 4;
-    default:
+    case 'paid_in_advance':
       return 5;
+    default:
+      return 6;
   }
 }

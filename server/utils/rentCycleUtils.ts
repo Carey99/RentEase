@@ -66,6 +66,66 @@ export function calculateAdvancePayment(
   return { advancePaymentDays: 0, advancePaymentMonths: 0 };
 }
 
+/**
+ * Calculate partial payment debt accumulation
+ * Determines if tenant has unpaid balance and calculates total debt
+ */
+export function calculatePartialPaymentDebt(
+  lastPaymentDate: Date,
+  paymentDay: number,
+  monthlyRentAmount: number,
+  totalAmountPaid: number
+): { debtAmount: number; monthsOwed: number; isPartialPayment: boolean } {
+  const now = new Date();
+  
+  console.log(`🔍 Partial Payment Debt Calculation:`);
+  console.log(`  💰 Monthly rent: $${monthlyRentAmount}`);
+  console.log(`  💳 Total paid: $${totalAmountPaid}`);
+  
+  // Calculate how many months have passed since the last payment date
+  const lastPayment = new Date(lastPaymentDate);
+  const startOfCurrentBilling = new Date(now.getFullYear(), now.getMonth(), paymentDay);
+  
+  // If we're past the payment day for this month, we need to include this month
+  const isCurrentMonthDue = now.getDate() >= paymentDay;
+  const monthsFromLastPayment = (now.getFullYear() - lastPayment.getFullYear()) * 12 + 
+    (now.getMonth() - lastPayment.getMonth()) + (isCurrentMonthDue ? 1 : 0);
+  
+  console.log(`  📅 Last payment: ${lastPayment.toISOString()}`);
+  console.log(`  📊 Months from last payment: ${monthsFromLastPayment}`);
+  
+  // Calculate total rent that should have been paid
+  const totalRentRequired = monthsFromLastPayment * monthlyRentAmount;
+  console.log(`  💸 Total rent required: $${totalRentRequired}`);
+  
+  // Calculate debt (negative means debt, positive means advance payment)
+  const balance = totalAmountPaid - totalRentRequired;
+  console.log(`  ⚖️  Balance: $${balance}`);
+  
+  if (balance < 0) {
+    // Tenant owes money (partial payments)
+    const debtAmount = Math.abs(balance);
+    const monthsOwed = Math.ceil(debtAmount / monthlyRentAmount);
+    
+    console.log(`  ❌ Debt detected:`);
+    console.log(`    💸 Debt amount: $${debtAmount}`);
+    console.log(`    🗓️ Months owed: ${monthsOwed}`);
+    
+    return {
+      debtAmount,
+      monthsOwed,
+      isPartialPayment: true
+    };
+  }
+  
+  console.log(`  ✅ No debt - tenant is current or paid in advance`);
+  return {
+    debtAmount: 0,
+    monthsOwed: 0,
+    isPartialPayment: false
+  };
+}
+
 export function calculateNextDueDate(
   paymentDay: number, 
   lastPaymentDate?: Date, 
@@ -109,8 +169,14 @@ export function calculateDaysRemaining(nextDueDate: Date): number {
 export function calculateRentStatus(
   daysRemaining: number, 
   gracePeriodDays: number,
-  advancePaymentDays?: number
-): 'active' | 'grace_period' | 'overdue' | 'paid_in_advance' {
+  advancePaymentDays?: number,
+  isPartialPayment?: boolean
+): 'active' | 'grace_period' | 'overdue' | 'paid_in_advance' | 'partial' {
+  // If there's a partial payment debt, return partial status
+  if (isPartialPayment) {
+    return 'partial';
+  }
+  
   // If there are advance payment days, tenant is paid in advance
   if (advancePaymentDays && advancePaymentDays > 0) {
     return 'paid_in_advance';
@@ -134,18 +200,30 @@ export function updateRentCycleAfterPayment(
 ) {
   let advancePaymentDays = 0;
   let advancePaymentMonths = 0;
+  let debtAmount = 0;
+  let monthsOwed = 0;
+  let isPartialPayment = false;
   
-  // Calculate advance payment if we have rent amount and total paid information
+  // Calculate advance payment and partial payment debt if we have rent amount and total paid information
   if (rentAmount && totalAmountPaid) {
-    const advancePayment = calculateAdvancePayment(paymentDate, paymentDay, rentAmount, totalAmountPaid);
-    advancePaymentDays = advancePayment.advancePaymentDays;
-    advancePaymentMonths = advancePayment.advancePaymentMonths;
+    // First check for partial payment debt
+    const partialPaymentData = calculatePartialPaymentDebt(paymentDate, paymentDay, rentAmount, totalAmountPaid);
+    debtAmount = partialPaymentData.debtAmount;
+    monthsOwed = partialPaymentData.monthsOwed;
+    isPartialPayment = partialPaymentData.isPartialPayment;
+    
+    // Only calculate advance payment if there's no debt
+    if (!isPartialPayment) {
+      const advancePayment = calculateAdvancePayment(paymentDate, paymentDay, rentAmount, totalAmountPaid);
+      advancePaymentDays = advancePayment.advancePaymentDays;
+      advancePaymentMonths = advancePayment.advancePaymentMonths;
+    }
   }
   
   // Calculate next due date - if there's advance payment, use advance payment logic
   const nextDueDate = calculateNextDueDate(paymentDay, paymentDate, advancePaymentDays);
   const daysRemaining = calculateDaysRemaining(nextDueDate);
-  const rentStatus = calculateRentStatus(daysRemaining, gracePeriodDays, advancePaymentDays);
+  const rentStatus = calculateRentStatus(daysRemaining, gracePeriodDays, advancePaymentDays, isPartialPayment);
 
   return {
     lastPaymentDate: paymentDate,
@@ -153,6 +231,8 @@ export function updateRentCycleAfterPayment(
     daysRemaining,
     rentStatus,
     advancePaymentDays: advancePaymentDays > 0 ? advancePaymentDays : undefined,
-    advancePaymentMonths: advancePaymentMonths > 0 ? advancePaymentMonths : undefined
+    advancePaymentMonths: advancePaymentMonths > 0 ? advancePaymentMonths : undefined,
+    debtAmount: debtAmount > 0 ? debtAmount : undefined,
+    monthsOwed: monthsOwed > 0 ? monthsOwed : undefined
   };
 }
