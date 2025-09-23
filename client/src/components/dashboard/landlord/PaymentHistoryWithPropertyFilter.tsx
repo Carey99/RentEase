@@ -46,7 +46,7 @@ export default function PaymentHistoryWithPropertyFilter({ className }: PaymentH
     }
     // Always compare as strings and handle missing property id
     return paymentsQuery.data.filter((payment: any) => {
-      const propId = payment.property?.id;
+      const propId = payment.property?._id || payment.property?.id || payment.propertyId;
       return propId && String(propId) === String(selectedPropertyId);
     });
   }, [paymentsQuery.data, selectedPropertyId]);

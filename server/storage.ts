@@ -1028,6 +1028,7 @@ export class MongoStorage implements IStorage {
           createdAt: payment.createdAt,
           property: {
             _id: property._id ? property._id.toString() : payment.propertyId.toString(),
+            id: property._id ? property._id.toString() : payment.propertyId.toString(), // Add id field for consistency
             name: property.name || 'Unknown Property'
           },
         };
@@ -1064,10 +1065,12 @@ export class MongoStorage implements IStorage {
           createdAt: payment.createdAt,
           tenant: {
             _id: tenant._id ? tenant._id.toString() : payment.tenantId.toString(),
+            id: tenant._id ? tenant._id.toString() : payment.tenantId.toString(), // Add id field for consistency
             name: tenant.fullName || 'Unknown Tenant'
           },
           property: {
             _id: property._id ? property._id.toString() : payment.propertyId.toString(),
+            id: property._id ? property._id.toString() : payment.propertyId.toString(), // Add id field for consistency
             name: property.name || 'Unknown Property'
           },
         };
