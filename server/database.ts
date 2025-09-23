@@ -61,6 +61,12 @@ const tenantSchema = new mongoose.Schema({
     rentAmount: String,
     landlordId: { type: mongoose.Schema.Types.ObjectId, ref: 'Landlord' },
   },
+  rentCycle: {
+    lastPaymentDate: Date,
+    nextDueDate: Date,
+    daysRemaining: Number,
+    rentStatus: { type: String, enum: ['active', 'overdue', 'grace_period'], default: 'active' }
+  }
 }, {
   timestamps: true,
   collection: 'tenants'
@@ -74,6 +80,10 @@ const propertySchema = new mongoose.Schema({
     type: { type: String, required: true },
     price: { type: String, required: true },
   }],
+  rentSettings: {
+    paymentDay: { type: Number, default: 1, min: 1, max: 31 },
+    gracePeriodDays: { type: Number, default: 3, min: 0, max: 30 }
+  },
   utilities: [{
     type: { type: String, required: true },
     price: { type: String, required: true },
@@ -86,6 +96,45 @@ const propertySchema = new mongoose.Schema({
   collection: 'properties'
 });
 
+// Payment History Model (payment_history collection)
+const paymentHistorySchema = new mongoose.Schema({
+  tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true },
+  landlordId: { type: mongoose.Schema.Types.ObjectId, ref: 'Landlord', required: true },
+  propertyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Property', required: true },
+  amount: { type: Number, required: true, min: 0 },
+  paymentDate: { type: Date, required: true },
+  paymentMethod: { type: String, default: 'Not specified' },
+  status: { type: String, enum: ['pending', 'partial', 'completed', 'overpaid', 'failed'], default: 'completed' },
+  notes: String,
+  // New fields for monthly balance tracking
+  forMonth: { type: Number, required: true, min: 1, max: 12 }, // Month this payment is intended for
+  forYear: { type: Number, required: true }, // Year this payment is intended for
+  monthlyRentAmount: { type: Number, required: true, min: 0 }, // Expected rent for that month
+  appliedAmount: { type: Number, required: true, min: 0 }, // How much of this payment was applied to the specific month
+  creditAmount: { type: Number, default: 0, min: 0 }, // Amount that goes towards future months
+}, {
+  timestamps: true,
+  collection: 'payment_history'
+});
+
+// Monthly Balance Model (monthly_balances collection) - tracks balance per tenant per month
+const monthlyBalanceSchema = new mongoose.Schema({
+  tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true },
+  landlordId: { type: mongoose.Schema.Types.ObjectId, ref: 'Landlord', required: true },
+  propertyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Property', required: true },
+  month: { type: Number, required: true, min: 1, max: 12 },
+  year: { type: Number, required: true },
+  expectedAmount: { type: Number, required: true, min: 0 }, // Monthly rent amount
+  paidAmount: { type: Number, default: 0, min: 0 }, // Total payments received for this month
+  balance: { type: Number, default: 0 }, // Remaining balance (negative if overpaid)
+  status: { type: String, enum: ['pending', 'partial', 'completed', 'overpaid'], default: 'pending' },
+}, {
+  timestamps: true,
+  collection: 'monthly_balances'
+});
+
 export const Landlord = mongoose.model('Landlord', landlordSchema);
 export const Tenant = mongoose.model('Tenant', tenantSchema);
 export const Property = mongoose.model('Property', propertySchema);
+export const PaymentHistory = mongoose.model('PaymentHistory', paymentHistorySchema);
+export const MonthlyBalance = mongoose.model('MonthlyBalance', monthlyBalanceSchema);

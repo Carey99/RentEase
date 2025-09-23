@@ -1,6 +1,6 @@
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Home, BarChart3, Building, Users, FileText, Settings, LogOut } from "lucide-react";
+import { Home, BarChart3, Building, Users, FileText, Settings, LogOut, CreditCard } from "lucide-react";
 
 interface SidebarProps {
   role: 'landlord' | 'tenant';
@@ -23,6 +23,7 @@ export default function Sidebar({ role, userName, activeTab = 'dashboard', onTab
   const tenantNavItems = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
     { id: 'apartment', label: 'My Apartment', icon: Home },
+    { id: 'payments', label: 'Payments', icon: CreditCard },
     { id: 'bills', label: 'My Bills', icon: FileText },
     { id: 'history', label: 'History', icon: FileText },
     { id: 'settings', label: 'Settings', icon: Settings },

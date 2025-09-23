@@ -75,10 +75,8 @@ export class PropertyController {
   static async searchProperties(req: Request, res: Response) {
     try {
       const { q } = req.query;
-      if (!q || typeof q !== "string") {
-        return res.status(400).json({ error: "Search query is required" });
-      }
-      const properties = await storage.searchPropertiesByName(q);
+      const searchQuery = (q && typeof q === "string") ? q : "";
+      const properties = await storage.searchPropertiesByName(searchQuery);
       res.json(properties);
     } catch (error) {
       console.error("Error searching properties:", error);

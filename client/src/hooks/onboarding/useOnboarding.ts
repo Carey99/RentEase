@@ -241,7 +241,7 @@ export function usePropertyQueries(role: UserRole, currentStep: number, selected
   const { data: availableProperties = [] } = useQuery({
     queryKey: ['/api/properties/search'],
     queryFn: async () => {
-      const response = await apiRequest('GET', '/api/properties/search?name=');
+      const response = await apiRequest('GET', '/api/properties/search?q=');
       return response.json();
     },
     enabled: Boolean(role === 'tenant' && currentStep === 3),

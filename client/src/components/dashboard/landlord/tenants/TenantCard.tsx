@@ -74,78 +74,71 @@ export default function TenantCard({
         case 'overdue':
           return 'Overdue';
         default:
-          return tenant.status.charAt(0).toUpperCase() + tenant.status.slice(1);
+          return tenant.rentCycle.rentStatus;
       }
     }
-    return tenant.status.charAt(0).toUpperCase() + tenant.status.slice(1);
+    return '';
   };
 
   return (
-    <Card className="hover:shadow-md transition-shadow">
+    <Card className="h-full hover:shadow-md transition-shadow">
       <CardContent className="p-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex items-center space-x-3">
             <Avatar className="h-12 w-12">
-              <AvatarImage src={tenant.avatar} alt={tenant.name} />
+              <AvatarImage src={tenant.profileImage || tenant.avatar} />
               <AvatarFallback>{getInitials(tenant.name)}</AvatarFallback>
             </Avatar>
             <div>
-              <h3 className="font-semibold text-neutral-900">{tenant.name}</h3>
-              <div className="flex items-center space-x-4 text-sm text-neutral-600 mt-1">
-                <div className="flex items-center">
-                  <Mail className="h-4 w-4 mr-1" />
-                  {tenant.email}
-                </div>
-                <div className="flex items-center">
-                  <Phone className="h-4 w-4 mr-1" />
-                  {tenant.phone}
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <div className="flex items-center space-x-4">
-            <div className="text-right">
-              <div className="flex items-center text-sm text-neutral-600 mb-1">
-                <MapPin className="h-4 w-4 mr-1" />
-                {tenant.propertyName}
-              </div>
-              <p className="text-sm font-medium">{tenant.unitType}</p>
-            </div>
-            
-            <div className="text-right">
-              <p className="font-semibold text-green-600">
-                KSH {tenant.rentAmount.toLocaleString()}/month
-              </p>
-              <Badge className={`${getStatusColor(tenant.status)} mt-1`}>
-                {getRentStatusBadgeText()}
+              <h3 className="font-semibold text-lg">{tenant.name}</h3>
+              <Badge 
+                className={`${getStatusColor(tenant.status)} border-0`}
+              >
+                {getRentStatusBadgeText() || tenant.status}
               </Badge>
             </div>
-            
-            <TenantActions
-              tenant={tenant}
-              onViewDetails={onViewDetails}
-              onTenantDeleted={onTenantDeleted}
-            />
+          </div>
+          <TenantActions
+            tenant={tenant}
+            onViewDetails={() => onViewDetails(tenant)}
+            onTenantDeleted={onTenantDeleted}
+          />
+        </div>
+
+        <div className="space-y-2 text-sm text-neutral-600 mb-4">
+          <div className="flex items-center space-x-2">
+            <Mail size={16} />
+            <span>{tenant.email}</span>
+          </div>
+          {tenant.phone && (
+            <div className="flex items-center space-x-2">
+              <Phone size={16} />
+              <span>{tenant.phone}</span>
+            </div>
+          )}
+          <div className="flex items-center space-x-2">
+            <MapPin size={16} />
+            <span>{tenant.propertyAddress || tenant.propertyName}</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Calendar size={16} />
+            <span>Lease: {new Date(tenant.leaseStart).toLocaleDateString()} - {new Date(tenant.leaseEnd).toLocaleDateString()}</span>
           </div>
         </div>
-        
-        <div className="mt-4 pt-4 border-t border-neutral-100">
-          <div className="flex items-center justify-between text-sm text-neutral-600">
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center">
-                <Calendar className="h-4 w-4 mr-1" />
-                <span>Lease: {new Date(tenant.leaseStart).toLocaleDateString()} - {new Date(tenant.leaseEnd).toLocaleDateString()}</span>
-              </div>
-              {tenant.rentCycle?.nextDueDate && (
-                <div className="flex items-center">
-                  <Clock className="h-4 w-4 mr-1" />
-                  <span>Next due: {new Date(tenant.rentCycle.nextDueDate).toLocaleDateString()}</span>
-                </div>
-              )}
-            </div>
-            <span className="font-medium">{getStatusMessage(tenant.status)}</span>
+
+        <div className="pt-2 border-t">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-neutral-600">Monthly Rent:</span>
+            <span className="font-semibold">${tenant.monthlyRent || tenant.rentAmount}</span>
           </div>
+          {getStatusMessage(tenant.status) && (
+            <div className="mt-2 flex items-center space-x-2">
+              <Clock size={16} className="text-neutral-400" />
+              <span className="text-sm text-neutral-600">
+                {getStatusMessage(tenant.status)}
+              </span>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

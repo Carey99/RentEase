@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/dashboard/sidebar";
 import DashboardTab from "@/components/dashboard/landlord/tabs/DashboardTab";
 import PropertiesTab from "@/components/dashboard/landlord/tabs/PropertiesTab";
-import TenantsTab from "@/components/dashboard/landlord/tabs/TenantsTab";
+import TenantsWithPropertyFilter from "@/components/dashboard/landlord/TenantsWithPropertyFilter";
+import PaymentHistoryWithPropertyFilter from "@/components/dashboard/landlord/PaymentHistoryWithPropertyFilter";
 import { SettingsTab } from "@/components/dashboard/landlord/settings";
 import AddPropertyDialog from "@/components/dashboard/landlord/properties/AddPropertyDialog";
 import { useDashboard, useCurrentUser } from "@/hooks/dashboard/useDashboard";
@@ -34,7 +36,10 @@ export default function LandlordDashboard() {
         );
       
       case 'tenants':
-        return <TenantsTab />;
+        return <TenantsWithPropertyFilter />;
+      
+      case 'bills':
+        return <PaymentHistoryWithPropertyFilter />;
       
       case 'settings':
         return <SettingsTab />;

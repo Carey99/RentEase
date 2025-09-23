@@ -38,7 +38,7 @@ export const tenantSchema = z.object({
     nextDueDate: z.date().optional(), // Next rent due date
     daysRemaining: z.number().optional(), // Days until next due date
     rentStatus: z.enum(["active", "overdue", "grace_period"]).default("active").optional(),
-  }).optional(),
+  }).default({}),
   createdAt: z.date().optional(),
   updatedAt: z.date().optional(),
 });
@@ -55,7 +55,7 @@ export const propertySchema = z.object({
   rentSettings: z.object({
     paymentDay: z.number().min(1).max(31).default(1), // Day of month for rent payment (1-31)
     gracePeriodDays: z.number().min(0).max(30).default(3), // Grace period before overdue
-  }).optional(),
+  }).default({ paymentDay: 1, gracePeriodDays: 3 }),
   utilities: z.array(z.object({
     type: z.string().min(1, "Utility type is required"),
     price: z.string().min(1, "Price per unit is required"),
@@ -136,3 +136,54 @@ export const insertTenantPropertySchema = z.object({
   unitNumber: z.string(),
   rentAmount: z.string().optional(),
 });
+
+// Payment History Schema
+export const paymentHistorySchema = z.object({
+  _id: z.string().optional(),
+  tenantId: z.string(),
+  landlordId: z.string(),
+  propertyId: z.string(),
+  amount: z.number().positive("Payment amount must be positive"),
+  paymentDate: z.date(),
+  paymentMethod: z.string().optional(),
+  status: z.enum(["pending", "partial", "completed", "overpaid", "failed"]).default("completed").optional(),
+  notes: z.string().optional(),
+  forMonth: z.number().min(1).max(12),
+  forYear: z.number(),
+  monthlyRentAmount: z.number().positive("Monthly rent amount must be positive"),
+  appliedAmount: z.number().nonnegative("Applied amount must be non-negative"),
+  creditAmount: z.number().nonnegative("Credit amount must be non-negative").default(0),
+  createdAt: z.date().optional(),
+});
+
+// Monthly Balance Schema
+export const monthlyBalanceSchema = z.object({
+  _id: z.string().optional(),
+  tenantId: z.string(),
+  landlordId: z.string(),
+  propertyId: z.string(),
+  month: z.number().min(1).max(12),
+  year: z.number(),
+  expectedAmount: z.number().positive("Expected amount must be positive"),
+  paidAmount: z.number().nonnegative("Paid amount must be non-negative").default(0),
+  balance: z.number().default(0),
+  status: z.enum(["pending", "partial", "completed", "overpaid"]).default("pending"),
+  createdAt: z.date().optional(),
+  updatedAt: z.date().optional(),
+});
+
+export const insertPaymentHistorySchema = paymentHistorySchema.omit({
+  _id: true,
+  createdAt: true,
+});
+
+export const insertMonthlyBalanceSchema = monthlyBalanceSchema.omit({
+  _id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type PaymentHistory = z.infer<typeof paymentHistorySchema>;
+export type InsertPaymentHistory = z.infer<typeof insertPaymentHistorySchema>;
+export type MonthlyBalance = z.infer<typeof monthlyBalanceSchema>;
+export type InsertMonthlyBalance = z.infer<typeof insertMonthlyBalanceSchema>;

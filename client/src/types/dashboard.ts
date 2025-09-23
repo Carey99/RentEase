@@ -63,13 +63,16 @@ export interface Tenant {
   phone: string;
   propertyId: string;
   propertyName: string;
+  propertyAddress?: string; // Add this for property address
   unitType: string;
   unitNumber: string;
   rentAmount: number;
+  monthlyRent?: number; // Alias for rentAmount for compatibility
   status: 'active' | 'inactive' | 'pending' | 'overdue';
   leaseStart: string;
   leaseEnd: string;
   avatar?: string;
+  profileImage?: string; // Add this for avatar compatibility  
   rentCycle?: {
     lastPaymentDate?: string;
     nextDueDate?: string;

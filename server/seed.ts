@@ -1,4 +1,5 @@
 import { storage } from './storage';
+import { PaymentHistory } from './database';
 
 // Seed data for testing authentication
 export async function seedDatabase() {
@@ -135,6 +136,18 @@ export async function seedDatabase() {
                     console.log('✅ Assigned test tenant to apartment A101 in Sunset Apartments');
                 }
             }
+        }
+
+        // Run migrations to add status field to existing payment history records
+        console.log('🔄 Running migration to add status field to payment history...');
+        try {
+          const result = await PaymentHistory.updateMany(
+            { status: { $exists: false } },
+            { $set: { status: 'completed' } }
+          );
+          console.log(`✅ Migration completed: Updated ${result.modifiedCount} payment history records with status field`);
+        } catch (error) {
+          console.error('❌ Migration failed:', error);
         }
 
         console.log('🎉 Database seeding completed successfully!');

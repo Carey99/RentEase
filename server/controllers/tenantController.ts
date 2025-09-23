@@ -26,6 +26,45 @@ export class TenantController {
   }
 
   /**
+   * Get all tenants for a landlord organized by property
+   * GET /api/tenants/landlord/:landlordId/by-property
+   */
+  static async getTenantsByLandlordGroupedByProperty(req: Request, res: Response) {
+    try {
+      const { landlordId } = req.params;
+      console.log(`🔍 Frontend requesting tenants grouped by property for landlord ID: ${landlordId}`);
+      
+      const tenants = await storage.getTenantsByLandlord(landlordId);
+      
+      // Group tenants by property
+      const groupedTenants = tenants.reduce((acc: any, tenant: any) => {
+        const propertyId = tenant.propertyId || 'unassigned';
+        const propertyName = tenant.propertyName || 'Unassigned';
+        
+        if (!acc[propertyId]) {
+          acc[propertyId] = {
+            propertyId,
+            propertyName,
+            tenants: []
+          };
+        }
+        
+        acc[propertyId].tenants.push(tenant);
+        return acc;
+      }, {});
+      
+      // Convert to array format
+      const result = Object.values(groupedTenants);
+      console.log(`📊 Found ${result.length} properties with tenants`);
+      
+      res.json(result);
+    } catch (error) {
+      console.error("Error getting tenants by landlord grouped by property:", error);
+      res.status(500).json({ error: "Failed to get tenants grouped by property" });
+    }
+  }
+
+  /**
    * Get all tenants for a specific property
    * GET /api/tenants/property/:propertyId
    */

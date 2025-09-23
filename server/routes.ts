@@ -9,6 +9,7 @@ import { AuthController } from "./controllers/authController";
 import { PropertyController } from "./controllers/propertyController";
 import { TenantController } from "./controllers/tenantController";
 import { LandlordController } from "./controllers/landlordController";
+import { PaymentController } from "./controllers/paymentController";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication routes
@@ -29,6 +30,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Tenant routes
   app.get("/api/tenants/landlord/:landlordId", TenantController.getTenantsByLandlord);
+  app.get("/api/tenants/landlord/:landlordId/by-property", TenantController.getTenantsByLandlordGroupedByProperty);
   app.get("/api/tenants/property/:propertyId", TenantController.getTenantsByProperty);
   app.get("/api/tenants/:tenantId", TenantController.getTenant);
   app.put("/api/tenants/:tenantId", TenantController.updateTenant);
@@ -43,6 +45,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/landlords/:landlordId/settings", LandlordController.getSettings);
   app.put("/api/landlords/:landlordId/settings", LandlordController.updateSettings);
   app.put("/api/landlords/:landlordId/password", LandlordController.changePassword);
+
+  // Payment history routes
+  app.get("/api/payment-history/tenant/:tenantId", PaymentController.getTenantPaymentHistory);
+  app.get("/api/payment-history/landlord/:landlordId", PaymentController.getLandlordPaymentHistory);
+  app.get("/api/payment-history/landlord/:landlordId/by-property", PaymentController.getLandlordPaymentHistoryByProperty);
+  app.get("/api/payment-history/property/:propertyId", PaymentController.getPropertyPaymentHistory);
 
   const httpServer = createServer(app);
   return httpServer;

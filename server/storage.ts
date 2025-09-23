@@ -1,5 +1,5 @@
-import { type User, type InsertUser, type Property, type InsertProperty, type TenantProperty, type InsertTenantProperty, type Landlord, type Tenant, type InsertLandlord, type InsertTenant } from "@shared/schema";
-import { Landlord as LandlordModel, Tenant as TenantModel, Property as PropertyModel } from "./database";
+import { type User, type InsertUser, type Property, type InsertProperty, type TenantProperty, type InsertTenantProperty, type Landlord, type Tenant, type InsertLandlord, type InsertTenant, type PaymentHistory, type InsertPaymentHistory, type MonthlyBalance, type InsertMonthlyBalance } from "@shared/schema";
+import { Landlord as LandlordModel, Tenant as TenantModel, Property as PropertyModel, PaymentHistory as PaymentHistoryModel, MonthlyBalance as MonthlyBalanceModel } from "./database";
 import { ObjectId } from "mongodb";
 
 // Helper function to validate ObjectId format
@@ -40,6 +40,12 @@ export interface IStorage {
   recordTenantPayment(tenantId: string, paymentAmount: number, paymentDate?: Date): Promise<boolean>;
   updatePropertyRentSettings(propertyId: string, paymentDay: number, gracePeriodDays?: number): Promise<boolean>;
   updateTenantRentStatus(tenantId: string): Promise<any>;
+  
+  // Payment History methods
+  createPaymentHistory(paymentHistory: InsertPaymentHistory): Promise<PaymentHistory>;
+  getPaymentHistory(tenantId: string): Promise<PaymentHistory[]>;
+  getPaymentHistoryByLandlord(landlordId: string): Promise<PaymentHistory[]>;
+  getPaymentHistoryByProperty(propertyId: string): Promise<PaymentHistory[]>;
 }
 
 export class MongoStorage implements IStorage {
@@ -176,11 +182,14 @@ export class MongoStorage implements IStorage {
         _id: property._id.toString(),
         landlordId: property.landlordId.toString(),
         name: property.name,
-        propertyTypes: property.propertyTypes || [],
-        utilities: property.utilities || undefined,
+        propertyTypes: property.propertyTypes,
+        rentSettings: (property as any).rentSettings || { paymentDay: 1, gracePeriodDays: 3 },
+        utilities: property.utilities,
         totalUnits: property.totalUnits || undefined,
-        occupiedUnits: property.occupiedUnits || "0",
+        occupiedUnits: property.occupiedUnits,
         createdAt: property.createdAt,
+        updatedAt: property.updatedAt,
+        tenants: property.tenants?.map(id => id.toString()) || [],
       };
     } catch (error) {
       console.error('Error getting property:', error);
@@ -202,6 +211,7 @@ export class MongoStorage implements IStorage {
         landlordId: property.landlordId.toString(),
         name: property.name,
         propertyTypes: property.propertyTypes || [],
+        rentSettings: (property as any).rentSettings || { paymentDay: 1, gracePeriodDays: 3 },
         utilities: property.utilities || undefined,
         totalUnits: property.totalUnits || undefined,
         occupiedUnits: property.occupiedUnits || "0",
@@ -236,6 +246,7 @@ export class MongoStorage implements IStorage {
         landlordId: saved.landlordId.toString(),
         name: saved.name,
         propertyTypes: saved.propertyTypes,
+        rentSettings: (saved as any).rentSettings || { paymentDay: 1, gracePeriodDays: 3 },
         utilities: saved.utilities,
         totalUnits: saved.totalUnits || undefined,
         occupiedUnits: saved.occupiedUnits,
@@ -269,6 +280,7 @@ export class MongoStorage implements IStorage {
         landlordId: updatedProperty.landlordId.toString(),
         name: updatedProperty.name,
         propertyTypes: updatedProperty.propertyTypes,
+        rentSettings: (updatedProperty as any).rentSettings || { paymentDay: 1, gracePeriodDays: 3 },
         utilities: updatedProperty.utilities,
         totalUnits: updatedProperty.totalUnits || undefined,
         occupiedUnits: updatedProperty.occupiedUnits,
@@ -291,6 +303,7 @@ export class MongoStorage implements IStorage {
         landlordId: property.landlordId.toString(),
         name: property.name,
         propertyTypes: property.propertyTypes || [],
+        rentSettings: (property as any).rentSettings || { paymentDay: 1, gracePeriodDays: 3 },
         utilities: property.utilities || undefined,
         totalUnits: property.totalUnits || undefined,
         occupiedUnits: property.occupiedUnits || "0",
@@ -354,11 +367,65 @@ export class MongoStorage implements IStorage {
           occupiedUnits: property.occupiedUnits,
           createdAt: property.createdAt,
         } : undefined,
+        // Include rent cycle data
+        rentCycle: await this.getRentCycleForTenant(tenant, property)
       }; console.log('Returning tenant property result:', result);
       return result;
     } catch (error) {
       console.error('Error getting tenant property:', error);
       return undefined;
+    }
+  }
+
+    // Helper method to get rent cycle data for a tenant
+  private async getRentCycleForTenant(tenant: any, property: any) {
+    try {
+      // Get rent settings from property or use defaults
+      const rentSettings = {
+        paymentDay: (property as any)?.rentSettings?.paymentDay || 1,
+        gracePeriodDays: (property as any)?.rentSettings?.gracePeriodDays || 3
+      };
+
+      // Get tenant's stored rent cycle data
+      const tenantRentCycle = (tenant as any).rentCycle || {};
+      const lastPaymentDate = tenantRentCycle.lastPaymentDate;
+
+      console.log(`🔍 Reading rent cycle for tenant ${tenant._id}:`, tenantRentCycle);
+
+      // If we have stored rent cycle data, use it; otherwise calculate fresh
+      if (tenantRentCycle.rentStatus && tenantRentCycle.daysRemaining !== undefined) {
+        console.log(`📊 Using stored rent cycle data`);
+        return {
+          lastPaymentDate: tenantRentCycle.lastPaymentDate?.toISOString(),
+          nextDueDate: tenantRentCycle.nextDueDate?.toISOString(),
+          daysRemaining: tenantRentCycle.daysRemaining,
+          rentStatus: tenantRentCycle.rentStatus
+        };
+      } else {
+        // Calculate fresh if no stored data
+        console.log(`🔄 Calculating fresh rent cycle data`);
+        const { RentCycleService } = await import('./services/rentCycleService');
+        const cycleData = RentCycleService.getCurrentRentCycleStatus(
+          lastPaymentDate,
+          rentSettings.paymentDay,
+          rentSettings.gracePeriodDays
+        );
+
+        return {
+          lastPaymentDate: cycleData.lastPaymentDate?.toISOString(),
+          nextDueDate: cycleData.nextDueDate.toISOString(),
+          daysRemaining: cycleData.daysRemaining,
+          rentStatus: cycleData.rentStatus
+        };
+      }
+    } catch (error) {
+      console.error('Error calculating rent cycle:', error);
+      return {
+        lastPaymentDate: null,
+        nextDueDate: new Date().toISOString(),
+        daysRemaining: -999,
+        rentStatus: 'overdue'
+      };
     }
   }
 
@@ -428,23 +495,28 @@ export class MongoStorage implements IStorage {
     try {
       // Get the property first to get rent settings
       const property = await PropertyModel.findById(propertyId).lean();
-      const rentSettings = { paymentDay: 1, gracePeriodDays: 3 }; // Default values since rentSettings doesn't exist in schema
+      const rentSettings = { 
+        paymentDay: (property as any)?.rentSettings?.paymentDay || 1, 
+        gracePeriodDays: (property as any)?.rentSettings?.gracePeriodDays || 3 
+      };
 
       const tenants = await TenantModel.find({
         'apartmentInfo.propertyId': propertyId
       }).lean();
 
+      // Import RentCycleService for calculations
+      const { RentCycleService } = await import('./services/rentCycleService');
+
       return tenants.map(tenant => {
-        // Calculate rent cycle status using fallback values since rentCycle doesn't exist in schema
-        const rentCycle = {}; // Empty object as fallback
-        const lastPaymentDate = undefined; // Since rentCycle.lastPaymentDate doesn't exist
+        // Calculate rent cycle status using tenant's actual data
+        const tenantRentCycle = (tenant as any).rentCycle || {};
+        const lastPaymentDate = tenantRentCycle.lastPaymentDate;
         
-        // Comment out the function call since getCurrentRentCycleStatus doesn't exist
-        // const cycleData = getCurrentRentCycleStatus(
-        //   lastPaymentDate,
-        //   rentSettings.paymentDay,
-        //   rentSettings.gracePeriodDays
-        // );
+        const cycleData = RentCycleService.getCurrentRentCycleStatus(
+          lastPaymentDate,
+          rentSettings.paymentDay,
+          rentSettings.gracePeriodDays
+        );
 
         return {
           id: tenant._id.toString(),
@@ -455,10 +527,10 @@ export class MongoStorage implements IStorage {
             rentAmount: tenant.apartmentInfo?.rentAmount || '0',
           },
           rentCycle: {
-            rentStatus: 'active', // Default status
-            daysRemaining: 30, // Default days
-            nextDueDate: new Date(), // Default to today
-            lastPaymentDate: undefined, // No payment history
+            rentStatus: cycleData.rentStatus,
+            daysRemaining: cycleData.daysRemaining,
+            nextDueDate: cycleData.nextDueDate,
+            lastPaymentDate: cycleData.lastPaymentDate,
           }
         };
       });
@@ -509,21 +581,24 @@ export class MongoStorage implements IStorage {
             console.log(`  🔗 Property ID string: ${propertyIdString}`);
             
             const property = await PropertyModel.findById(propertyIdString).lean();
-            const rentSettings = { paymentDay: 1, gracePeriodDays: 3 }; // Default values
+            const rentSettings = { 
+              paymentDay: (property as any)?.rentSettings?.paymentDay || 1, 
+              gracePeriodDays: (property as any)?.rentSettings?.gracePeriodDays || 3 
+            };
             console.log(`  ⚙️  Rent settings:`, rentSettings);
             
-            // Use default rent cycle values since the functionality is incomplete
-            const tenantRentCycle = {}; // Empty object as fallback
-            const lastPaymentDate = undefined; // No payment history
+            // Get tenant's rent cycle data or use defaults
+            const tenantRentCycle = (tenant as any).rentCycle || {};
+            const lastPaymentDate = tenantRentCycle.lastPaymentDate;
             console.log(`  💰 Last payment date: ${lastPaymentDate}`);
             
-            // Provide default cycle data since RentCycleService doesn't exist
-            const cycleData = {
-              rentStatus: 'active',
-              daysRemaining: 30,
-              nextDueDate: new Date(),
-              lastPaymentDate: undefined
-            };
+            // Import and use RentCycleService for proper calculations
+            const { RentCycleService } = await import('./services/rentCycleService');
+            const cycleData = RentCycleService.getCurrentRentCycleStatus(
+              lastPaymentDate,
+              rentSettings.paymentDay,
+              rentSettings.gracePeriodDays
+            );
             console.log(`  📊 Calculated cycle data:`, cycleData);
             
             rentCycle = {
@@ -542,7 +617,9 @@ export class MongoStorage implements IStorage {
           name: tenant.fullName,
           email: tenant.email,
           phone: tenant.phone || '',
-          propertyId: tenant.apartmentInfo?.propertyId?.toString() || '',
+          propertyId: tenant.apartmentInfo?.propertyId?._id ? 
+            tenant.apartmentInfo.propertyId._id.toString() : 
+            tenant.apartmentInfo?.propertyId?.toString() || '',
           propertyName: tenant.apartmentInfo?.propertyName || '',
           unitType: tenant.apartmentInfo?.propertyType || '',
           unitNumber: tenant.apartmentInfo?.unitNumber || '',
@@ -642,6 +719,7 @@ export class MongoStorage implements IStorage {
           rentAmount: updatedTenant.apartmentInfo.rentAmount || undefined,
           landlordId: updatedTenant.apartmentInfo.landlordId?.toString(),
         } : undefined,
+        rentCycle: (updatedTenant as any).rentCycle || {},
         createdAt: updatedTenant.createdAt,
         updatedAt: updatedTenant.updatedAt,
       };
@@ -772,24 +850,55 @@ export class MongoStorage implements IStorage {
         throw new Error('Property not found');
       }
 
-      const paymentDay = 1; // Default payment day since rentSettings doesn't exist
-      const gracePeriodDays = 3; // Default grace period
+      // Get monthly rent amount from tenant's apartment info
+      const monthlyRentAmount = parseFloat(tenant.apartmentInfo?.rentAmount || '0');
+      if (monthlyRentAmount <= 0) {
+        throw new Error('Invalid rent amount for tenant');
+      }
 
-      // Create default rent cycle since RentCycleService doesn't exist
-      const newRentCycle = {
-        rentStatus: 'active',
-        daysRemaining: 30,
-        nextDueDate: new Date(),
-        lastPaymentDate: paymentDate
-      };
+      // Use PaymentBalanceService to process the payment
+      const { PaymentBalanceService } = await import('./services/paymentBalanceService');
+      const paymentResult = await PaymentBalanceService.processPayment(
+        tenantId,
+        tenant.apartmentInfo?.landlordId?.toString() || '',
+        tenant.apartmentInfo?.propertyId?.toString() || '',
+        paymentAmount,
+        paymentDate,
+        monthlyRentAmount
+      );
 
-      // Update tenant with new rent cycle data
+      console.log(`💰 Recording payment for tenant ${tenantId}: $${paymentAmount} on ${paymentDate.toDateString()}`);
+      console.log('📊 Payment result:', paymentResult.paymentDetails);
+
+      // Create payment history record with intelligent status
+      await this.createPaymentHistory({
+        ...paymentResult.paymentDetails,
+        paymentMethod: 'Manual Payment',
+        notes: `Rent payment of $${paymentAmount}${paymentResult.paymentDetails.status === 'overpaid' ? ' (includes credit for future months)' : paymentResult.paymentDetails.status === 'partial' ? ' (partial payment)' : ''}`
+      } as any);
+
+      // Update tenant rent cycle based on payment status  
+      // Use property rent settings or defaults
+      const paymentDay = (property as any).rentSettings?.paymentDay || 1;
+      const gracePeriodDays = (property as any).rentSettings?.gracePeriodDays || 3;
+
+      // Import and use RentCycleService to calculate proper rent cycle
+      const { RentCycleService } = await import('./services/rentCycleService');
+      const newRentCycle = RentCycleService.processPayment(paymentDay, gracePeriodDays, paymentDate);
+
+      // Update tenant with new rent cycle data and set status based on payment completeness
+      const tenantStatus = paymentResult.paymentDetails.status === 'completed' ? 'active' : 
+                          paymentResult.paymentDetails.status === 'overpaid' ? 'active' : 'active'; // Keep active, rent cycle status will handle overdue
+
       const result = await TenantModel.findByIdAndUpdate(
         tenantId,
         {
           $set: {
-            // Skip rentCycle update since it doesn't exist in schema
-            status: 'active' // Set to active after payment
+            'rentCycle.lastPaymentDate': newRentCycle.lastPaymentDate,
+            'rentCycle.nextDueDate': newRentCycle.nextDueDate,
+            'rentCycle.daysRemaining': newRentCycle.daysRemaining,
+            'rentCycle.rentStatus': newRentCycle.rentStatus,
+            status: tenantStatus
           }
         },
         { new: true }
@@ -861,6 +970,135 @@ export class MongoStorage implements IStorage {
     } catch (error) {
       console.error('Error updating tenant rent status:', error);
       throw error;
+    }
+  }
+
+  // Payment History Methods
+  async createPaymentHistory(paymentHistory: InsertPaymentHistory): Promise<PaymentHistory> {
+    try {
+      const payment = new PaymentHistoryModel(paymentHistory);
+      const saved = await payment.save();
+      
+      console.log(`💾 Payment history saved:`, saved);
+      
+      return {
+        _id: saved._id.toString(),
+        tenantId: saved.tenantId.toString(),
+        landlordId: saved.landlordId.toString(),
+        propertyId: saved.propertyId.toString(),
+        amount: saved.amount,
+        paymentDate: saved.paymentDate,
+        paymentMethod: saved.paymentMethod || 'Not specified',
+        status: saved.status || 'completed',
+        notes: saved.notes,
+        forMonth: saved.forMonth,
+        forYear: saved.forYear,
+        monthlyRentAmount: saved.monthlyRentAmount,
+        appliedAmount: saved.appliedAmount,
+        creditAmount: saved.creditAmount || 0,
+        createdAt: saved.createdAt,
+      };
+    } catch (error) {
+      console.error('Error creating payment history:', error);
+      throw error;
+    }
+  }
+
+  async getPaymentHistory(tenantId: string): Promise<PaymentHistory[]> {
+    try {
+      const payments = await PaymentHistoryModel.find({ tenantId })
+        .populate('propertyId', 'name')
+        .sort({ paymentDate: -1 })
+        .lean();
+
+      return payments.map(payment => {
+        // When using lean() with populate(), the populated data replaces the original ID
+        const property = payment.propertyId as any;
+        
+        return {
+          _id: payment._id.toString(),
+          tenantId: payment.tenantId.toString(),
+          landlordId: payment.landlordId.toString(),
+          propertyId: property._id ? property._id.toString() : payment.propertyId.toString(),
+          amount: payment.amount,
+          paymentDate: payment.paymentDate,
+          paymentMethod: payment.paymentMethod || 'Not specified',
+          status: payment.status || 'completed',
+          notes: payment.notes,
+          createdAt: payment.createdAt,
+          property: {
+            _id: property._id ? property._id.toString() : payment.propertyId.toString(),
+            name: property.name || 'Unknown Property'
+          },
+        };
+      });
+    } catch (error) {
+      console.error('Error getting payment history:', error);
+      return [];
+    }
+  }
+
+  async getPaymentHistoryByLandlord(landlordId: string): Promise<PaymentHistory[]> {
+    try {
+      const payments = await PaymentHistoryModel.find({ landlordId })
+        .populate('tenantId', 'fullName email')
+        .populate('propertyId', 'name')
+        .sort({ paymentDate: -1 })
+        .lean();
+
+      return payments.map(payment => {
+        // When using lean() with populate(), the populated data replaces the original ID
+        const tenant = payment.tenantId as any;
+        const property = payment.propertyId as any;
+        
+        return {
+          _id: payment._id.toString(),
+          tenantId: tenant._id ? tenant._id.toString() : payment.tenantId.toString(),
+          landlordId: payment.landlordId.toString(),
+          propertyId: property._id ? property._id.toString() : payment.propertyId.toString(),
+          amount: payment.amount,
+          paymentDate: payment.paymentDate,
+          paymentMethod: payment.paymentMethod || 'Not specified',
+          status: payment.status || 'completed',
+          notes: payment.notes,
+          createdAt: payment.createdAt,
+          tenant: {
+            _id: tenant._id ? tenant._id.toString() : payment.tenantId.toString(),
+            name: tenant.fullName || 'Unknown Tenant'
+          },
+          property: {
+            _id: property._id ? property._id.toString() : payment.propertyId.toString(),
+            name: property.name || 'Unknown Property'
+          },
+        };
+      });
+    } catch (error) {
+      console.error('Error getting landlord payment history:', error);
+      return [];
+    }
+  }
+
+  async getPaymentHistoryByProperty(propertyId: string): Promise<PaymentHistory[]> {
+    try {
+      const payments = await PaymentHistoryModel.find({ propertyId })
+        .populate('tenantId', 'fullName email')
+        .sort({ paymentDate: -1 })
+        .lean();
+
+      return payments.map(payment => ({
+        _id: payment._id.toString(),
+        tenantId: payment.tenantId.toString(),
+        landlordId: payment.landlordId.toString(),
+        propertyId: payment.propertyId.toString(),
+        amount: payment.amount,
+        paymentDate: payment.paymentDate,
+        paymentMethod: payment.paymentMethod || 'Not specified',
+        notes: payment.notes,
+        createdAt: payment.createdAt,
+      }));
+    } catch (error) {
+      console.error('Error getting property payment history:', error);
+      return [];
     }
   }
 }

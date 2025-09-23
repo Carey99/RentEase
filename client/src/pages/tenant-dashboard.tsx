@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import Sidebar from "@/components/dashboard/sidebar";
 import StatsCard from "@/components/dashboard/stats-card";
+import PaymentHistoryByProperty from "@/components/dashboard/tenant/PaymentHistoryByProperty";
+import { formatRentStatusText, getRentStatusColor } from "@/lib/rent-cycle-utils";
 
 export default function TenantDashboard() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -79,6 +81,11 @@ export default function TenantDashboard() {
         await queryClient.invalidateQueries({ 
           queryKey: ['/api/tenant-properties/tenant', currentUser?.id] 
         });
+        
+        // Also invalidate payment history
+        await queryClient.invalidateQueries({
+          queryKey: ['/api/payment-history/tenant', currentUser?.id]
+        });
       } else {
         const error = await response.json();
         throw new Error(error.error || 'Payment failed');
@@ -104,6 +111,22 @@ export default function TenantDashboard() {
           return null; // No apartment assigned
         }
         throw new Error('Failed to fetch tenant property');
+      }
+      return response.json();
+    },
+    enabled: !!currentUser?.id,
+  });
+
+  // Query for payment history
+  const { data: paymentHistory = [], isLoading: isLoadingPayments } = useQuery({
+    queryKey: ['/api/payment-history/tenant', currentUser?.id],
+    queryFn: async () => {
+      const response = await fetch(`/api/payment-history/tenant/${currentUser?.id}`);
+      if (!response.ok) {
+        if (response.status === 404) {
+          return [];
+        }
+        throw new Error('Failed to fetch payment history');
       }
       return response.json();
     },
@@ -166,22 +189,27 @@ export default function TenantDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
               <StatsCard
                 title="Current Rent"
-                value="$0"
+                value={tenantProperty ? `KSH ${tenantProperty.rentAmount || '0'}` : "N/A"}
                 icon={<DollarSign className="h-6 w-6" />}
                 data-testid="stat-rent"
               />
               <StatsCard
                 title="Next Due Date"
-                value="N/A"
+                value={tenantProperty?.rentCycle?.nextDueDate 
+                  ? new Date(tenantProperty.rentCycle.nextDueDate).toLocaleDateString() 
+                  : "N/A"}
                 icon={<Calendar className="h-6 w-6" />}
                 color="orange"
                 data-testid="stat-due-date"
               />
               <StatsCard
                 title="Payment Status"
-                value="N/A"
+                value={tenantProperty?.rentCycle 
+                  ? formatRentStatusText(tenantProperty.rentCycle.daysRemaining, tenantProperty.rentCycle.rentStatus)
+                  : "N/A"}
                 icon={<CheckCircle className="h-6 w-6" />}
-                color="green"
+                color={tenantProperty?.rentCycle?.rentStatus === 'active' ? 'green' : 
+                      tenantProperty?.rentCycle?.rentStatus === 'grace_period' ? 'yellow' : 'red'}
                 data-testid="stat-payment-status"
               />
             </div>
@@ -212,12 +240,41 @@ export default function TenantDashboard() {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-neutral-600">Type:</span>
-                        <span className="font-medium">{tenantProperty.property?.type || 'N/A'}</span>
+                        <span className="font-medium">{tenantProperty.propertyType || 'N/A'}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-neutral-600">Rent:</span>
-                        <span className="font-medium">${tenantProperty.rentAmount || '0'}</span>
+                        <span className="text-neutral-600">Monthly Rent:</span>
+                        <span className="font-medium">KSH {tenantProperty.rentAmount || '0'}</span>
                       </div>
+                      
+                      {/* Rent Cycle Information */}
+                      {tenantProperty.rentCycle && (
+                        <>
+                          <div className="border-t pt-3 mt-4">
+                            <h4 className="font-medium text-neutral-800 mb-2">Rent Status</h4>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-neutral-600">Status:</span>
+                            <span className={`px-2 py-1 rounded-md text-xs font-medium ${getRentStatusColor(tenantProperty.rentCycle.rentStatus)}`}>
+                              {formatRentStatusText(tenantProperty.rentCycle.daysRemaining, tenantProperty.rentCycle.rentStatus)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-neutral-600">Next Due:</span>
+                            <span className="font-medium">
+                              {new Date(tenantProperty.rentCycle.nextDueDate).toLocaleDateString()}
+                            </span>
+                          </div>
+                          {tenantProperty.rentCycle.lastPaymentDate && (
+                            <div className="flex justify-between">
+                              <span className="text-neutral-600">Last Payment:</span>
+                              <span className="font-medium">
+                                {new Date(tenantProperty.rentCycle.lastPaymentDate).toLocaleDateString()}
+                              </span>
+                            </div>
+                          )}
+                        </>
+                      )}
                     </div>
                   )}
                 </CardContent>
@@ -267,6 +324,16 @@ export default function TenantDashboard() {
                 </CardContent>
               </Card>
             </div>
+          </div>
+        );
+
+      case 'payments':
+        return (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-neutral-900">Payment History</h2>
+            </div>
+            <PaymentHistoryByProperty paymentHistory={paymentHistory} />
           </div>
         );
 
