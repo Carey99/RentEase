@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { CalendarDays, CreditCard, FileText, Users, DollarSign, Calculator } from "lucide-react";
+import { CalendarDays, CreditCard, FileText, Users, DollarSign, Calculator, Send, Mail, MessageSquare, Phone } from "lucide-react";
 import { useCurrentUser } from "@/hooks/dashboard/useDashboard";
 import { useToast } from "@/hooks/use-toast";
 
@@ -20,6 +20,7 @@ interface TenantToBill {
   id: string;
   name: string;
   email: string;
+  phone?: string;
   propertyName: string;
   unitNumber: string;
   rentAmount: number;
@@ -55,6 +56,20 @@ export default function BillingTab() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [utilityUsages, setUtilityUsages] = useState<{ [tenantId: string]: UtilityUsage[] }>({});
   const [showBillPreview, setShowBillPreview] = useState<{ [tenantId: string]: BillPreview }>({});
+  const [showSendOptions, setShowSendOptions] = useState<{ [tenantId: string]: boolean }>({});
+
+  // Close send options when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest('.send-bill-dropdown')) {
+        setShowSendOptions({});
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Get tenants to bill for selected month/year
   const { data: tenantsToBillData, isLoading: loadingTenants } = useQuery({
@@ -183,6 +198,62 @@ export default function BillingTab() {
     }, 0);
   };
 
+  const toggleSendOptions = (tenantId: string) => {
+    setShowSendOptions(prev => ({
+      ...prev,
+      [tenantId]: !prev[tenantId]
+    }));
+  };
+
+  const handleSendBill = async (tenantId: string, method: 'dashboard' | 'email' | 'sms' | 'whatsapp') => {
+    const tenant = tenantsToBill.find(t => t.id === tenantId);
+    if (!tenant) {
+      toast({
+        title: "Error",
+        description: "Tenant not found",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // For now, just show a success message with tenant details to ensure no mixup
+    let contactInfo = '';
+    switch (method) {
+      case 'dashboard':
+        contactInfo = `Dashboard notification for ${tenant.name}`;
+        break;
+      case 'email':
+        contactInfo = `Email to ${tenant.email}`;
+        break;
+      case 'sms':
+        contactInfo = `SMS to ${tenant.phone || 'No phone number'}`;
+        break;
+      case 'whatsapp':
+        contactInfo = `WhatsApp to ${tenant.phone || 'No phone number'}`;
+        break;
+    }
+
+    toast({
+      title: "Bill Send Prepared",
+      description: `Ready to send bill for ${tenant.name} (${tenant.propertyName} - Unit ${tenant.unitNumber}) via ${contactInfo}`,
+      variant: "default",
+    });
+
+    // Close the send options dropdown
+    setShowSendOptions(prev => ({ ...prev, [tenantId]: false }));
+    
+    // TODO: Implement actual sending logic later
+    console.log(`Sending bill for tenant ${tenantId} (${tenant.name}) via ${method}`, {
+      tenantName: tenant.name,
+      tenantEmail: tenant.email,
+      tenantPhone: tenant.phone,
+      propertyName: tenant.propertyName,
+      unitNumber: tenant.unitNumber,
+      rentAmount: tenant.rentAmount,
+      method: method
+    });
+  };
+
   const tenantsToBill = tenantsToBillData?.tenantsToBill || [];
   const existingBills = existingBillsData?.bills || [];
   const monthName = new Date(selectedYear, selectedMonth - 1).toLocaleString('default', { month: 'long' });
@@ -309,18 +380,72 @@ export default function BillingTab() {
                     <div>
                       <h3 className="font-semibold text-gray-900">{tenant.name}</h3>
                       <p className="text-sm text-gray-600">{tenant.email}</p>
+                      {tenant.phone && (
+                        <p className="text-sm text-gray-600">📱 {tenant.phone}</p>
+                      )}
                       <p className="text-sm text-gray-600">{tenant.propertyName} - Unit {tenant.unitNumber}</p>
                       <p className="text-sm font-medium text-green-600">Base Rent: KSH {tenant.rentAmount.toLocaleString()}</p>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => calculatePreview(tenant.id)}
-                      className="flex items-center space-x-2"
-                    >
-                      <Calculator className="h-4 w-4" />
-                      <span>Preview Bill</span>
-                    </Button>
+                    <div className="flex flex-col space-y-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => calculatePreview(tenant.id)}
+                        className="flex items-center space-x-2"
+                      >
+                        <Calculator className="h-4 w-4" />
+                        <span>Preview Bill</span>
+                      </Button>
+                      
+                      <div className="relative send-bill-dropdown">
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => toggleSendOptions(tenant.id)}
+                          className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700"
+                        >
+                          <Send className="h-4 w-4" />
+                          <span>Send Bill</span>
+                        </Button>
+                        
+                        {showSendOptions[tenant.id] && (
+                          <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10 send-bill-dropdown">
+                            <div className="py-1">
+                              <button
+                                onClick={() => handleSendBill(tenant.id, 'dashboard')}
+                                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                              >
+                                <FileText className="h-4 w-4 mr-2 flex-shrink-0" />
+                                <span className="text-left">Dashboard</span>
+                              </button>
+                              <button
+                                onClick={() => handleSendBill(tenant.id, 'email')}
+                                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                              >
+                                <Mail className="h-4 w-4 mr-2 flex-shrink-0" />
+                                <span className="text-left">Email</span>
+                              </button>
+                              <button
+                                onClick={() => handleSendBill(tenant.id, 'sms')}
+                                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                disabled={!tenant.phone}
+                              >
+                                <MessageSquare className="h-4 w-4 mr-2 flex-shrink-0" />
+                                <span className="text-left">SMS</span>
+                              </button>
+                              <button
+                                onClick={() => handleSendBill(tenant.id, 'whatsapp')}
+                                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                disabled={!tenant.phone}
+                              >
+                                <Phone className="h-4 w-4 mr-2 flex-shrink-0" />
+                                <span className="text-left">WhatsApp</span>
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
 
                   {/* Utility Usage Input - Property Specific */}
