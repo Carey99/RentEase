@@ -17,6 +17,7 @@ export default function Sidebar({ role, userName, activeTab = 'dashboard', onTab
     { id: 'properties', label: 'Properties', icon: Building },
     { id: 'tenants', label: 'Tenants', icon: Users },
     { id: 'debts', label: 'Debt Tracking', icon: AlertTriangle },
+    { id: 'billing', label: 'Billing', icon: CreditCard },
     { id: 'bills', label: 'Bills', icon: FileText },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];

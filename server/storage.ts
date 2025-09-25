@@ -1,5 +1,5 @@
-import { type User, type InsertUser, type Property, type InsertProperty, type TenantProperty, type InsertTenantProperty, type Landlord, type Tenant, type InsertLandlord, type InsertTenant, type PaymentHistory, type InsertPaymentHistory, type MonthlyBalance, type InsertMonthlyBalance } from "@shared/schema";
-import { Landlord as LandlordModel, Tenant as TenantModel, Property as PropertyModel, PaymentHistory as PaymentHistoryModel, MonthlyBalance as MonthlyBalanceModel } from "./database";
+import { type User, type InsertUser, type Property, type InsertProperty, type TenantProperty, type InsertTenantProperty, type Landlord, type Tenant, type InsertLandlord, type InsertTenant, type PaymentHistory, type InsertPaymentHistory, type MonthlyBalance, type InsertMonthlyBalance, type MonthlyBill, type InsertMonthlyBill, type UtilityUsage } from "@shared/schema";
+import { Landlord as LandlordModel, Tenant as TenantModel, Property as PropertyModel, PaymentHistory as PaymentHistoryModel, MonthlyBalance as MonthlyBalanceModel, MonthlyBill as MonthlyBillModel } from "./database";
 import { ObjectId } from "mongodb";
 
 // Helper function to validate ObjectId format
@@ -46,6 +46,14 @@ export interface IStorage {
   getPaymentHistory(tenantId: string): Promise<PaymentHistory[]>;
   getPaymentHistoryByLandlord(landlordId: string): Promise<PaymentHistory[]>;
   getPaymentHistoryByProperty(propertyId: string): Promise<PaymentHistory[]>;
+  
+  // Monthly Billing methods
+  createMonthlyBill(bill: InsertMonthlyBill): Promise<MonthlyBill>;
+  getMonthlyBill(tenantId: string, month: number, year: number): Promise<MonthlyBill | undefined>;
+  getMonthlyBillsByLandlord(landlordId: string, month?: number, year?: number): Promise<MonthlyBill[]>;
+  getMonthlyBillsByTenant(tenantId: string): Promise<MonthlyBill[]>;
+  updateMonthlyBillStatus(billId: string, status: string): Promise<boolean>;
+  getTenantsToBill(landlordId: string, month: number, year: number): Promise<any[]>;
 }
 
 export class MongoStorage implements IStorage {
@@ -1132,6 +1140,211 @@ export class MongoStorage implements IStorage {
       }));
     } catch (error) {
       console.error('Error getting property payment history:', error);
+      return [];
+    }
+  }
+
+  // Monthly Billing Methods
+  async createMonthlyBill(bill: InsertMonthlyBill): Promise<MonthlyBill> {
+    try {
+      const monthlyBill = new MonthlyBillModel(bill);
+      const saved = await monthlyBill.save();
+      
+      return {
+        _id: saved._id.toString(),
+        tenantId: saved.tenantId.toString(),
+        landlordId: saved.landlordId.toString(),
+        propertyId: saved.propertyId.toString(),
+        billMonth: saved.billMonth,
+        billYear: saved.billYear,
+        rentAmount: saved.rentAmount,
+        lineItems: saved.lineItems.map(item => ({
+          description: item.description,
+          type: item.type as 'rent' | 'utility' | 'fee' | 'other',
+          amount: item.amount,
+          utilityUsage: item.utilityUsage ? {
+            utilityType: item.utilityUsage.utilityType,
+            unitsUsed: item.utilityUsage.unitsUsed,
+            pricePerUnit: item.utilityUsage.pricePerUnit,
+            totalAmount: item.utilityUsage.totalAmount
+          } : undefined
+        })),
+        totalAmount: saved.totalAmount,
+        status: saved.status as 'generated' | 'sent' | 'paid' | 'overdue',
+        generatedDate: saved.generatedDate,
+        dueDate: saved.dueDate,
+        paidDate: saved.paidDate,
+        createdAt: saved.createdAt,
+        updatedAt: saved.updatedAt,
+      };
+    } catch (error) {
+      console.error('Error creating monthly bill:', error);
+      throw error;
+    }
+  }
+
+  async getMonthlyBill(tenantId: string, month: number, year: number): Promise<MonthlyBill | undefined> {
+    try {
+      const bill = await MonthlyBillModel.findOne({
+        tenantId,
+        billMonth: month,
+        billYear: year
+      }).lean();
+      
+      if (!bill) return undefined;
+      
+      return {
+        _id: bill._id.toString(),
+        tenantId: bill.tenantId.toString(),
+        landlordId: bill.landlordId.toString(),
+        propertyId: bill.propertyId.toString(),
+        billMonth: bill.billMonth,
+        billYear: bill.billYear,
+        rentAmount: bill.rentAmount,
+        lineItems: bill.lineItems.map(item => ({
+          description: item.description,
+          type: item.type as 'rent' | 'utility' | 'fee' | 'other',
+          amount: item.amount,
+          utilityUsage: item.utilityUsage ? {
+            utilityType: item.utilityUsage.utilityType,
+            unitsUsed: item.utilityUsage.unitsUsed,
+            pricePerUnit: item.utilityUsage.pricePerUnit,
+            totalAmount: item.utilityUsage.totalAmount
+          } : undefined
+        })),
+        totalAmount: bill.totalAmount,
+        status: bill.status as 'generated' | 'sent' | 'paid' | 'overdue',
+        generatedDate: bill.generatedDate,
+        dueDate: bill.dueDate,
+        paidDate: bill.paidDate,
+        createdAt: bill.createdAt,
+        updatedAt: bill.updatedAt,
+      };
+    } catch (error) {
+      console.error('Error getting monthly bill:', error);
+      return undefined;
+    }
+  }
+
+  async getMonthlyBillsByLandlord(landlordId: string, month?: number, year?: number): Promise<MonthlyBill[]> {
+    try {
+      const query: any = { landlordId };
+      if (month) query.billMonth = month;
+      if (year) query.billYear = year;
+      
+      const bills = await MonthlyBillModel.find(query)
+        .populate('tenantId', 'fullName email')
+        .populate('propertyId', 'name')
+        .sort({ createdAt: -1 })
+        .lean();
+
+      return bills.map(bill => ({
+        _id: bill._id.toString(),
+        tenantId: bill.tenantId.toString(),
+        landlordId: bill.landlordId.toString(),
+        propertyId: bill.propertyId.toString(),
+        billMonth: bill.billMonth,
+        billYear: bill.billYear,
+        rentAmount: bill.rentAmount,
+        lineItems: bill.lineItems.map(item => ({
+          description: item.description,
+          type: item.type as 'rent' | 'utility' | 'fee' | 'other',
+          amount: item.amount,
+          utilityUsage: item.utilityUsage ? {
+            utilityType: item.utilityUsage.utilityType,
+            unitsUsed: item.utilityUsage.unitsUsed,
+            pricePerUnit: item.utilityUsage.pricePerUnit,
+            totalAmount: item.utilityUsage.totalAmount
+          } : undefined
+        })),
+        totalAmount: bill.totalAmount,
+        status: bill.status as 'generated' | 'sent' | 'paid' | 'overdue',
+        generatedDate: bill.generatedDate,
+        dueDate: bill.dueDate,
+        paidDate: bill.paidDate,
+        createdAt: bill.createdAt,
+        updatedAt: bill.updatedAt,
+      }));
+    } catch (error) {
+      console.error('Error getting monthly bills by landlord:', error);
+      return [];
+    }
+  }
+
+  async getMonthlyBillsByTenant(tenantId: string): Promise<MonthlyBill[]> {
+    try {
+      const bills = await MonthlyBillModel.find({ tenantId })
+        .populate('propertyId', 'name')
+        .sort({ billYear: -1, billMonth: -1 })
+        .lean();
+
+      return bills.map(bill => ({
+        _id: bill._id.toString(),
+        tenantId: bill.tenantId.toString(),
+        landlordId: bill.landlordId.toString(),
+        propertyId: bill.propertyId.toString(),
+        billMonth: bill.billMonth,
+        billYear: bill.billYear,
+        rentAmount: bill.rentAmount,
+        lineItems: bill.lineItems.map(item => ({
+          description: item.description,
+          type: item.type as 'rent' | 'utility' | 'fee' | 'other',
+          amount: item.amount,
+          utilityUsage: item.utilityUsage ? {
+            utilityType: item.utilityUsage.utilityType,
+            unitsUsed: item.utilityUsage.unitsUsed,
+            pricePerUnit: item.utilityUsage.pricePerUnit,
+            totalAmount: item.utilityUsage.totalAmount
+          } : undefined
+        })),
+        totalAmount: bill.totalAmount,
+        status: bill.status as 'generated' | 'sent' | 'paid' | 'overdue',
+        generatedDate: bill.generatedDate,
+        dueDate: bill.dueDate,
+        paidDate: bill.paidDate,
+        createdAt: bill.createdAt,
+        updatedAt: bill.updatedAt,
+      }));
+    } catch (error) {
+      console.error('Error getting monthly bills by tenant:', error);
+      return [];
+    }
+  }
+
+  async updateMonthlyBillStatus(billId: string, status: string): Promise<boolean> {
+    try {
+      const result = await MonthlyBillModel.findByIdAndUpdate(
+        billId,
+        { 
+          status,
+          ...(status === 'paid' && { paidDate: new Date() })
+        },
+        { new: true }
+      );
+      return !!result;
+    } catch (error) {
+      console.error('Error updating monthly bill status:', error);
+      return false;
+    }
+  }
+
+  async getTenantsToBill(landlordId: string, month: number, year: number): Promise<any[]> {
+    try {
+      // Get all tenants for this landlord
+      const allTenants = await this.getTenantsByLandlord(landlordId);
+      
+      // Filter out tenants who already have bills for this month/year
+      const existingBills = await MonthlyBillModel.find({
+        landlordId,
+        billMonth: month,
+        billYear: year
+      }).lean();
+      
+      const billedTenantIds = existingBills.map(bill => bill.tenantId.toString());
+      
+      return allTenants.filter(tenant => !billedTenantIds.includes(tenant.id));
+    } catch (error) {
+      console.error('Error getting tenants to bill:', error);
       return [];
     }
   }

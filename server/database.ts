@@ -133,8 +133,42 @@ const monthlyBalanceSchema = new mongoose.Schema({
   collection: 'monthly_balances'
 });
 
+// Monthly Bill Model (monthly_bills collection)
+const utilityUsageSchema = new mongoose.Schema({
+  utilityType: { type: String, required: true },
+  unitsUsed: { type: Number, required: true, min: 0 },
+  pricePerUnit: { type: Number, required: true, min: 0 },
+  totalAmount: { type: Number, required: true, min: 0 }
+}, { _id: false });
+
+const billLineItemSchema = new mongoose.Schema({
+  description: { type: String, required: true },
+  type: { type: String, enum: ['rent', 'utility', 'fee', 'other'], required: true },
+  amount: { type: Number, required: true, min: 0 },
+  utilityUsage: utilityUsageSchema
+}, { _id: false });
+
+const monthlyBillSchema = new mongoose.Schema({
+  tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true },
+  landlordId: { type: mongoose.Schema.Types.ObjectId, ref: 'Landlord', required: true },
+  propertyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Property', required: true },
+  billMonth: { type: Number, required: true, min: 1, max: 12 },
+  billYear: { type: Number, required: true, min: 2024 },
+  rentAmount: { type: Number, required: true, min: 0 },
+  lineItems: [billLineItemSchema],
+  totalAmount: { type: Number, required: true, min: 0 },
+  status: { type: String, enum: ['generated', 'sent', 'paid', 'overdue'], default: 'generated' },
+  generatedDate: { type: Date, default: Date.now },
+  dueDate: { type: Date },
+  paidDate: { type: Date }
+}, {
+  timestamps: true,
+  collection: 'monthly_bills'
+});
+
 export const Landlord = mongoose.model('Landlord', landlordSchema);
 export const Tenant = mongoose.model('Tenant', tenantSchema);
 export const Property = mongoose.model('Property', propertySchema);
 export const PaymentHistory = mongoose.model('PaymentHistory', paymentHistorySchema);
 export const MonthlyBalance = mongoose.model('MonthlyBalance', monthlyBalanceSchema);
+export const MonthlyBill = mongoose.model('MonthlyBill', monthlyBillSchema);

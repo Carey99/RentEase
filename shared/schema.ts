@@ -183,7 +183,50 @@ export const insertMonthlyBalanceSchema = monthlyBalanceSchema.omit({
   updatedAt: true,
 });
 
+// Monthly Bill Schema (stored in monthly_bills collection)
+export const utilityUsageSchema = z.object({
+  utilityType: z.string().min(1, "Utility type is required"),
+  unitsUsed: z.number().min(0, "Units used must be non-negative"),
+  pricePerUnit: z.number().min(0, "Price per unit must be non-negative"),
+  totalAmount: z.number().min(0, "Total amount must be non-negative"),
+});
+
+export const billLineItemSchema = z.object({
+  description: z.string().min(1, "Description is required"),
+  type: z.enum(["rent", "utility", "fee", "other"]),
+  amount: z.number().min(0, "Amount must be non-negative"),
+  utilityUsage: utilityUsageSchema.optional(), // Only for utility line items
+});
+
+export const monthlyBillSchema = z.object({
+  _id: z.string().optional(),
+  tenantId: z.string(),
+  landlordId: z.string(),
+  propertyId: z.string(),
+  billMonth: z.number().min(1).max(12), // 1-12
+  billYear: z.number().min(2024),
+  rentAmount: z.number().min(0),
+  lineItems: z.array(billLineItemSchema),
+  totalAmount: z.number().min(0),
+  status: z.enum(["generated", "sent", "paid", "overdue"]).default("generated"),
+  generatedDate: z.date().optional(),
+  dueDate: z.date().optional(),
+  paidDate: z.date().optional(),
+  createdAt: z.date().optional(),
+  updatedAt: z.date().optional(),
+});
+
+export const insertMonthlyBillSchema = monthlyBillSchema.omit({
+  _id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export type PaymentHistory = z.infer<typeof paymentHistorySchema>;
 export type InsertPaymentHistory = z.infer<typeof insertPaymentHistorySchema>;
 export type MonthlyBalance = z.infer<typeof monthlyBalanceSchema>;
 export type InsertMonthlyBalance = z.infer<typeof insertMonthlyBalanceSchema>;
+export type MonthlyBill = z.infer<typeof monthlyBillSchema>;
+export type InsertMonthlyBill = z.infer<typeof insertMonthlyBillSchema>;
+export type BillLineItem = z.infer<typeof billLineItemSchema>;
+export type UtilityUsage = z.infer<typeof utilityUsageSchema>;

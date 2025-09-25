@@ -10,6 +10,7 @@ import { PropertyController } from "./controllers/propertyController";
 import { TenantController } from "./controllers/tenantController";
 import { LandlordController } from "./controllers/landlordController";
 import { PaymentController } from "./controllers/paymentController";
+import { BillingController } from "./controllers/billingController";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication routes
@@ -26,6 +27,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/properties/search", PropertyController.searchProperties);
   app.get("/api/properties/:propertyId/types", PropertyController.getPropertyTypes);
   app.get("/api/properties/:propertyId/tenants", PropertyController.getTenantsByProperty);
+  app.get("/api/properties/:propertyId/utilities", PropertyController.getPropertyUtilities);
   app.put("/api/properties/:propertyId/rent-settings", PropertyController.updateRentSettings);
 
   // Tenant routes
@@ -52,6 +54,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/payment-history/landlord/:landlordId", PaymentController.getLandlordPaymentHistory);
   app.get("/api/payment-history/landlord/:landlordId/by-property", PaymentController.getLandlordPaymentHistoryByProperty);
   app.get("/api/payment-history/property/:propertyId", PaymentController.getPropertyPaymentHistory);
+
+  // Billing routes
+  app.get("/api/billing/landlord/:landlordId/to-bill", BillingController.getTenantsToBill);
+  app.post("/api/billing/generate", BillingController.generateBill);
+  app.post("/api/billing/landlord/:landlordId/generate-all", BillingController.generateAllBills);
+  app.get("/api/billing/landlord/:landlordId", BillingController.getLandlordBills);
+  app.get("/api/billing/tenant/:tenantId", BillingController.getTenantBills);
+  app.put("/api/billing/:billId/status", BillingController.updateBillStatus);
+  app.post("/api/billing/calculate-preview", BillingController.calculateBillPreview);
 
   const httpServer = createServer(app);
   return httpServer;

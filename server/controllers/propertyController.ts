@@ -150,4 +150,35 @@ export class PropertyController {
       res.status(500).json({ error: "Failed to update rent settings" });
     }
   }
+
+  /**
+   * Get property utilities
+   * GET /api/properties/:propertyId/utilities
+   */
+  static async getPropertyUtilities(req: Request, res: Response) {
+    try {
+      const propertyId = req.params.propertyId;
+      const property = await storage.getProperty(propertyId);
+      
+      if (!property) {
+        return res.status(404).json({ error: "Property not found" });
+      }
+
+      // Filter out utilities that are "Included" or "Not Included" since they can't be billed
+      const billableUtilities = (property.utilities || []).filter(utility => {
+        const price = utility.price.toLowerCase();
+        return price !== 'included' && price !== 'not included';
+      });
+
+      res.json({
+        success: true,
+        propertyId: property._id,
+        propertyName: property.name,
+        utilities: billableUtilities
+      });
+    } catch (error) {
+      console.error("Error getting property utilities:", error);
+      res.status(500).json({ error: "Failed to get property utilities" });
+    }
+  }
 }
