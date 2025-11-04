@@ -1,6 +1,7 @@
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Home, BarChart3, Building, Users, FileText, Settings, LogOut, CreditCard, AlertTriangle } from "lucide-react";
+import { NotificationBell } from "./NotificationBell";
 
 interface SidebarProps {
   role: 'landlord' | 'tenant';
@@ -16,18 +17,15 @@ export default function Sidebar({ role, userName, activeTab = 'dashboard', onTab
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
     { id: 'properties', label: 'Properties', icon: Building },
     { id: 'tenants', label: 'Tenants', icon: Users },
-    { id: 'debts', label: 'Debt Tracking', icon: AlertTriangle },
-    { id: 'billing', label: 'Billing', icon: CreditCard },
-    { id: 'bills', label: 'Bills', icon: FileText },
+    { id: 'payments', label: 'Payments', icon: CreditCard },
+    { id: 'debt-tracking', label: 'Debt Tracking', icon: AlertTriangle },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
   const tenantNavItems = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
     { id: 'apartment', label: 'My Apartment', icon: Home },
-    { id: 'payments', label: 'Payments', icon: CreditCard },
-    { id: 'bills', label: 'My Bills', icon: FileText },
-    { id: 'history', label: 'History', icon: FileText },
+    { id: 'payments', label: 'Payment History', icon: CreditCard },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
@@ -40,9 +38,12 @@ export default function Sidebar({ role, userName, activeTab = 'dashboard', onTab
   return (
     <div className="w-64 bg-white shadow-lg border-r border-neutral-200 min-h-screen">
       <div className="p-6 border-b border-neutral-200">
-        <div className="flex items-center space-x-2">
-          <Home className="text-primary text-xl" />
-          <span className="text-xl font-bold text-neutral-900">RentEase</span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Home className="text-primary text-xl" />
+            <span className="text-xl font-bold text-neutral-900">RentEase</span>
+          </div>
+          {role === 'landlord' && <NotificationBell />}
         </div>
         <p className="text-sm text-neutral-600 mt-1">
           {role === 'landlord' ? 'Landlord Portal' : 'Tenant Portal'}

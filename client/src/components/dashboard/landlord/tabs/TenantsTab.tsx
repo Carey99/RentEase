@@ -14,6 +14,7 @@ import type { Tenant } from "@/types/dashboard";
 export default function TenantsTab() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<"all" | "active" | "pending" | "inactive">("all");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [showAddTenantDialog, setShowAddTenantDialog] = useState(false);
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
   const [showTenantDetails, setShowTenantDetails] = useState(false);
@@ -103,6 +104,8 @@ export default function TenantsTab() {
         onSearchChange={setSearchTerm}
         filterStatus={filterStatus}
         onFilterChange={setFilterStatus}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
       />
 
       {/* Tenants Stats */}
@@ -115,6 +118,7 @@ export default function TenantsTab() {
         onViewDetails={handleViewDetails}
         onAddTenant={() => setShowAddTenantDialog(true)}
         onTenantDeleted={handleTenantDeleted}
+        viewMode={viewMode}
       />
 
       {/* Add Tenant Dialog */}

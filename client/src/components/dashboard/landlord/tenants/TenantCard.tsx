@@ -49,7 +49,9 @@ export default function TenantCard({
         tenant.rentCycle.rentStatus, 
         tenant.rentCycle.advancePaymentDays,
         tenant.rentCycle.debtAmount,
-        tenant.rentCycle.monthsOwed
+        tenant.rentCycle.monthsOwed,
+        tenant.rentCycle.paidForMonth,
+        tenant.rentCycle.paidForYear
       );
     }
     
@@ -70,11 +72,12 @@ export default function TenantCard({
   const getRentStatusBadgeText = () => {
     if (tenant.rentCycle?.rentStatus) {
       switch (tenant.rentCycle.rentStatus) {
-        case 'paid_in_advance':
-          if (tenant.rentCycle.advancePaymentMonths && tenant.rentCycle.advancePaymentMonths > 0) {
-            return `${tenant.rentCycle.advancePaymentMonths} month${tenant.rentCycle.advancePaymentMonths > 1 ? 's' : ''} ahead`;
+        case 'paid':
+          if (tenant.rentCycle.paidForMonth && tenant.rentCycle.paidForYear) {
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            return `Paid (${monthNames[tenant.rentCycle.paidForMonth - 1]})`;
           }
-          return 'Paid in Advance';
+          return 'Paid';
         case 'active':
           if (tenant.rentCycle.daysRemaining && tenant.rentCycle.daysRemaining <= 3) {
             return `Due in ${tenant.rentCycle.daysRemaining}d`;
@@ -133,7 +136,22 @@ export default function TenantCard({
           </div>
           <div className="flex items-center space-x-2">
             <Calendar size={16} />
-            <span>Lease: {new Date(tenant.leaseStart).toLocaleDateString()} - {new Date(tenant.leaseEnd).toLocaleDateString()}</span>
+            <span>
+              {tenant.rentCycle?.nextDueDate ? (
+                <>
+                  {tenant.rentCycle?.lastPaymentDate ? (
+                    <>Last Paid: {new Date(tenant.rentCycle.lastPaymentDate).toLocaleDateString()} → </>
+                  ) : (
+                    <>Payment Period: {new Date(tenant.leaseStart).toLocaleDateString()} → </>
+                  )}
+                  Due: {new Date(tenant.rentCycle.nextDueDate).toLocaleDateString()}
+                </>
+              ) : (
+                <>
+                  Lease: {new Date(tenant.leaseStart).toLocaleDateString()} - {new Date(tenant.leaseEnd).toLocaleDateString()}
+                </>
+              )}
+            </span>
           </div>
         </div>
 

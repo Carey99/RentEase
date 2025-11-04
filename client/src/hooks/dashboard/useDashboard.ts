@@ -52,13 +52,13 @@ export function usePropertyEditState(): PropertyEditState & {
 } {
   const [editingPropertyTypes, setEditingPropertyTypes] = useState<PropertyType[]>([]);
   const [editingUtilities, setEditingUtilities] = useState<Utility[]>([]);
-  const [newPropertyType, setNewPropertyType] = useState<PropertyType>({ type: '', price: '' });
+  const [newPropertyType, setNewPropertyType] = useState<PropertyType>({ type: '', price: '', units: 1 });
   const [newUtility, setNewUtility] = useState<Utility>({ type: '', price: '' });
 
   const resetEditingState = () => {
     setEditingPropertyTypes([]);
     setEditingUtilities([]);
-    setNewPropertyType({ type: '', price: '' });
+    setNewPropertyType({ type: '', price: '', units: 1 });
     setNewUtility({ type: '', price: '' });
   };
 
@@ -86,7 +86,7 @@ export function usePropertyFormState(): PropertyFormState & {
     propertyTypes: [],
     utilities: []
   });
-  const [tempPropertyType, setTempPropertyType] = useState<PropertyType>({ type: '', price: '' });
+  const [tempPropertyType, setTempPropertyType] = useState<PropertyType>({ type: '', price: '', units: 1 });
   const [tempUtility, setTempUtility] = useState<Utility>({ type: '', price: '' });
 
   const resetNewPropertyForm = () => {
@@ -95,7 +95,7 @@ export function usePropertyFormState(): PropertyFormState & {
       propertyTypes: [],
       utilities: []
     });
-    setTempPropertyType({ type: '', price: '' });
+    setTempPropertyType({ type: '', price: '', units: 1 });
     setTempUtility({ type: '', price: '' });
   };
 

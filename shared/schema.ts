@@ -34,10 +34,14 @@ export const tenantSchema = z.object({
     landlordId: z.string().optional(),
   }).optional(),
   rentCycle: z.object({
-    lastPaymentDate: z.date().optional(), // When tenant last paid rent
+    lastPaymentDate: z.date().optional().nullable(), // When tenant last paid rent
+    lastPaymentAmount: z.number().optional().nullable(), // Amount of last payment
+    currentMonthPaid: z.boolean().default(false), // Has current month been paid?
+    paidForMonth: z.number().min(1).max(12).optional().nullable(), // Month number payment was for
+    paidForYear: z.number().optional().nullable(), // Year payment was for
     nextDueDate: z.date().optional(), // Next rent due date
     daysRemaining: z.number().optional(), // Days until next due date
-    rentStatus: z.enum(["active", "overdue", "grace_period"]).default("active").optional(),
+    rentStatus: z.enum(["paid", "active", "overdue", "grace_period"]).default("active").optional(),
   }).default({}),
   createdAt: z.date().optional(),
   updatedAt: z.date().optional(),
@@ -51,6 +55,7 @@ export const propertySchema = z.object({
   propertyTypes: z.array(z.object({
     type: z.string().min(1, "Property type is required"),
     price: z.string().min(1, "Price is required"),
+    units: z.number().min(1, "At least 1 unit is required").default(1),
   })).min(1, "At least one property type is required"),
   rentSettings: z.object({
     paymentDay: z.number().min(1).max(31).default(1), // Day of month for rent payment (1-31)
@@ -126,6 +131,24 @@ export type InsertTenantProperty = {
 export type TenantProperty = InsertTenantProperty & {
   _id: string;
   createdAt: Date;
+  property?: {
+    id: string;
+    landlordId: string;
+    name: string;
+    propertyTypes: Array<{ type: string; price: string }>;
+    utilities?: Array<{ type: string; price: string }>;
+    totalUnits?: string;
+    occupiedUnits?: string;
+    createdAt?: Date;
+  };
+  rentCycle?: {
+    lastPaymentDate?: Date;
+    nextDueDate?: Date;
+    daysRemaining?: number;
+    rentStatus?: 'active' | 'overdue' | 'grace_period' | 'paid_in_advance' | 'partial';
+    advancePaymentDays?: number;
+    advancePaymentMonths?: number;
+  };
 };
 
 // Legacy schema for compatibility
@@ -145,31 +168,20 @@ export const paymentHistorySchema = z.object({
   propertyId: z.string(),
   amount: z.number().positive("Payment amount must be positive"),
   paymentDate: z.date(),
+  forMonth: z.number().min(1).max(12), // Month this payment is for (1-12)
+  forYear: z.number().min(2020), // Year this payment is for
+  monthlyRent: z.number().positive("Monthly rent must be positive"), // Expected rent amount
   paymentMethod: z.string().optional(),
   status: z.enum(["pending", "partial", "completed", "overpaid", "failed"]).default("completed").optional(),
   notes: z.string().optional(),
-  forMonth: z.number().min(1).max(12),
-  forYear: z.number(),
-  monthlyRentAmount: z.number().positive("Monthly rent amount must be positive"),
-  appliedAmount: z.number().nonnegative("Applied amount must be non-negative"),
-  creditAmount: z.number().nonnegative("Credit amount must be non-negative").default(0),
+  utilityCharges: z.array(z.object({
+    type: z.string(), // e.g., "Water", "Electricity"
+    unitsUsed: z.number().min(0), // e.g., 150 (kWh or liters)
+    pricePerUnit: z.number().positive(), // e.g., 15 (price per unit)
+    total: z.number().min(0), // e.g., 2250 (unitsUsed * pricePerUnit)
+  })).optional(),
+  totalUtilityCost: z.number().min(0).optional(), // Sum of all utility charges
   createdAt: z.date().optional(),
-});
-
-// Monthly Balance Schema
-export const monthlyBalanceSchema = z.object({
-  _id: z.string().optional(),
-  tenantId: z.string(),
-  landlordId: z.string(),
-  propertyId: z.string(),
-  month: z.number().min(1).max(12),
-  year: z.number(),
-  expectedAmount: z.number().positive("Expected amount must be positive"),
-  paidAmount: z.number().nonnegative("Paid amount must be non-negative").default(0),
-  balance: z.number().default(0),
-  status: z.enum(["pending", "partial", "completed", "overpaid"]).default("pending"),
-  createdAt: z.date().optional(),
-  updatedAt: z.date().optional(),
 });
 
 export const insertPaymentHistorySchema = paymentHistorySchema.omit({
@@ -177,56 +189,115 @@ export const insertPaymentHistorySchema = paymentHistorySchema.omit({
   createdAt: true,
 });
 
-export const insertMonthlyBalanceSchema = monthlyBalanceSchema.omit({
-  _id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-// Monthly Bill Schema (stored in monthly_bills collection)
-export const utilityUsageSchema = z.object({
-  utilityType: z.string().min(1, "Utility type is required"),
-  unitsUsed: z.number().min(0, "Units used must be non-negative"),
-  pricePerUnit: z.number().min(0, "Price per unit must be non-negative"),
-  totalAmount: z.number().min(0, "Total amount must be non-negative"),
-});
-
-export const billLineItemSchema = z.object({
-  description: z.string().min(1, "Description is required"),
-  type: z.enum(["rent", "utility", "fee", "other"]),
-  amount: z.number().min(0, "Amount must be non-negative"),
-  utilityUsage: utilityUsageSchema.optional(), // Only for utility line items
-});
-
-export const monthlyBillSchema = z.object({
-  _id: z.string().optional(),
-  tenantId: z.string(),
-  landlordId: z.string(),
-  propertyId: z.string(),
-  billMonth: z.number().min(1).max(12), // 1-12
-  billYear: z.number().min(2024),
-  rentAmount: z.number().min(0),
-  lineItems: z.array(billLineItemSchema),
-  totalAmount: z.number().min(0),
-  status: z.enum(["generated", "sent", "paid", "overdue"]).default("generated"),
-  generatedDate: z.date().optional(),
-  dueDate: z.date().optional(),
-  paidDate: z.date().optional(),
-  createdAt: z.date().optional(),
-  updatedAt: z.date().optional(),
-});
-
-export const insertMonthlyBillSchema = monthlyBillSchema.omit({
-  _id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
 export type PaymentHistory = z.infer<typeof paymentHistorySchema>;
 export type InsertPaymentHistory = z.infer<typeof insertPaymentHistorySchema>;
-export type MonthlyBalance = z.infer<typeof monthlyBalanceSchema>;
-export type InsertMonthlyBalance = z.infer<typeof insertMonthlyBalanceSchema>;
-export type MonthlyBill = z.infer<typeof monthlyBillSchema>;
-export type InsertMonthlyBill = z.infer<typeof insertMonthlyBillSchema>;
-export type BillLineItem = z.infer<typeof billLineItemSchema>;
-export type UtilityUsage = z.infer<typeof utilityUsageSchema>;
+
+// Activity Log Schema - Track all important landlord activities
+export const activityLogSchema = z.object({
+  _id: z.string().optional(),
+  landlordId: z.string(),
+  activityType: z.enum([
+    "tenant_registered",      // New tenant added
+    "tenant_removed",         // Tenant deleted
+    "payment_received",       // Payment completed
+    "payment_failed",         // Payment failed
+    "property_added",         // New property created
+    "property_updated",       // Property details changed
+    "property_removed",       // Property deleted
+    "debt_created",           // New debt/bill created
+    "debt_cleared",           // Debt fully paid
+    "rent_overdue",           // Tenant rent became overdue
+    "utility_bill_added",     // Utility bill added to payment
+    "system_alert",           // System-generated alerts
+  ]),
+  title: z.string(), // Short description (e.g., "New Tenant Registered")
+  description: z.string(), // Detailed description
+  metadata: z.object({
+    tenantId: z.string().optional(),
+    tenantName: z.string().optional(),
+    propertyId: z.string().optional(),
+    propertyName: z.string().optional(),
+    paymentId: z.string().optional(),
+    amount: z.number().optional(),
+    unitNumber: z.string().optional(),
+    previousValue: z.string().optional(), // For update tracking
+    newValue: z.string().optional(), // For update tracking
+  }).optional(),
+  icon: z.enum([
+    "user-plus",      // Tenant registered
+    "user-minus",     // Tenant removed
+    "dollar-sign",    // Payment received
+    "alert-circle",   // Payment failed/overdue
+    "building",       // Property added/updated
+    "building-minus", // Property removed
+    "file-text",      // Debt/bill created
+    "check-circle",   // Debt cleared
+    "zap",            // Utility bill
+    "bell",           // System alert
+  ]).default("bell"),
+  priority: z.enum(["low", "medium", "high", "urgent"]).default("medium"),
+  isRead: z.boolean().default(false),
+  createdAt: z.date().optional(),
+});
+
+export const insertActivityLogSchema = activityLogSchema.omit({
+  _id: true,
+  createdAt: true,
+  isRead: true,
+});
+
+export type ActivityLog = z.infer<typeof activityLogSchema>;
+export type InsertActivityLog = z.infer<typeof insertActivityLogSchema>;
+
+// Tenant Activity Log Schema - Track tenant-specific notifications
+export const tenantActivityLogSchema = z.object({
+  _id: z.string().optional(),
+  tenantId: z.string(),
+  activityType: z.enum([
+    "bill_created",           // New bill/invoice created
+    "bill_reminder",          // Payment reminder
+    "bill_overdue",           // Bill is overdue
+    "grace_period_warning",   // Grace period about to end
+    "payment_processed",      // Payment was successful
+    "payment_failed",         // Payment failed
+    "partial_payment_received", // Partial payment acknowledged
+    "final_notice",           // 10 days overdue - final notice
+    "system_alert",           // System alerts
+  ]),
+  title: z.string(),
+  description: z.string(),
+  metadata: z.object({
+    landlordId: z.string().optional(),
+    landlordName: z.string().optional(),
+    propertyId: z.string().optional(),
+    propertyName: z.string().optional(),
+    paymentId: z.string().optional(),
+    amount: z.number().optional(),
+    dueDate: z.string().optional(),
+    daysOverdue: z.number().optional(),
+  }).optional(),
+  icon: z.enum([
+    "file-text",      // Bill created
+    "bell",           // Reminder
+    "alert-circle",   // Overdue/warning
+    "alert-triangle", // Final notice
+    "check-circle",   // Payment successful
+    "x-circle",       // Payment failed
+    "dollar-sign",    // Partial payment
+    "clock",          // Grace period
+  ]).default("bell"),
+  priority: z.enum(["low", "medium", "high", "urgent"]).default("medium"),
+  isRead: z.boolean().default(false),
+  createdAt: z.date().optional(),
+});
+
+export const insertTenantActivityLogSchema = tenantActivityLogSchema.omit({
+  _id: true,
+  createdAt: true,
+  isRead: true,
+});
+
+export type TenantActivityLog = z.infer<typeof tenantActivityLogSchema>;
+export type InsertTenantActivityLog = z.infer<typeof insertTenantActivityLogSchema>;
+
+

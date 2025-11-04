@@ -3,6 +3,7 @@
 export interface PropertyType {
   type: string;
   price: string;
+  units: number;
 }
 
 export interface Utility {
@@ -75,12 +76,24 @@ export interface Tenant {
   profileImage?: string; // Add this for avatar compatibility  
   rentCycle?: {
     lastPaymentDate?: string;
+    lastPaymentAmount?: number;
+    currentMonthPaid?: boolean;
+    paidForMonth?: number;
+    paidForYear?: number;
     nextDueDate?: string;
     daysRemaining?: number;
-    rentStatus: 'active' | 'overdue' | 'grace_period' | 'paid_in_advance' | 'partial';
+    rentStatus: 'active' | 'overdue' | 'grace_period' | 'paid';
     advancePaymentDays?: number;
     advancePaymentMonths?: number;
     debtAmount?: number;
     monthsOwed?: number;
+    isNewTenant?: boolean;
+    hasPartialPayment?: boolean;
+    partialPaymentInfo?: {
+      amountPaid: number;
+      expectedAmount: number;
+      remainingBalance: number;
+      paymentDate: string;
+    };
   };
 }

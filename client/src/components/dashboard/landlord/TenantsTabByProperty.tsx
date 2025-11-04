@@ -205,7 +205,7 @@ export default function TenantsTabByProperty({ className }: TenantsTabByProperty
                     </Button>
                   </div>
                 ) : (
-                  <div className="grid gap-4">
+                  <div className="grid gap-4 max-h-[calc(6*220px)] overflow-y-auto pr-2">
                     {property.tenants.map((tenant: Tenant) => (
                       <TenantCard
                         key={tenant.id}

@@ -99,4 +99,40 @@ export class PaymentController {
       res.status(500).json({ error: "Failed to get payment history" });
     }
   }
+
+  /**
+   * Get recorded months for a tenant in a specific year
+   * GET /api/payment-history/tenant/:tenantId/recorded-months/:year
+   */
+  static async getRecordedMonths(req: Request, res: Response) {
+    try {
+      const { tenantId, year } = req.params;
+      const months = await storage.getRecordedMonthsForTenant(tenantId, parseInt(year));
+      
+      res.json({ months });
+    } catch (error) {
+      console.error("Error getting recorded months:", error);
+      res.status(500).json({ error: "Failed to get recorded months" });
+    }
+  }
+
+  /**
+   * Delete a payment history record
+   * DELETE /api/payment-history/:paymentId
+   */
+  static async deletePaymentHistory(req: Request, res: Response) {
+    try {
+      const { paymentId } = req.params;
+      const success = await storage.deletePaymentHistory(paymentId);
+      
+      if (success) {
+        res.json({ message: "Payment record deleted successfully" });
+      } else {
+        res.status(404).json({ error: "Payment record not found" });
+      }
+    } catch (error) {
+      console.error("Error deleting payment history:", error);
+      res.status(500).json({ error: "Failed to delete payment record" });
+    }
+  }
 }

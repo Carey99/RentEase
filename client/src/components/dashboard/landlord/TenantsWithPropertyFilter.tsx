@@ -1,10 +1,11 @@
 import { useState } from "react";
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Plus, Users } from "lucide-react";
+import { Plus, Users, Grid3x3, List } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import TenantCard from "./tenants/TenantCard";
+import TenantListItem from "./tenants/TenantListItem";
 import AddTenantDialog from "./tenants/AddTenantDialog";
 import TenantDetailsDialog from "./tenants/TenantDetailsDialog";
 import PropertySelector from "./PropertySelector";
@@ -20,6 +21,7 @@ export default function TenantsWithPropertyFilter({ className }: TenantsWithProp
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
   const [showTenantDetails, setShowTenantDetails] = useState(false);
   const [selectedPropertyId, setSelectedPropertyId] = useState<string>("all");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   
   const currentUser = useCurrentUser();
 
@@ -122,10 +124,32 @@ export default function TenantsWithPropertyFilter({ className }: TenantsWithProp
             isLoading={propertiesQuery.isLoading}
           />
         </div>
-        <Button onClick={() => setShowAddTenantDialog(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Tenant
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* View Mode Toggle */}
+          <div className="flex border rounded-md">
+            <Button
+              variant={viewMode === "grid" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("grid")}
+              className="rounded-r-none"
+            >
+              <Grid3x3 className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewMode === "list" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("list")}
+              className="rounded-l-none"
+            >
+              <List className="h-4 w-4" />
+            </Button>
+          </div>
+          
+          <Button onClick={() => setShowAddTenantDialog(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Tenant
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -210,13 +234,25 @@ export default function TenantsWithPropertyFilter({ className }: TenantsWithProp
               </p>
             </div>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className={`${
+              viewMode === "grid" 
+                ? "grid gap-4 md:grid-cols-2 lg:grid-cols-3 max-h-[calc(6*220px)]" 
+                : "space-y-3 max-h-[calc(10*80px)]"
+            } overflow-y-auto pr-2 scroll-smooth`}>
               {filteredTenants.map((tenant: Tenant) => (
-                <TenantCard
-                  key={tenant.id}
-                  tenant={tenant}
-                  onViewDetails={handleViewDetails}
-                />
+                viewMode === "grid" ? (
+                  <TenantCard
+                    key={tenant.id}
+                    tenant={tenant}
+                    onViewDetails={handleViewDetails}
+                  />
+                ) : (
+                  <TenantListItem
+                    key={tenant.id}
+                    tenant={tenant}
+                    onViewDetails={handleViewDetails}
+                  />
+                )
               ))}
             </div>
           )}

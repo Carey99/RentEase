@@ -28,6 +28,23 @@ export class PropertyController {
   }
 
   /**
+   * Get single property by ID
+   * GET /api/properties/:id
+   */
+  static async getProperty(req: Request, res: Response) {
+    try {
+      const property = await storage.getProperty(req.params.id);
+      if (!property) {
+        return res.status(404).json({ error: "Property not found" });
+      }
+      res.json(property);
+    } catch (error) {
+      console.error("Error getting property:", error);
+      res.status(500).json({ error: "Failed to get property" });
+    }
+  }
+
+  /**
    * Get properties by landlord
    * GET /api/properties/landlord/:landlordId
    */

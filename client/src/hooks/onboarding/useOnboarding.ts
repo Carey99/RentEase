@@ -123,9 +123,9 @@ export function usePropertyManagement() {
   const addPropertyType = (
     selectedTypes: PropertyType[], 
     setSelectedTypes: (types: PropertyType[]) => void
-  ) => (type: string, price: string) => {
+  ) => (type: string, price: string, units: number = 1) => {
     if (!selectedTypes.find(pt => pt.type === type)) {
-      setSelectedTypes([...selectedTypes, { type, price }]);
+      setSelectedTypes([...selectedTypes, { type, price, units }]);
     }
   };
 

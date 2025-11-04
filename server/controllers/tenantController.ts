@@ -7,6 +7,7 @@ import type { Request, Response } from "express";
 import { storage } from "../storage";
 import { insertTenantPropertySchema } from "@shared/schema";
 import { ZodError } from "zod";
+import { logActivity, createActivityLog } from "./activityController";
 
 export class TenantController {
   /**
@@ -142,10 +143,30 @@ export class TenantController {
         return res.status(400).json({ error: "Tenant ID is required" });
       }
 
+      // Get tenant info before deletion for activity log
+      const tenant = await storage.getTenant(tenantId);
+      
       const success = await storage.deleteTenant(tenantId);
 
       if (!success) {
         return res.status(404).json({ error: "Tenant not found or could not be deleted" });
+      }
+
+      // Log tenant removal activity
+      if (tenant && tenant.apartmentInfo?.landlordId) {
+        await logActivity(createActivityLog(
+          tenant.apartmentInfo.landlordId,
+          'tenant_removed',
+          'Tenant Removed',
+          `${tenant.fullName} has been removed from ${tenant.apartmentInfo.propertyName || 'the property'}`,
+          {
+            tenantName: tenant.fullName,
+            propertyId: tenant.apartmentInfo.propertyId,
+            propertyName: tenant.apartmentInfo.propertyName,
+            unitNumber: tenant.apartmentInfo.unitNumber,
+          },
+          'medium'
+        ));
       }
 
       res.json({
@@ -187,6 +208,7 @@ export class TenantController {
       if (!tenantProperty) {
         return res.status(404).json({ error: "Tenant property not found" });
       }
+
       res.json(tenantProperty);
     } catch (error) {
       console.error("Error getting tenant property:", error);
@@ -201,14 +223,30 @@ export class TenantController {
   static async recordPayment(req: Request, res: Response) {
     try {
       const { tenantId } = req.params;
-      const { paymentAmount, paymentDate } = req.body;
+      const { paymentAmount, forMonth, forYear, paymentDate, utilityCharges, totalUtilityCost } = req.body;
 
       if (!paymentAmount || paymentAmount <= 0) {
         return res.status(400).json({ error: "Valid payment amount is required" });
       }
 
+      if (!forMonth || forMonth < 1 || forMonth > 12) {
+        return res.status(400).json({ error: "Valid month (1-12) is required" });
+      }
+
+      if (!forYear || forYear < 2020) {
+        return res.status(400).json({ error: "Valid year is required" });
+      }
+
       const paymentDateObj = paymentDate ? new Date(paymentDate) : new Date();
-      const success = await storage.recordTenantPayment(tenantId, paymentAmount, paymentDateObj);
+      const success = await storage.recordTenantPayment(
+        tenantId, 
+        paymentAmount, 
+        forMonth, 
+        forYear, 
+        paymentDateObj,
+        utilityCharges,
+        totalUtilityCost
+      );
 
       if (!success) {
         return res.status(404).json({ error: "Tenant not found or payment could not be recorded" });
@@ -216,14 +254,63 @@ export class TenantController {
 
       res.json({
         success: true,
-        message: "Payment recorded successfully",
+        message: `Payment recorded successfully for ${forMonth}/${forYear}`,
         paymentAmount,
-        paymentDate: paymentDateObj
+        forMonth,
+        forYear,
+        paymentDate: paymentDateObj,
+        utilityCharges,
+        totalUtilityCost
       });
 
     } catch (error) {
       console.error("Error recording tenant payment:", error);
       res.status(500).json({ error: "Failed to record payment" });
+    }
+  }
+
+  /**
+   * Tenant makes a payment on their bill
+   * POST /api/tenants/:tenantId/make-payment
+   */
+  static async makePayment(req: Request, res: Response) {
+    try {
+      const { tenantId } = req.params;
+      const { paymentId, amount, paymentMethod } = req.body;
+
+      if (!paymentId) {
+        return res.status(400).json({ error: "Payment ID is required" });
+      }
+
+      if (!amount || amount <= 0) {
+        return res.status(400).json({ error: "Valid payment amount is required" });
+      }
+
+      if (!paymentMethod) {
+        return res.status(400).json({ error: "Payment method is required" });
+      }
+
+      const success = await storage.processTenantPayment(
+        paymentId,
+        amount,
+        paymentMethod,
+        tenantId
+      );
+
+      if (!success) {
+        return res.status(404).json({ error: "Payment not found or could not be processed" });
+      }
+
+      res.json({
+        success: true,
+        message: "Payment processed successfully",
+        amount,
+        paymentMethod
+      });
+
+    } catch (error: any) {
+      console.error("Error processing tenant payment:", error);
+      res.status(500).json({ error: error.message || "Failed to process payment" });
     }
   }
 }

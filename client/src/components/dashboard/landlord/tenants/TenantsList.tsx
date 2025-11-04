@@ -2,6 +2,7 @@ import { Plus, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import TenantCard from "./TenantCard";
+import TenantListItem from "./TenantListItem";
 import type { Tenant } from "@/types/dashboard";
 
 interface TenantsListProps {
@@ -10,6 +11,7 @@ interface TenantsListProps {
   onViewDetails: (tenant: Tenant) => void;
   onAddTenant: () => void;
   onTenantDeleted?: () => void;
+  viewMode: "grid" | "list";
 }
 
 export default function TenantsList({
@@ -17,7 +19,8 @@ export default function TenantsList({
   filteredTenants,
   onViewDetails,
   onAddTenant,
-  onTenantDeleted
+  onTenantDeleted,
+  viewMode
 }: TenantsListProps) {
   if (filteredTenants.length === 0) {
     return (
@@ -48,15 +51,30 @@ export default function TenantsList({
   }
 
   return (
-    <div className="grid gap-4">
-      {filteredTenants.map((tenant) => (
-        <TenantCard
-          key={tenant.id}
-          tenant={tenant}
-          onViewDetails={onViewDetails}
-          onTenantDeleted={onTenantDeleted}
-        />
-      ))}
+    <div className={`${
+      viewMode === "grid" 
+        ? "space-y-3 max-h-[calc(6*220px)]" 
+        : "space-y-3 max-h-[calc(10*80px)]"
+    } overflow-y-auto pr-2 scroll-smooth`}>
+      {viewMode === "grid" ? (
+        filteredTenants.map((tenant) => (
+          <TenantCard
+            key={tenant.id}
+            tenant={tenant}
+            onViewDetails={onViewDetails}
+            onTenantDeleted={onTenantDeleted}
+          />
+        ))
+      ) : (
+        filteredTenants.map((tenant) => (
+          <TenantListItem
+            key={tenant.id}
+            tenant={tenant}
+            onViewDetails={onViewDetails}
+            onTenantDeleted={onTenantDeleted}
+          />
+        ))
+      )}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ArrowLeft, Edit, Save, X, Plus, Building, AlertTriangle, Users, Calendar, DollarSign } from "lucide-react";
+import { ArrowLeft, Edit, Save, X, Plus, Building, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,24 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { usePropertyActions } from "@/hooks/dashboard/useDashboardActions";
 import { useDashboard } from "@/hooks/dashboard/useDashboard";
 import { useToast } from "@/hooks/use-toast";
-import { formatRentStatusText, getRentStatusColor } from "@/lib/rent-cycle-utils";
 import type { Property, PropertyType, Utility } from "@/types/dashboard";
-
-interface PropertyTenant {
-  id: string;
-  fullName: string;
-  email: string;
-  apartmentInfo: {
-    unitNumber: string;
-    rentAmount: string;
-  };
-  rentCycle?: {
-    currentStatus: string;
-    daysRemaining: number;
-    lastPaymentDate?: string;
-    nextDueDate: string;
-  };
-}
 
 interface PropertyDetailViewProps {
   selectedProperty: Property;
@@ -39,10 +22,8 @@ export default function PropertyDetailView({
   const [isEditing, setIsEditing] = useState(false);
   const [editingPropertyTypes, setEditingPropertyTypes] = useState<PropertyType[]>([]);
   const [editingUtilities, setEditingUtilities] = useState<Utility[]>([]);
-  const [newPropertyType, setNewPropertyType] = useState({ type: '', price: '' });
+  const [newPropertyType, setNewPropertyType] = useState({ type: '', price: '', units: 1 });
   const [newUtility, setNewUtility] = useState({ type: '', price: '' });
-  const [propertyTenants, setPropertyTenants] = useState<PropertyTenant[]>([]);
-  const [loadingTenants, setLoadingTenants] = useState(false);
   const [rentSettings, setRentSettings] = useState({
     paymentDay: 1,
     gracePeriodDays: 3
@@ -50,26 +31,6 @@ export default function PropertyDetailView({
   const { toast } = useToast();
 
   const { updatePropertyMutation } = useDashboard();
-
-  // Fetch tenants for this property
-  const fetchPropertyTenants = async () => {
-    if (!selectedProperty?.id) return;
-    
-    setLoadingTenants(true);
-    try {
-      const response = await fetch(`/api/properties/${selectedProperty.id}/tenants`);
-      if (response.ok) {
-        const tenants = await response.json();
-        setPropertyTenants(tenants);
-      } else {
-        console.error('Failed to fetch property tenants');
-      }
-    } catch (error) {
-      console.error('Error fetching property tenants:', error);
-    } finally {
-      setLoadingTenants(false);
-    }
-  };
 
   // Save rent settings
   const saveRentSettings = async () => {
@@ -131,7 +92,12 @@ export default function PropertyDetailView({
   // Initialize editing state when property is selected
   useEffect(() => {
     if (selectedProperty) {
-      setEditingPropertyTypes(selectedProperty.propertyTypes || []);
+      // Ensure property types have units field (default to 1 for old data)
+      const propertyTypesWithUnits = (selectedProperty.propertyTypes || []).map(pt => ({
+        ...pt,
+        units: pt.units || 1
+      }));
+      setEditingPropertyTypes(propertyTypesWithUnits);
       
       // Convert utilities object to array format for editing
       if (selectedProperty.utilities && typeof selectedProperty.utilities === 'object' && !Array.isArray(selectedProperty.utilities)) {
@@ -151,9 +117,6 @@ export default function PropertyDetailView({
           gracePeriodDays: selectedProperty.rentSettings.gracePeriodDays || 3
         });
       }
-
-      // Fetch tenants for this property
-      fetchPropertyTenants();
     }
   }, [selectedProperty]);
 
@@ -162,7 +125,7 @@ export default function PropertyDetailView({
     setIsEditing(false);
     setEditingPropertyTypes([]);
     setEditingUtilities([]);
-    setNewPropertyType({ type: '', price: '' });
+    setNewPropertyType({ type: '', price: '', units: 1 });
     setNewUtility({ type: '', price: '' });
   };
 
@@ -185,16 +148,24 @@ export default function PropertyDetailView({
       setEditingUtilities(selectedProperty?.utilities || []);
     }
     
-    setNewPropertyType({ type: '', price: '' });
+    setNewPropertyType({ type: '', price: '', units: 1 });
     setNewUtility({ type: '', price: '' });
   };
 
   const onSaveChanges = async () => {
     if (selectedProperty) {
+      // Ensure all property types have units field (default to 1 if missing)
+      const propertyTypesWithUnits = editingPropertyTypes.map(pt => ({
+        ...pt,
+        units: pt.units || 1
+      }));
+
+      console.log('Saving property types with units:', propertyTypesWithUnits);
+
       // Save property types and utilities
       updatePropertyMutation.mutate({
         propertyId: selectedProperty.id,
-        propertyTypes: editingPropertyTypes,
+        propertyTypes: propertyTypesWithUnits,
         utilities: editingUtilities
       });
 
@@ -203,7 +174,7 @@ export default function PropertyDetailView({
     }
   };
 
-  const onUpdatePropertyType = (index: number, field: 'type' | 'price', value: string) => {
+  const onUpdatePropertyType = (index: number, field: 'type' | 'price' | 'units', value: string | number) => {
     const updated = [...editingPropertyTypes];
     updated[index] = { ...updated[index], [field]: value };
     setEditingPropertyTypes(updated);
@@ -217,7 +188,7 @@ export default function PropertyDetailView({
   const onAddPropertyType = () => {
     if (newPropertyType.type && newPropertyType.price) {
       setEditingPropertyTypes([...editingPropertyTypes, newPropertyType]);
-      setNewPropertyType({ type: '', price: '' });
+      setNewPropertyType({ type: '', price: '', units: 1 });
     } else {
       toast({
         title: "Validation Error",
@@ -326,6 +297,12 @@ export default function PropertyDetailView({
               <Label className="text-sm font-medium">Total Unit Types</Label>
               <p className="text-lg font-semibold text-neutral-900">{editingPropertyTypes.length}</p>
             </div>
+            <div>
+              <Label className="text-sm font-medium">Total Units</Label>
+              <p className="text-lg font-semibold text-blue-600">
+                {editingPropertyTypes.reduce((sum, pt) => sum + (pt.units || 0), 0)} units
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -352,6 +329,25 @@ export default function PropertyDetailView({
                   ) : (
                     <p className="font-medium capitalize">
                       {propertyType.type.replace('bedroom', ' Bedroom')}
+                    </p>
+                  )}
+                </div>
+                <div className="flex-1">
+                  {isEditing ? (
+                    <div className="flex items-center space-x-2">
+                      <Input
+                        type="number"
+                        value={propertyType.units || 1}
+                        onChange={(e) => onUpdatePropertyType(index, 'units', parseInt(e.target.value) || 1)}
+                        placeholder="Units"
+                        min="1"
+                        className="w-24"
+                      />
+                      <span className="text-sm text-neutral-500">units</span>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-neutral-600">
+                      {propertyType.units || 1} unit{(propertyType.units || 1) > 1 ? 's' : ''}
                     </p>
                   )}
                 </div>
@@ -395,6 +391,17 @@ export default function PropertyDetailView({
                     onChange={(e) => setNewPropertyType({ ...newPropertyType, type: e.target.value })}
                     className="flex-1"
                   />
+                  <div className="flex items-center space-x-2">
+                    <Input
+                      type="number"
+                      placeholder="Units"
+                      value={newPropertyType.units || 1}
+                      onChange={(e) => setNewPropertyType({ ...newPropertyType, units: parseInt(e.target.value) || 1 })}
+                      min="1"
+                      className="w-24"
+                    />
+                    <span className="text-sm text-neutral-500">units</span>
+                  </div>
                   <div className="flex items-center space-x-2">
                     <Input
                       type="number"
@@ -521,89 +528,6 @@ export default function PropertyDetailView({
               </div>
             )}
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Property Tenants Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Users className="h-5 w-5" />
-            <span>Property Tenants</span>
-            {propertyTenants.length > 0 && (
-              <Badge variant="secondary" className="ml-2">
-                {propertyTenants.length} tenant{propertyTenants.length !== 1 ? 's' : ''}
-              </Badge>
-            )}
-          </CardTitle>
-          <p className="text-sm text-neutral-600">
-            Current tenants and their rent payment status
-          </p>
-        </CardHeader>
-        <CardContent>
-          {loadingTenants ? (
-            <div className="text-center py-8">
-              <p className="text-neutral-600">Loading tenants...</p>
-            </div>
-          ) : propertyTenants.length === 0 ? (
-            <div className="text-center py-8">
-              <Users className="h-12 w-12 text-neutral-400 mx-auto mb-4" />
-              <p className="text-neutral-600">No tenants assigned to this property yet.</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {propertyTenants.map((tenant) => (
-                <div key={tenant.id} className="p-4 border rounded-lg">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-3 mb-2">
-                        <div>
-                          <h4 className="font-semibold text-neutral-900">{tenant.fullName}</h4>
-                          <p className="text-sm text-neutral-600">{tenant.email}</p>
-                        </div>
-                        <Badge 
-                          className={`${getRentStatusColor(tenant.rentCycle?.currentStatus)} border-0`}
-                        >
-                          {tenant.rentCycle?.currentStatus || 'active'}
-                        </Badge>
-                      </div>
-                      
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                        <div className="flex items-center space-x-2">
-                          <Building className="h-4 w-4 text-neutral-500" />
-                          <span className="text-neutral-600">Unit {tenant.apartmentInfo.unitNumber}</span>
-                        </div>
-                        
-                        <div className="flex items-center space-x-2">
-                          <DollarSign className="h-4 w-4 text-neutral-500" />
-                          <span className="text-neutral-600">${tenant.apartmentInfo.rentAmount}/month</span>
-                        </div>
-                        
-                        <div className="flex items-center space-x-2">
-                          <Calendar className="h-4 w-4 text-neutral-500" />
-                          <span className="text-neutral-600">
-                            {formatRentStatusText(
-                              tenant.rentCycle?.daysRemaining || 0, 
-                              tenant.rentCycle?.currentStatus || 'active'
-                            )}
-                          </span>
-                        </div>
-                        
-                        {tenant.rentCycle?.lastPaymentDate && (
-                          <div className="flex items-center space-x-2">
-                            <span className="text-xs text-neutral-500">Last payment:</span>
-                            <span className="text-xs text-neutral-700">
-                              {new Date(tenant.rentCycle.lastPaymentDate).toLocaleDateString()}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
         </CardContent>
       </Card>
 

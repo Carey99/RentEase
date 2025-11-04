@@ -35,7 +35,7 @@ export default function AddPropertyDialog({
         ...newPropertyForm,
         propertyTypes: [...newPropertyForm.propertyTypes, tempPropertyType]
       });
-      setTempPropertyType({ type: '', price: '' });
+      setTempPropertyType({ type: '', price: '', units: 1 });
     }
   };
 
@@ -116,6 +116,9 @@ export default function AddPropertyDialog({
                     <p className="font-medium capitalize">{propertyType.type}</p>
                   </div>
                   <div className="flex-1">
+                    <p className="text-sm text-neutral-600">{propertyType.units || 1} unit{(propertyType.units || 1) > 1 ? 's' : ''}</p>
+                  </div>
+                  <div className="flex-1">
                     <p className="font-semibold text-green-600">KSH {propertyType.price}/month</p>
                   </div>
                   <Button
@@ -139,6 +142,17 @@ export default function AddPropertyDialog({
                     onChange={(e) => setTempPropertyType({ ...tempPropertyType, type: e.target.value })}
                     className="flex-1"
                   />
+                  <div className="flex items-center space-x-2">
+                    <Input
+                      type="number"
+                      placeholder="Units"
+                      value={tempPropertyType.units || 1}
+                      onChange={(e) => setTempPropertyType({ ...tempPropertyType, units: parseInt(e.target.value) || 1 })}
+                      min="1"
+                      className="w-24"
+                    />
+                    <span className="text-sm text-neutral-500">units</span>
+                  </div>
                   <div className="flex items-center space-x-2">
                     <Input
                       type="number"

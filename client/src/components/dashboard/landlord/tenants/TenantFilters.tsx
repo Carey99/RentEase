@@ -1,4 +1,4 @@
-import { Search, Filter } from "lucide-react";
+import { Search, Filter, Grid3x3, List } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,13 +13,17 @@ interface TenantFiltersProps {
   onSearchChange: (value: string) => void;
   filterStatus: "all" | "active" | "pending" | "inactive";
   onFilterChange: (status: "all" | "active" | "pending" | "inactive") => void;
+  viewMode: "grid" | "list";
+  onViewModeChange: (mode: "grid" | "list") => void;
 }
 
 export default function TenantFilters({
   searchTerm,
   onSearchChange,
   filterStatus,
-  onFilterChange
+  onFilterChange,
+  viewMode,
+  onViewModeChange
 }: TenantFiltersProps) {
   return (
     <div className="flex flex-col sm:flex-row gap-4 mb-6">
@@ -34,6 +38,26 @@ export default function TenantFilters({
       </div>
       
       <div className="flex gap-2">
+        {/* View Mode Toggle */}
+        <div className="flex border rounded-md">
+          <Button
+            variant={viewMode === "grid" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => onViewModeChange("grid")}
+            className="rounded-r-none"
+          >
+            <Grid3x3 className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={viewMode === "list" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => onViewModeChange("list")}
+            className="rounded-l-none"
+          >
+            <List className="h-4 w-4" />
+          </Button>
+        </div>
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline">

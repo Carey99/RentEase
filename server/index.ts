@@ -3,6 +3,9 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { connectToDatabase } from "./database";
 import { seedDatabase } from "./seed";
+import { rentCycleScheduler } from "./schedulers/rentCycleScheduler";
+import { billNotificationScheduler } from "./schedulers/billNotificationScheduler";
+import { activityNotificationService } from "./websocket";
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -41,39 +44,47 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  // Connect to MongoDB Atlas
-  await connectToDatabase();
+  try {
+    // Connect to MongoDB Atlas - NO FALLBACK
+    await connectToDatabase();
+    
+    // Seed database with test data
+    await seedDatabase();
 
-  // Seed database with test data
-  await seedDatabase();
+    // Start rent cycle scheduler for automatic month transitions
+    rentCycleScheduler.start();
 
-  const server = await registerRoutes(app); app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+    // Start bill notification scheduler for overdue bills and final notices
+    billNotificationScheduler.start();
 
-    res.status(status).json({ message });
-    throw err;
-  });
+    const server = await registerRoutes(app);
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
+    // Initialize WebSocket server for real-time activity notifications
+    activityNotificationService.initialize(server);
+
+    // Setup vite in development mode
+    if (app.get("env") === "development") {
+      await setupVite(app, server);
+    } else {
+      serveStatic(app);
+    }
+
+    // Start the server
+    const port = parseInt(process.env.PORT || '5000', 10);
+    server.listen(
+      {
+        port,
+        host: "0.0.0.0",
+        reusePort: true,
+      },
+      () => {
+        log(`serving on port ${port}`);
+      }
+    );
+  } catch (error: any) {
+    console.error('\n🚨 MongoDB Connection Failed!');
+    console.error('❌ The application cannot start without a working MongoDB Atlas connection.');
+    console.error('Fix your MongoDB Atlas IP whitelisting or network connectivity.');
+    process.exit(1);
   }
-
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || '5000', 10);
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`serving on port ${port}`);
-  });
 })();

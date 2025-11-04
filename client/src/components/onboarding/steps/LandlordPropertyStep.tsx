@@ -12,7 +12,7 @@ interface LandlordPropertyStepProps {
   onSubmit: () => void;
   onBack: () => void;
   selectedPropertyTypes: PropertyType[];
-  addPropertyType: (type: string, price: string) => void;
+  addPropertyType: (type: string, price: string, units?: number) => void;
   removePropertyType: (type: string) => void;
   updatePropertyTypePrice: (type: string, price: string) => void;
   showCustomType: boolean;
@@ -114,7 +114,7 @@ export function LandlordPropertyStep({
                       checked={!!isSelected}
                       onCheckedChange={(checked) => {
                         if (checked) {
-                          addPropertyType(typeOption.value, "");
+                          addPropertyType(typeOption.value, "", 1);
                         } else {
                           removePropertyType(typeOption.value);
                         }
@@ -128,20 +128,45 @@ export function LandlordPropertyStep({
                   
                   {isSelected && (
                     <div className="ml-6 animate-in slide-in-from-top-2 duration-200">
-                      <div className="flex items-center space-x-2">
-                        <Label htmlFor={`price-${typeOption.value}`} className="text-sm text-neutral-600 min-w-fit">
-                          Monthly Rent:
-                        </Label>
-                        <Input
-                          id={`price-${typeOption.value}`}
-                          type="number"
-                          placeholder="Enter price"
-                          value={isSelected.price}
-                          onChange={(e) => updatePropertyTypePrice(typeOption.value, e.target.value)}
-                          className="flex-1"
-                          data-testid={`price-${typeOption.value}`}
-                        />
-                        <span className="text-sm text-neutral-500 min-w-fit">KSH/month</span>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="flex items-center space-x-2">
+                          <Label htmlFor={`units-${typeOption.value}`} className="text-sm text-neutral-600 min-w-fit">
+                            Units:
+                          </Label>
+                          <Input
+                            id={`units-${typeOption.value}`}
+                            type="number"
+                            min="1"
+                            placeholder="Number of units"
+                            value={isSelected.units || 1}
+                            onChange={(e) => {
+                              const currentType = selectedPropertyTypes.find(pt => pt.type === typeOption.value);
+                              if (currentType) {
+                                // Update with new units value
+                                removePropertyType(typeOption.value);
+                                addPropertyType(typeOption.value, currentType.price, parseInt(e.target.value) || 1);
+                              }
+                            }}
+                            className="flex-1"
+                            data-testid={`units-${typeOption.value}`}
+                          />
+                          <span className="text-sm text-neutral-500 min-w-fit">units</span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Label htmlFor={`price-${typeOption.value}`} className="text-sm text-neutral-600 min-w-fit">
+                            Monthly Rent:
+                          </Label>
+                          <Input
+                            id={`price-${typeOption.value}`}
+                            type="number"
+                            placeholder="Enter price"
+                            value={isSelected.price}
+                            onChange={(e) => updatePropertyTypePrice(typeOption.value, e.target.value)}
+                            className="flex-1"
+                            data-testid={`price-${typeOption.value}`}
+                          />
+                          <span className="text-sm text-neutral-500 min-w-fit">KSH/month</span>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -193,7 +218,7 @@ export function LandlordPropertyStep({
                   {selectedPropertyTypes.map((pt) => (
                     <div key={pt.type} className="flex justify-between text-sm">
                       <span className="text-green-800 capitalize">
-                        {pt.type.replace('bedroom', ' Bedroom')}
+                        {pt.type.replace('bedroom', ' Bedroom')} ({pt.units || 1} unit{(pt.units || 1) > 1 ? 's' : ''})
                       </span>
                       <span className="text-green-700 font-medium">KSH {pt.price}/month</span>
                     </div>

@@ -44,15 +44,6 @@ export default function TenantActions({
           <DropdownMenuItem onClick={() => onViewDetails(tenant)}>
             View Details
           </DropdownMenuItem>
-          <DropdownMenuItem>
-            Send Message
-          </DropdownMenuItem>
-          <DropdownMenuItem>
-            Edit Lease
-          </DropdownMenuItem>
-          <DropdownMenuItem>
-            View Payments
-          </DropdownMenuItem>
           <DropdownMenuItem 
             className="text-red-600"
             onClick={handleRemoveTenant}

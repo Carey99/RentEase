@@ -7,6 +7,7 @@ import type { Request, Response } from "express";
 import { storage } from "../storage";
 import { insertUserSchema } from "@shared/schema";
 import { ZodError } from "zod";
+import { logActivity, createActivityLog } from "./activityController";
 
 export class AuthController {
   /**
@@ -24,6 +25,27 @@ export class AuthController {
       }
 
       const user = await storage.createUser(userData);
+      
+      // Log activity if tenant was registered
+      if (user.role === 'tenant') {
+        const tenant = await storage.getTenant(user.id);
+        if (tenant && tenant.apartmentInfo?.landlordId) {
+          await logActivity(createActivityLog(
+            tenant.apartmentInfo.landlordId,
+            'tenant_registered',
+            'New Tenant Registered',
+            `${user.fullName} has been added as a new tenant${tenant.apartmentInfo.propertyName ? ` at ${tenant.apartmentInfo.propertyName}` : ''}`,
+            {
+              tenantId: user.id,
+              tenantName: user.fullName,
+              propertyId: tenant.apartmentInfo.propertyId,
+              propertyName: tenant.apartmentInfo.propertyName,
+              unitNumber: tenant.apartmentInfo.unitNumber,
+            },
+            'medium'
+          ));
+        }
+      }
       
       // Don't send password back
       const { password, ...userWithoutPassword } = user;

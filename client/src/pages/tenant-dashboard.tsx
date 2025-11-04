@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { Bell, DollarSign, Calendar, CheckCircle, AlertTriangle, CreditCard } from "lucide-react";
+import { DollarSign, Calendar, CheckCircle, AlertTriangle, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,8 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import Sidebar from "@/components/dashboard/sidebar";
 import StatsCard from "@/components/dashboard/stats-card";
-import PaymentHistoryByProperty from "@/components/dashboard/tenant/PaymentHistoryByProperty";
+import RecordedPaymentsCard from "@/components/dashboard/tenant/RecordedPaymentsCard";
+import TenantNotificationBell from "@/components/dashboard/TenantNotificationBell";
 import { formatRentStatusText, getRentStatusColor } from "@/lib/rent-cycle-utils";
 
 export default function TenantDashboard() {
@@ -57,16 +58,43 @@ export default function TenantDashboard() {
       return;
     }
 
+    // Find the pending bill to pay
+    if (!paymentHistory || paymentHistory.length === 0) {
+      toast({
+        title: "Error",
+        description: "No bills found. Please contact your landlord.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Find the most recent pending or partial bill
+    const pendingBill = paymentHistory.find((p: any) => 
+      p.status === 'pending' || p.status === 'partial'
+    );
+    
+    if (!pendingBill) {
+      toast({
+        title: "Error",
+        description: "No pending bills found. You may be all paid up!",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    console.log(`� Paying bill ${pendingBill._id} for ${pendingBill.forMonth}/${pendingBill.forYear}`);
+
     setIsPaymentLoading(true);
     try {
-      const response = await fetch(`/api/tenants/${currentUser.id}/payment`, {
+      const response = await fetch(`/api/tenants/${currentUser.id}/make-payment`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          paymentAmount: parseFloat(paymentAmount),
-          paymentDate: new Date().toISOString(),
+          paymentId: pendingBill._id,
+          amount: parseFloat(paymentAmount),
+          paymentMethod: 'M-Pesa', // Default payment method
         }),
       });
 
@@ -184,13 +212,26 @@ export default function TenantDashboard() {
     switch (activeTab) {
       case 'dashboard':
         return (
-          <div>
+          <div className="space-y-6">
             {/* Quick Info Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <StatsCard
-                title="Current Rent"
-                value={tenantProperty ? `KSH ${tenantProperty.rentAmount || '0'}` : "N/A"}
+                title="Total Outstanding Debt"
+                value={(() => {
+                  // Calculate total outstanding balance across all bills (not transactions)
+                  const bills = (paymentHistory as any[]).filter((p) => !p.notes?.includes('Payment transaction'));
+                  const totalOutstanding = bills.reduce((sum, bill) => {
+                    const expectedRent = Number(bill.monthlyRent || 0);
+                    const expectedUtilities = Number(bill.totalUtilityCost || 0);
+                    const totalExpected = expectedRent + expectedUtilities;
+                    const paid = Number(bill.amount || 0);
+                    const balance = totalExpected - paid;
+                    return sum + (balance > 0 ? balance : 0);
+                  }, 0);
+                  return totalOutstanding > 0 ? `KSH ${totalOutstanding.toLocaleString()}` : 'KSH 0';
+                })()}
                 icon={<DollarSign className="h-6 w-6" />}
+                color="red"
                 data-testid="stat-rent"
               />
               <StatsCard
@@ -222,13 +263,20 @@ export default function TenantDashboard() {
               />
             </div>
 
-            {/* Apartment Info and Recent Bills */}
-            <div className="grid lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>My Apartment</CardTitle>
-                </CardHeader>
-                <CardContent>
+            {/* Main Content Grid - Payments First! */}
+            <div className="grid lg:grid-cols-3 gap-6">
+              {/* Left Side - Apartment Info */}
+              <div>
+                <Card className="h-full">
+                  <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50">
+                    <CardTitle className="flex items-center gap-2">
+                      <svg className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                      </svg>
+                      My Apartment
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-6">
                   {!tenantProperty ? (
                     <div className="text-center py-8">
                       <p className="text-neutral-500 mb-4">No apartment assigned yet</p>
@@ -343,14 +391,24 @@ export default function TenantDashboard() {
                   )}
                 </CardContent>
               </Card>
+              </div>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <CreditCard className="mr-2 h-5 w-5" />
-                    Make Rent Payment
-                  </CardTitle>
-                </CardHeader>
+              {/* Right Side - Payment Information (MORE PROMINENT) */}
+              <div className="lg:col-span-2 space-y-6">
+                {/* Recorded Payments - Featured at Top */}
+                <RecordedPaymentsCard 
+                  payments={paymentHistory} 
+                  expectedRent={tenantProperty?.rentAmount ? parseFloat(tenantProperty.rentAmount) : 0}
+                />
+
+                {/* Make Payment Card */}
+                <Card className="border-2 border-green-200 shadow-lg">
+                  <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50">
+                    <CardTitle className="flex items-center text-green-900">
+                      <CreditCard className="mr-2 h-5 w-5" />
+                      Make Rent Payment
+                    </CardTitle>
+                  </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
                     <div>
@@ -389,6 +447,7 @@ export default function TenantDashboard() {
               </Card>
             </div>
           </div>
+          </div>
         );
 
       case 'payments':
@@ -397,7 +456,15 @@ export default function TenantDashboard() {
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold text-neutral-900">Payment History</h2>
             </div>
-            <PaymentHistoryByProperty paymentHistory={paymentHistory} />
+            <Card>
+              <CardContent className="py-12">
+                <div className="text-center text-neutral-500">
+                  <CreditCard className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                  <p className="text-lg font-medium">Payment History</p>
+                  <p className="text-sm mt-2">Your payment records will appear here</p>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         );
 
@@ -431,12 +498,7 @@ export default function TenantDashboard() {
                   </p>
                 </div>
                 <div className="flex items-center space-x-4">
-                  <Button variant="ghost" size="sm" className="relative">
-                    <Bell className="h-5 w-5" />
-                    <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                      0
-                    </span>
-                  </Button>
+                  <TenantNotificationBell tenantId={currentUser?.id} />
                   <div className="flex items-center space-x-3">
                     <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
                       <span className="text-white text-sm font-semibold">

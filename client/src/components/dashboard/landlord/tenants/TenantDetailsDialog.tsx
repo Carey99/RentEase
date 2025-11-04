@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -48,6 +49,18 @@ export default function TenantDetailsDialog({ open, onOpenChange, tenant, onTena
   const [isEditMode, setIsEditMode] = useState(false);
   const [editFormData, setEditFormData] = useState<Partial<Tenant>>({});
   const { toast } = useToast();
+
+  // Fetch actual payment history for this tenant
+  const { data: paymentHistory = [], isLoading: isLoadingPayments } = useQuery({
+    queryKey: ['tenantPaymentHistory', tenant?.id],
+    queryFn: async () => {
+      if (!tenant?.id) return [];
+      const response = await fetch(`/api/payment-history/tenant/${tenant.id}`);
+      if (!response.ok) throw new Error('Failed to fetch payment history');
+      return response.json();
+    },
+    enabled: !!tenant?.id && open, // Only fetch when dialog is open and tenant exists
+  });
 
   if (!tenant) return null;
 
@@ -160,21 +173,6 @@ export default function TenantDetailsDialog({ open, onOpenChange, tenant, onTena
     }
   };
 
-  // Dummy payment data - in real app this would come from API
-  const paymentHistory = [
-    { id: 1, month: "August 2025", amount: tenant.rentAmount, status: "paid", date: "2025-08-01", method: "Bank Transfer" },
-    { id: 2, month: "July 2025", amount: tenant.rentAmount, status: "paid", date: "2025-07-01", method: "M-Pesa" },
-    { id: 3, month: "June 2025", amount: tenant.rentAmount, status: "paid", date: "2025-06-01", method: "Bank Transfer" },
-    { id: 4, month: "May 2025", amount: tenant.rentAmount, status: "late", date: "2025-05-05", method: "Cash" },
-  ];
-
-  // Dummy document data - in real app this would come from API
-  const leaseDocuments = [
-    { id: 1, name: "Lease Agreement", type: "PDF", size: "2.1 MB", uploadDate: "2025-08-01" },
-    { id: 2, name: "ID Copy", type: "PDF", size: "1.5 MB", uploadDate: "2025-08-01" },
-    { id: 3, name: "Income Verification", type: "PDF", size: "3.2 MB", uploadDate: "2025-08-01" },
-  ];
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
@@ -228,11 +226,9 @@ export default function TenantDetailsDialog({ open, onOpenChange, tenant, onTena
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="lease">Lease Details</TabsTrigger>
             <TabsTrigger value="payments">Payments</TabsTrigger>
-            <TabsTrigger value="documents">Documents</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
@@ -349,98 +345,129 @@ export default function TenantDetailsDialog({ open, onOpenChange, tenant, onTena
               </Card>
             </div>
 
-            {/* Quick Stats */}
+            {/* Quick Stats - Real Dynamic Data */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Card 1: Total Debt Owed */}
               <Card>
                 <CardContent className="p-6">
                   <div className="flex items-center">
-                    <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
-                      <CheckCircle className="h-4 w-4 text-green-600" />
+                    <div className={`h-8 w-8 rounded-full flex items-center justify-center ${
+                      (tenant.rentCycle?.hasPartialPayment && tenant.rentCycle?.partialPaymentInfo && tenant.rentCycle.partialPaymentInfo.remainingBalance > 0)
+                        ? 'bg-red-100' 
+                        : 'bg-green-100'
+                    }`}>
+                      <DollarSign className={`h-4 w-4 ${
+                        (tenant.rentCycle?.hasPartialPayment && tenant.rentCycle?.partialPaymentInfo && tenant.rentCycle.partialPaymentInfo.remainingBalance > 0)
+                          ? 'text-red-600' 
+                          : 'text-green-600'
+                      }`} />
                     </div>
                     <div className="ml-4">
-                      <p className="text-sm font-medium text-neutral-600">On-time Payments</p>
-                      <p className="text-2xl font-bold text-green-600">3/4</p>
-                      <p className="text-xs text-neutral-500">Last 4 months</p>
+                      <p className="text-sm font-medium text-neutral-600">Total Debt Owed</p>
+                      <p className={`text-2xl font-bold ${
+                        (tenant.rentCycle?.hasPartialPayment && tenant.rentCycle?.partialPaymentInfo && tenant.rentCycle.partialPaymentInfo.remainingBalance > 0)
+                          ? 'text-red-600' 
+                          : 'text-green-600'
+                      }`}>
+                        KSH {tenant.rentCycle?.hasPartialPayment && tenant.rentCycle?.partialPaymentInfo
+                          ? tenant.rentCycle.partialPaymentInfo.remainingBalance.toLocaleString()
+                          : '0'}
+                      </p>
+                      <p className="text-xs text-neutral-500">Outstanding balance</p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
               
+              {/* Card 2: Payment Status */}
               <Card>
                 <CardContent className="p-6">
                   <div className="flex items-center">
-                    <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
-                      <DollarSign className="h-4 w-4 text-blue-600" />
+                    <div className={`h-8 w-8 rounded-full flex items-center justify-center ${
+                      tenant.rentCycle?.rentStatus === 'paid' ? 'bg-green-100' :
+                      tenant.rentCycle?.rentStatus === 'overdue' ? 'bg-red-100' :
+                      tenant.rentCycle?.rentStatus === 'grace_period' ? 'bg-orange-100' :
+                      'bg-yellow-100'
+                    }`}>
+                      <CreditCard className={`h-4 w-4 ${
+                        tenant.rentCycle?.rentStatus === 'paid' ? 'text-green-600' :
+                        tenant.rentCycle?.rentStatus === 'overdue' ? 'text-red-600' :
+                        tenant.rentCycle?.rentStatus === 'grace_period' ? 'text-orange-600' :
+                        'text-yellow-600'
+                      }`} />
                     </div>
                     <div className="ml-4">
-                      <p className="text-sm font-medium text-neutral-600">Total Paid</p>
-                      <p className="text-2xl font-bold text-blue-600">KSH {(tenant.rentAmount * 4).toLocaleString()}</p>
-                      <p className="text-xs text-neutral-500">Since lease start</p>
+                      <p className="text-sm font-medium text-neutral-600">Payment Status</p>
+                      <p className={`text-xl font-bold ${
+                        tenant.rentCycle?.rentStatus === 'paid' ? 'text-green-600' :
+                        tenant.rentCycle?.rentStatus === 'overdue' ? 'text-red-600' :
+                        tenant.rentCycle?.rentStatus === 'grace_period' ? 'text-orange-600' :
+                        'text-yellow-600'
+                      }`}>
+                        {tenant.rentCycle?.hasPartialPayment 
+                          ? `Partial`
+                          : tenant.rentCycle?.rentStatus === 'paid' 
+                          ? 'Paid'
+                          : tenant.rentCycle?.rentStatus === 'overdue'
+                          ? 'Overdue'
+                          : tenant.rentCycle?.rentStatus === 'grace_period'
+                          ? 'Grace Period'
+                          : 'Active'}
+                      </p>
+                      <p className="text-xs text-neutral-500">
+                        {tenant.rentCycle?.hasPartialPayment && tenant.rentCycle?.partialPaymentInfo
+                          ? `KSH ${tenant.rentCycle.partialPaymentInfo.remainingBalance.toLocaleString()} remaining`
+                          : tenant.rentCycle?.rentStatus === 'paid'
+                          ? 'Current month paid'
+                          : tenant.rentCycle?.rentStatus === 'overdue'
+                          ? `${Math.abs(tenant.rentCycle?.daysRemaining || 0)} ${Math.abs(tenant.rentCycle?.daysRemaining || 0) === 1 ? 'day' : 'days'} overdue`
+                          : 'Payment pending'}
+                      </p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
+              {/* Card 3: Days to Next Payment */}
               <Card>
                 <CardContent className="p-6">
                   <div className="flex items-center">
-                    <div className="h-8 w-8 bg-yellow-100 rounded-full flex items-center justify-center">
-                      <Clock className="h-4 w-4 text-yellow-600" />
+                    <div className={`h-8 w-8 rounded-full flex items-center justify-center ${
+                      tenant.rentCycle?.rentStatus === 'overdue' ? 'bg-red-100' :
+                      tenant.rentCycle?.rentStatus === 'grace_period' ? 'bg-orange-100' :
+                      'bg-blue-100'
+                    }`}>
+                      <Clock className={`h-4 w-4 ${
+                        tenant.rentCycle?.rentStatus === 'overdue' ? 'text-red-600' :
+                        tenant.rentCycle?.rentStatus === 'grace_period' ? 'text-orange-600' :
+                        'text-blue-600'
+                      }`} />
                     </div>
                     <div className="ml-4">
-                      <p className="text-sm font-medium text-neutral-600">Days Remaining</p>
-                      <p className="text-2xl font-bold text-yellow-600">
-                        {Math.ceil((new Date(tenant.leaseEnd).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))}
+                      <p className="text-sm font-medium text-neutral-600">
+                        {tenant.rentCycle?.rentStatus === 'overdue' || tenant.rentCycle?.rentStatus === 'grace_period'
+                          ? `${Math.abs(tenant.rentCycle?.daysRemaining || 0) === 1 ? 'Day' : 'Days'} Overdue`
+                          : `${(tenant.rentCycle?.daysRemaining || 0) === 1 ? 'Day' : 'Days'} Remaining`}
                       </p>
-                      <p className="text-xs text-neutral-500">Until lease end</p>
+                      <p className={`text-2xl font-bold ${
+                        tenant.rentCycle?.rentStatus === 'overdue' ? 'text-red-600' :
+                        tenant.rentCycle?.rentStatus === 'grace_period' ? 'text-orange-600' :
+                        'text-blue-600'
+                      }`}>
+                        {tenant.rentCycle?.rentStatus === 'overdue' || tenant.rentCycle?.rentStatus === 'grace_period'
+                          ? Math.abs(tenant.rentCycle?.daysRemaining || 0)
+                          : (tenant.rentCycle?.daysRemaining || 0)}
+                      </p>
+                      <p className="text-xs text-neutral-500">
+                        {tenant.rentCycle?.rentStatus === 'overdue' || tenant.rentCycle?.rentStatus === 'grace_period'
+                          ? 'Past due date'
+                          : 'Until next payment'}
+                      </p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
             </div>
-          </TabsContent>
-
-          <TabsContent value="lease" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Lease Agreement Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-6">
-                  <div>
-                    <p className="text-sm font-medium text-neutral-600">Lease Start Date</p>
-                    <p className="text-lg font-semibold">{new Date(tenant.leaseStart).toLocaleDateString()}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-neutral-600">Lease End Date</p>
-                    <p className="text-lg font-semibold">{new Date(tenant.leaseEnd).toLocaleDateString()}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-neutral-600">Monthly Rent</p>
-                    <p className="text-lg font-semibold text-green-600">KSH {tenant.rentAmount.toLocaleString()}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-neutral-600">Lease Duration</p>
-                    <p className="text-lg font-semibold">
-                      {Math.ceil((new Date(tenant.leaseEnd).getTime() - new Date(tenant.leaseStart).getTime()) / (1000 * 60 * 60 * 24 * 30))} months
-                    </p>
-                  </div>
-                </div>
-                
-                <Separator />
-                
-                <div>
-                  <p className="text-sm font-medium text-neutral-600 mb-2">Lease Terms</p>
-                  <ul className="text-sm text-neutral-700 space-y-1">
-                    <li>• Rent due on the 1st of each month</li>
-                    <li>• Security deposit: KSH {(tenant.rentAmount * 2).toLocaleString()}</li>
-                    <li>• Late payment fee: KSH 5,000 after 5 days</li>
-                    <li>• Utilities included: Water, Garbage collection</li>
-                    <li>• 30-day notice required for lease termination</li>
-                  </ul>
-                </div>
-              </CardContent>
-            </Card>
           </TabsContent>
 
           <TabsContent value="payments" className="space-y-6">
@@ -449,61 +476,92 @@ export default function TenantDetailsDialog({ open, onOpenChange, tenant, onTena
                 <CardTitle>Payment History</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {paymentHistory.map((payment) => (
-                    <div key={payment.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center gap-4">
-                        <div className={`h-3 w-3 rounded-full ${
-                          payment.status === 'paid' ? 'bg-green-500' : 
-                          payment.status === 'late' ? 'bg-yellow-500' : 'bg-red-500'
-                        }`} />
-                        <div>
-                          <p className="font-medium">{payment.month}</p>
-                          <p className="text-sm text-neutral-600">
-                            Paid on {new Date(payment.date).toLocaleDateString()} • {payment.method}
-                          </p>
+                {isLoadingPayments ? (
+                  <div className="text-center py-8 text-neutral-500">
+                    Loading payment history...
+                  </div>
+                ) : paymentHistory.length === 0 ? (
+                  <div className="text-center py-8 text-neutral-500">
+                    No payment history available
+                  </div>
+                ) : (
+                  <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
+                    {paymentHistory.map((payment: any) => {
+                      const paymentDate = new Date(payment.createdAt || payment.dueDate);
+                      const monthYear = paymentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                      
+                      // Determine display status and color
+                      const getPaymentDisplay = () => {
+                        if (payment.status === 'completed') {
+                          return { label: 'Paid', color: 'bg-green-100 text-green-800', dotColor: 'bg-green-500' };
+                        } else if (payment.status === 'partial') {
+                          return { label: 'Partial', color: 'bg-yellow-100 text-yellow-800', dotColor: 'bg-yellow-500' };
+                        } else if (payment.status === 'overpaid') {
+                          return { label: 'Overpaid', color: 'bg-blue-100 text-blue-800', dotColor: 'bg-blue-500' };
+                        } else if (payment.status === 'pending') {
+                          return { label: 'Pending', color: 'bg-orange-100 text-orange-800', dotColor: 'bg-orange-500' };
+                        } else {
+                          return { label: 'Failed', color: 'bg-red-100 text-red-800', dotColor: 'bg-red-500' };
+                        }
+                      };
+                      
+                      const displayStatus = getPaymentDisplay();
+                      
+                      // Parse amounts safely - they might be numbers or objects
+                      const parseAmount = (value: any): number => {
+                        if (typeof value === 'number') return value;
+                        if (typeof value === 'object' && value !== null) return 0;
+                        return Number(value) || 0;
+                      };
+                      
+                      const amountPaid = parseAmount(payment.amount);
+                      const monthlyRent = parseAmount(payment.monthlyRent);
+                      const totalUtilityCost = parseAmount(payment.totalUtilityCost);
+                      
+                      // Total expected is monthlyRent + totalUtilityCost from the payment record
+                      // If not available, fall back to tenant's rent amount
+                      const totalExpected = monthlyRent > 0 
+                        ? monthlyRent + totalUtilityCost 
+                        : tenant.rentAmount;
+                      
+                      return (
+                        <div key={payment._id} className="flex items-center justify-between p-4 border rounded-lg">
+                          <div className="flex items-center gap-4">
+                            <div className={`h-3 w-3 rounded-full ${displayStatus.dotColor}`} />
+                            <div>
+                              <p className="font-medium">{monthYear}</p>
+                              <p className="text-sm text-neutral-600">
+                                {payment.status === 'completed' && payment.createdAt
+                                  ? `Paid on ${new Date(payment.createdAt).toLocaleDateString()}`
+                                  : payment.status === 'partial'
+                                  ? `Partial payment: KSH ${amountPaid.toLocaleString()} of ${totalExpected.toLocaleString()}`
+                                  : `Due: ${new Date(payment.dueDate).toLocaleDateString()}`}
+                                {totalUtilityCost > 0 && (
+                                  <span className="ml-2 text-xs text-neutral-500">
+                                    (Rent: {monthlyRent.toLocaleString()} + Utils: {totalUtilityCost.toLocaleString()})
+                                  </span>
+                                )}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-semibold">
+                              KSH {amountPaid.toLocaleString()}
+                              {payment.status !== 'completed' && payment.status !== 'overpaid' && (
+                                <span className="text-sm text-neutral-500 font-normal">
+                                  {' '}/ {totalExpected.toLocaleString()}
+                                </span>
+                              )}
+                            </p>
+                            <Badge className={displayStatus.color}>
+                              {displayStatus.label}
+                            </Badge>
+                          </div>
                         </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-semibold">KSH {payment.amount.toLocaleString()}</p>
-                        <Badge className={`${
-                          payment.status === 'paid' ? 'bg-green-100 text-green-800' :
-                          payment.status === 'late' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'
-                        }`}>
-                          {payment.status.charAt(0).toUpperCase() + payment.status.slice(1)}
-                        </Badge>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="documents" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Lease Documents</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {leaseDocuments.map((doc) => (
-                    <div key={doc.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center gap-4">
-                        <FileText className="h-8 w-8 text-blue-600" />
-                        <div>
-                          <p className="font-medium">{doc.name}</p>
-                          <p className="text-sm text-neutral-600">
-                            {doc.type} • {doc.size} • Uploaded {new Date(doc.uploadDate).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                      <Button variant="outline" size="sm">
-                        Download
-                      </Button>
-                    </div>
-                  ))}
-                </div>
+                      );
+                    })}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

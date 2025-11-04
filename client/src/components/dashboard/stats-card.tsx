@@ -15,7 +15,17 @@ export default function StatsCard({ title, value, icon, color = "primary", "data
     green: "bg-green-100 text-green-600",
     blue: "bg-blue-100 text-blue-600",
     orange: "bg-orange-100 text-orange-600",
+    red: "bg-red-100 text-red-600",
     accent: "bg-accent/10 text-accent",
+  };
+
+  const valueColorClasses = {
+    primary: "text-neutral-900",
+    green: "text-neutral-900",
+    blue: "text-neutral-900",
+    orange: "text-neutral-900",
+    red: "text-red-600",
+    accent: "text-neutral-900",
   };
 
   return (
@@ -24,7 +34,7 @@ export default function StatsCard({ title, value, icon, color = "primary", "data
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-medium text-neutral-600">{title}</p>
-            <p className="text-3xl font-bold text-neutral-900">{value}</p>
+            <p className={`text-3xl font-bold ${valueColorClasses[color as keyof typeof valueColorClasses]}`}>{value}</p>
           </div>
           <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${colorClasses[color as keyof typeof colorClasses]}`}>
             {icon}

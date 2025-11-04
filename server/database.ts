@@ -3,20 +3,63 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const MONGODB_URL = process.env.MONGODB_URL;
+const MONGODB_LOCAL_URL = process.env.MONGODB_LOCAL_URL || 'mongodb://localhost:27017';
 const DATABASE_NAME = process.env.DATABASE_NAME || "RentFlow";
 
-if (!MONGODB_URL) {
-  throw new Error('MONGODB_URL environment variable is required');
+if (!MONGODB_URL && !process.env.USE_LOCAL_DB) {
+  throw new Error('MONGODB_URL environment variable is required (or set USE_LOCAL_DB=true for local MongoDB)');
 }
 
 export async function connectToDatabase() {
+  // Determine which MongoDB to use
+  const useLocal = process.env.USE_LOCAL_DB === 'true';
+  const connectionUrl = useLocal ? MONGODB_LOCAL_URL : MONGODB_URL!;
+  const dbType = useLocal ? 'Local MongoDB' : 'MongoDB Atlas';
+  
   try {
-    await mongoose.connect(MONGODB_URL!, {
+    // Add connection options for better network handling
+    const options: any = {
       dbName: DATABASE_NAME,
-    });
-    console.log('Connected to MongoDB Atlas - RentFlow database');
-  } catch (error) {
-    console.error('Failed to connect to MongoDB:', error);
+      serverSelectionTimeoutMS: useLocal ? 5000 : 10000, // Shorter timeout for local
+      socketTimeoutMS: useLocal ? 30000 : 45000,
+      maxPoolSize: 10, // Maintain up to 10 socket connections
+    };
+    
+    // Only add these options for Atlas (not local MongoDB)
+    if (!useLocal) {
+      options.retryWrites = true;
+      options.w = 'majority';
+    }
+
+    console.log(`Attempting to connect to ${dbType}...`);
+    if (!useLocal) {
+      console.log('Connection URL (masked):', connectionUrl?.replace(/\/\/[^:]+:[^@]+@/, '//***:***@'));
+    } else {
+      console.log('Connection URL:', connectionUrl);
+    }
+    
+    await mongoose.connect(connectionUrl, options);
+    console.log(`✅ Connected to ${dbType} - RentFlow database`);
+  } catch (error: any) {
+    console.error('❌ Failed to connect to MongoDB:', error.message);
+    
+    // Provide specific error messages and solutions
+    if (error.message.includes('ENETUNREACH')) {
+      console.error('🔧 SOLUTION: Network unreachable. This is likely due to:');
+      console.error('   1. IP Address not whitelisted in MongoDB Atlas');
+      console.error('   2. Network firewall blocking the connection');
+      console.error('   3. IPv6 connectivity issues');
+      console.error('');
+      console.error('📋 TO FIX:');
+      console.error('   1. Go to MongoDB Atlas → Network Access → Add IP Address');
+      console.error('   2. Add 0.0.0.0/0 for testing (or your current IP)');
+      console.error('   3. Alternatively, try connecting from a different network');
+    } else if (error.message.includes('authentication')) {
+      console.error('🔧 SOLUTION: Authentication failed - check username/password');
+    } else if (error.message.includes('timeout')) {
+      console.error('🔧 SOLUTION: Connection timeout - check network connectivity');
+    }
+    
     throw error;
   }
 }
@@ -63,9 +106,13 @@ const tenantSchema = new mongoose.Schema({
   },
   rentCycle: {
     lastPaymentDate: Date,
+    lastPaymentAmount: Number,
+    currentMonthPaid: { type: Boolean, default: false },
+    paidForMonth: Number,  // 1-12
+    paidForYear: Number,   // e.g., 2025
     nextDueDate: Date,
     daysRemaining: Number,
-    rentStatus: { type: String, enum: ['active', 'overdue', 'grace_period'], default: 'active' }
+    rentStatus: { type: String, enum: ['paid', 'active', 'overdue', 'grace_period'], default: 'active' }
   }
 }, {
   timestamps: true,
@@ -79,6 +126,7 @@ const propertySchema = new mongoose.Schema({
   propertyTypes: [{
     type: { type: String, required: true },
     price: { type: String, required: true },
+    units: { type: Number, required: true, default: 1, min: 1 },
   }],
   rentSettings: {
     paymentDay: { type: Number, default: 1, min: 1, max: 31 },
@@ -103,72 +151,151 @@ const paymentHistorySchema = new mongoose.Schema({
   propertyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Property', required: true },
   amount: { type: Number, required: true, min: 0 },
   paymentDate: { type: Date, required: true },
+  forMonth: { type: Number, required: true, min: 1, max: 12 }, // Month this payment is for
+  forYear: { type: Number, required: true, min: 2020 }, // Year this payment is for
+  monthlyRent: { type: Number, required: true, min: 0 }, // Expected rent amount
   paymentMethod: { type: String, default: 'Not specified' },
   status: { type: String, enum: ['pending', 'partial', 'completed', 'overpaid', 'failed'], default: 'completed' },
   notes: String,
-  // New fields for monthly balance tracking
-  forMonth: { type: Number, required: true, min: 1, max: 12 }, // Month this payment is intended for
-  forYear: { type: Number, required: true }, // Year this payment is intended for
-  monthlyRentAmount: { type: Number, required: true, min: 0 }, // Expected rent for that month
-  appliedAmount: { type: Number, required: true, min: 0 }, // How much of this payment was applied to the specific month
-  creditAmount: { type: Number, default: 0, min: 0 }, // Amount that goes towards future months
+  utilityCharges: [{
+    type: { type: String, required: true },
+    unitsUsed: { type: Number, required: true },
+    pricePerUnit: { type: Number, required: true },
+    total: { type: Number, required: true }
+  }],
+  totalUtilityCost: { type: Number, default: 0 }
 }, {
   timestamps: true,
   collection: 'payment_history'
 });
 
-// Monthly Balance Model (monthly_balances collection) - tracks balance per tenant per month
-const monthlyBalanceSchema = new mongoose.Schema({
-  tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true },
-  landlordId: { type: mongoose.Schema.Types.ObjectId, ref: 'Landlord', required: true },
-  propertyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Property', required: true },
-  month: { type: Number, required: true, min: 1, max: 12 },
-  year: { type: Number, required: true },
-  expectedAmount: { type: Number, required: true, min: 0 }, // Monthly rent amount
-  paidAmount: { type: Number, default: 0, min: 0 }, // Total payments received for this month
-  balance: { type: Number, default: 0 }, // Remaining balance (negative if overpaid)
-  status: { type: String, enum: ['pending', 'partial', 'completed', 'overpaid'], default: 'pending' },
-}, {
-  timestamps: true,
-  collection: 'monthly_balances'
-});
-
-// Monthly Bill Model (monthly_bills collection)
-const utilityUsageSchema = new mongoose.Schema({
-  utilityType: { type: String, required: true },
-  unitsUsed: { type: Number, required: true, min: 0 },
-  pricePerUnit: { type: Number, required: true, min: 0 },
-  totalAmount: { type: Number, required: true, min: 0 }
-}, { _id: false });
-
-const billLineItemSchema = new mongoose.Schema({
+// Activity Log Model (activity_logs collection)
+const activityLogSchema = new mongoose.Schema({
+  landlordId: { type: mongoose.Schema.Types.ObjectId, ref: 'Landlord', required: true, index: true },
+  activityType: { 
+    type: String, 
+    required: true,
+    enum: [
+      'tenant_registered',
+      'tenant_removed',
+      'payment_received',
+      'payment_failed',
+      'property_added',
+      'property_updated',
+      'property_removed',
+      'debt_created',
+      'debt_cleared',
+      'rent_overdue',
+      'utility_bill_added',
+      'system_alert'
+    ]
+  },
+  title: { type: String, required: true },
   description: { type: String, required: true },
-  type: { type: String, enum: ['rent', 'utility', 'fee', 'other'], required: true },
-  amount: { type: Number, required: true, min: 0 },
-  utilityUsage: utilityUsageSchema
-}, { _id: false });
-
-const monthlyBillSchema = new mongoose.Schema({
-  tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true },
-  landlordId: { type: mongoose.Schema.Types.ObjectId, ref: 'Landlord', required: true },
-  propertyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Property', required: true },
-  billMonth: { type: Number, required: true, min: 1, max: 12 },
-  billYear: { type: Number, required: true, min: 2024 },
-  rentAmount: { type: Number, required: true, min: 0 },
-  lineItems: [billLineItemSchema],
-  totalAmount: { type: Number, required: true, min: 0 },
-  status: { type: String, enum: ['generated', 'sent', 'paid', 'overdue'], default: 'generated' },
-  generatedDate: { type: Date, default: Date.now },
-  dueDate: { type: Date },
-  paidDate: { type: Date }
+  metadata: {
+    tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant' },
+    tenantName: String,
+    propertyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Property' },
+    propertyName: String,
+    paymentId: { type: mongoose.Schema.Types.ObjectId, ref: 'PaymentHistory' },
+    amount: Number,
+    unitNumber: String,
+    previousValue: String,
+    newValue: String,
+  },
+  icon: { 
+    type: String, 
+    enum: [
+      'user-plus',
+      'user-minus',
+      'dollar-sign',
+      'alert-circle',
+      'building',
+      'building-minus',
+      'file-text',
+      'check-circle',
+      'zap',
+      'bell'
+    ],
+    default: 'bell'
+  },
+  priority: { 
+    type: String, 
+    enum: ['low', 'medium', 'high', 'urgent'],
+    default: 'medium'
+  },
+  isRead: { type: Boolean, default: false }
 }, {
   timestamps: true,
-  collection: 'monthly_bills'
+  collection: 'activity_logs'
 });
+
+// Index for efficient querying of recent activities
+activityLogSchema.index({ landlordId: 1, createdAt: -1 });
+activityLogSchema.index({ isRead: 1, createdAt: -1 });
+
+// Tenant Activity Log Model (tenant_activity_logs collection)
+const tenantActivityLogSchema = new mongoose.Schema({
+  tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
+  activityType: { 
+    type: String, 
+    required: true,
+    enum: [
+      'bill_created',
+      'bill_reminder',
+      'bill_overdue',
+      'grace_period_warning',
+      'payment_processed',
+      'payment_failed',
+      'partial_payment_received',
+      'final_notice',
+      'system_alert'
+    ]
+  },
+  title: { type: String, required: true },
+  description: { type: String, required: true },
+  metadata: {
+    landlordId: { type: mongoose.Schema.Types.ObjectId, ref: 'Landlord' },
+    landlordName: String,
+    propertyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Property' },
+    propertyName: String,
+    paymentId: { type: mongoose.Schema.Types.ObjectId, ref: 'PaymentHistory' },
+    amount: Number,
+    dueDate: String,
+    daysOverdue: Number,
+  },
+  icon: { 
+    type: String, 
+    enum: [
+      'file-text',
+      'bell',
+      'alert-circle',
+      'alert-triangle',
+      'check-circle',
+      'x-circle',
+      'dollar-sign',
+      'clock'
+    ],
+    default: 'bell'
+  },
+  priority: { 
+    type: String, 
+    enum: ['low', 'medium', 'high', 'urgent'],
+    default: 'medium'
+  },
+  isRead: { type: Boolean, default: false }
+}, {
+  timestamps: true,
+  collection: 'tenant_activity_logs'
+});
+
+// Index for efficient querying
+tenantActivityLogSchema.index({ tenantId: 1, createdAt: -1 });
+tenantActivityLogSchema.index({ isRead: 1, createdAt: -1 });
 
 export const Landlord = mongoose.model('Landlord', landlordSchema);
 export const Tenant = mongoose.model('Tenant', tenantSchema);
 export const Property = mongoose.model('Property', propertySchema);
 export const PaymentHistory = mongoose.model('PaymentHistory', paymentHistorySchema);
-export const MonthlyBalance = mongoose.model('MonthlyBalance', monthlyBalanceSchema);
-export const MonthlyBill = mongoose.model('MonthlyBill', monthlyBillSchema);
+export const ActivityLog = mongoose.model('ActivityLog', activityLogSchema);
+export const TenantActivityLog = mongoose.model('TenantActivityLog', tenantActivityLogSchema);
