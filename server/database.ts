@@ -6,13 +6,16 @@ if (process.env.NODE_ENV !== 'production') {
   dotenv.config();
 }
 
-const MONGODB_URL = process.env.MONGODB_URL;
+// Accept both MONGODB_URL and MONGODB_URI (Render uses MONGODB_URI by default)
+const MONGODB_URL = process.env.MONGODB_URL || process.env.MONGODB_URI;
 const MONGODB_LOCAL_URL = process.env.MONGODB_LOCAL_URL || 'mongodb://localhost:27017';
 const DATABASE_NAME = process.env.DATABASE_NAME || "RentFlow";
 
 if (!MONGODB_URL && !process.env.USE_LOCAL_DB) {
-  console.error('❌ MONGODB_URL is not set. Available env vars:', Object.keys(process.env).filter(k => k.includes('MONGO')));
-  throw new Error('MONGODB_URL environment variable is required (or set USE_LOCAL_DB=true for local MongoDB)');
+  console.error('❌ MongoDB connection string not found!');
+  console.error('Available MongoDB env vars:', Object.keys(process.env).filter(k => k.includes('MONGO')));
+  console.error('Please set either MONGODB_URL or MONGODB_URI in your environment variables.');
+  throw new Error('MongoDB connection string is required (set MONGODB_URL or MONGODB_URI, or USE_LOCAL_DB=true for local MongoDB)');
 }
 
 export async function connectToDatabase() {
