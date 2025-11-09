@@ -2,7 +2,9 @@
 
 **Automated rent collection platform for Kenya with M-Pesa integration**
 
-[![Deployment Status](https://img.shields.io/badge/deployment-ready-brightgreen)](https://render.com)
+🌐 **Live App**: [https://rentease-e5g5.onrender.com](https://rentease-e5g5.onrender.com)
+
+[![Deployment Status](https://img.shields.io/badge/deployment-live-brightgreen)](https://rentease-e5g5.onrender.com)
 [![MongoDB](https://img.shields.io/badge/database-MongoDB%20Atlas-green)](https://www.mongodb.com)
 [![Paystack](https://img.shields.io/badge/payments-Paystack-blue)](https://paystack.com)
 

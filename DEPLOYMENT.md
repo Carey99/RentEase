@@ -161,7 +161,7 @@ Add these variables one by one:
 | `MONGODB_URL` | `mongodb+srv://rentease_admin:...` | Your Atlas connection string |
 | `DATABASE_NAME` | `RentFlow` | Database name |
 | `JWT_SECRET` | Click "Generate" | Render auto-generates |
-| `FRONTEND_URL` | `https://rentease.onrender.com` | Update with your actual URL |
+| `FRONTEND_URL` | `https://rentease-e5g5.onrender.com` | Your deployed app URL |
 | `PAYSTACK_PUBLIC_KEY` | `pk_test_xxxxx` | From Paystack dashboard |
 | `PAYSTACK_SECRET_KEY` | `sk_test_xxxxx` | From Paystack dashboard |
 | `PAYSTACK_WEBHOOK_SECRET` | `whsec_xxxxx` | Add after webhook setup |
@@ -175,14 +175,14 @@ Add these variables one by one:
 1. Click **"Create Web Service"**
 2. Render will start building and deploying (takes 3-5 minutes)
 3. Watch the logs for any errors
-4. Once deployed, you'll get a URL like: `https://rentease.onrender.com`
+4. Once deployed, you'll get a URL like: `https://rentease-e5g5.onrender.com`
 
 ---
 
 ## ✅ Step 5: Verify Deployment
 
 ### 5.1 Check Health Endpoint
-Visit: `https://your-app.onrender.com/health`
+Visit: `https://rentease-e5g5.onrender.com/health`
 
 You should see:
 ```json
@@ -195,7 +195,7 @@ You should see:
 ```
 
 ### 5.2 Test the Application
-1. Visit: `https://your-app.onrender.com`
+1. Visit: `https://rentease-e5g5.onrender.com`
 2. You should see the RentEase landing page
 3. Try signing in with test credentials:
    - Landlord: `landlord@example.com` / `password123`
@@ -213,7 +213,7 @@ You should see:
 1. Log in to Paystack Dashboard
 2. Go to **Settings** → **API Keys & Webhooks**
 3. Scroll to **Webhook URL**
-4. Enter: `https://your-app.onrender.com/api/webhooks/paystack`
+4. Enter: `https://rentease-e5g5.onrender.com/api/webhooks/paystack`
 5. Click **Save**
 
 ### 6.2 Get Webhook Secret
