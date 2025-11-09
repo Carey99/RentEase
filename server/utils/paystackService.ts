@@ -11,7 +11,7 @@ import crypto from 'crypto';
 // Environment configuration
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY!;
 const PAYSTACK_PUBLIC_KEY = process.env.PAYSTACK_PUBLIC_KEY!;
-const PAYSTACK_ENV = process.env.PAYSTACK_ENV || 'test'; // 'test' or 'live'
+const PAYSTACK_ENV = (process.env.PAYSTACK_ENV === 'live' ? 'live' : 'test') as 'test' | 'live';
 
 if (!PAYSTACK_SECRET_KEY || !PAYSTACK_PUBLIC_KEY) {
   throw new Error('Paystack API keys are required. Set PAYSTACK_SECRET_KEY and PAYSTACK_PUBLIC_KEY in .env');
