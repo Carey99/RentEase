@@ -1,12 +1,17 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
-dotenv.config();
+
+// Only load .env file in development (Render injects env vars directly in production)
+if (process.env.NODE_ENV !== 'production') {
+  dotenv.config();
+}
 
 const MONGODB_URL = process.env.MONGODB_URL;
 const MONGODB_LOCAL_URL = process.env.MONGODB_LOCAL_URL || 'mongodb://localhost:27017';
 const DATABASE_NAME = process.env.DATABASE_NAME || "RentFlow";
 
 if (!MONGODB_URL && !process.env.USE_LOCAL_DB) {
+  console.error('❌ MONGODB_URL is not set. Available env vars:', Object.keys(process.env).filter(k => k.includes('MONGO')));
   throw new Error('MONGODB_URL environment variable is required (or set USE_LOCAL_DB=true for local MongoDB)');
 }
 
@@ -74,6 +79,33 @@ const landlordSchema = new mongoose.Schema({
   company: { type: String },
   address: { type: String },
   properties: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Property' }],
+  // Payment collection method and gateway configuration
+  paymentMethod: { type: String, enum: ['gateway', 'daraja', 'statement_upload', 'manual'], default: 'manual' },
+  gatewayConfig: {
+    provider: { type: String, enum: ['paystack', 'daraja', 'other'], default: 'paystack' },
+    receiveMethod: { type: String, enum: ['mobile_money', 'paybill', 'till'], default: 'mobile_money' },
+    // Mobile money fields
+    recipientPhone: { type: String },
+    recipientName: { type: String },
+    idNumber: { type: String },
+    // Paybill fields
+    paybillNumber: { type: String },
+    paybillAccountReference: { type: String },
+    // Till fields
+    tillNumber: { type: String },
+    // Common business fields
+    businessName: { type: String },
+    kraPin: { type: String },
+    businessPhone: { type: String },
+    // Paystack subaccount and status
+    subaccountId: { type: String },
+    subaccountCode: { type: String }, // Paystack uses subaccount_code
+    isConfigured: { type: Boolean, default: false },
+    isVerified: { type: Boolean, default: false },
+    configuredAt: { type: Date },
+    verifiedAt: { type: Date },
+    lastTestedAt: { type: Date }
+  },
   settings: {
     emailNotifications: { type: Boolean, default: true },
     smsNotifications: { type: Boolean, default: false },
@@ -293,9 +325,99 @@ const tenantActivityLogSchema = new mongoose.Schema({
 tenantActivityLogSchema.index({ tenantId: 1, createdAt: -1 });
 tenantActivityLogSchema.index({ isRead: 1, createdAt: -1 });
 
+// Payment Intent Model (payment_intents collection)
+// Tracks the entire payment lifecycle from initiation to completion
+const paymentIntentSchema = new mongoose.Schema({
+  landlordId: { type: mongoose.Schema.Types.ObjectId, ref: 'Landlord', required: true, index: true },
+  tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
+  billId: { type: mongoose.Schema.Types.ObjectId, ref: 'PaymentHistory', required: true },
+  
+  // Payment details
+  amount: { type: Number, required: true, min: 0 },
+  currency: { type: String, default: 'KES' },
+  phoneNumber: { type: String, required: true }, // Tenant's phone for STK push
+  
+  // Gateway details
+  gateway: { type: String, enum: ['paystack', 'daraja'], default: 'paystack', required: true },
+  gatewayTransactionId: { type: String, index: true }, // Paystack transaction ID
+  gatewayReference: { type: String, unique: true, sparse: true }, // Paystack reference
+  paymentReference: { type: String, required: true, unique: true, index: true }, // Our internal reference
+  
+  // Status tracking
+  status: { 
+    type: String, 
+    enum: ['pending', 'processing', 'success', 'failed', 'expired', 'cancelled'], 
+    default: 'pending',
+    index: true
+  },
+  
+  // Idempotency
+  idempotencyKey: { type: String, required: true, unique: true, index: true },
+  
+  // Metadata
+  gatewayResponse: { type: mongoose.Schema.Types.Mixed }, // Raw gateway response
+  failureReason: { type: String }, // Error message if failed
+  completedAt: { type: Date },
+  expiresAt: { type: Date, required: true, index: true }, // Payment expires after 15 minutes
+  
+  // For partial payments tracking
+  attemptNumber: { type: Number, default: 1 }, // How many times tenant tried to pay
+}, {
+  timestamps: true,
+  collection: 'payment_intents'
+});
+
+// Indexes for efficient querying
+paymentIntentSchema.index({ status: 1, createdAt: -1 });
+paymentIntentSchema.index({ expiresAt: 1 }); // For cleanup of expired intents
+paymentIntentSchema.index({ landlordId: 1, tenantId: 1, status: 1 });
+
+// Webhook Log Model (webhook_logs collection)
+// Logs all incoming webhooks for debugging and audit trail
+const webhookLogSchema = new mongoose.Schema({
+  // Webhook source
+  gateway: { type: String, enum: ['paystack', 'daraja', 'other'], required: true, index: true },
+  
+  // Webhook event details
+  event: { type: String, required: true, index: true }, // e.g., 'charge.success'
+  eventId: { type: String, unique: true, sparse: true }, // Paystack event ID (for deduplication)
+  
+  // Payload
+  payload: { type: mongoose.Schema.Types.Mixed, required: true }, // Full webhook body
+  headers: { type: mongoose.Schema.Types.Mixed }, // HTTP headers (for debugging)
+  
+  // Verification
+  signatureValid: { type: Boolean }, // Was the webhook signature valid?
+  signatureVerifiedAt: { type: Date },
+  
+  // Processing status
+  processed: { type: Boolean, default: false, index: true },
+  processedAt: { type: Date },
+  processingError: { type: String }, // Error if processing failed
+  
+  // Linked entities (populated after processing)
+  paymentIntentId: { type: mongoose.Schema.Types.ObjectId, ref: 'PaymentIntent', index: true },
+  landlordId: { type: mongoose.Schema.Types.ObjectId, ref: 'Landlord', index: true },
+  tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', index: true },
+  
+  // Response
+  responseStatus: { type: Number }, // HTTP status code we returned
+  responseBody: { type: mongoose.Schema.Types.Mixed }, // What we responded with
+}, {
+  timestamps: true,
+  collection: 'webhook_logs'
+});
+
+// Indexes for efficient querying and debugging
+webhookLogSchema.index({ gateway: 1, event: 1, createdAt: -1 });
+webhookLogSchema.index({ processed: 1, createdAt: -1 });
+webhookLogSchema.index({ paymentIntentId: 1 });
+
 export const Landlord = mongoose.model('Landlord', landlordSchema);
 export const Tenant = mongoose.model('Tenant', tenantSchema);
 export const Property = mongoose.model('Property', propertySchema);
 export const PaymentHistory = mongoose.model('PaymentHistory', paymentHistorySchema);
 export const ActivityLog = mongoose.model('ActivityLog', activityLogSchema);
 export const TenantActivityLog = mongoose.model('TenantActivityLog', tenantActivityLogSchema);
+export const PaymentIntent = mongoose.model('PaymentIntent', paymentIntentSchema);
+export const WebhookLog = mongoose.model('WebhookLog', webhookLogSchema);

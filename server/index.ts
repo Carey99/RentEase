@@ -1,4 +1,5 @@
 import express, { type Request, Response, NextFunction } from "express";
+import cors from "cors";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { connectToDatabase } from "./database";
@@ -7,11 +8,34 @@ import { rentCycleScheduler } from "./schedulers/rentCycleScheduler";
 import { billNotificationScheduler } from "./schedulers/billNotificationScheduler";
 import { activityNotificationService } from "./websocket";
 import dotenv from "dotenv";
-dotenv.config();
+
+// Only load .env file in development (Render injects env vars directly in production)
+if (process.env.NODE_ENV !== 'production') {
+  dotenv.config();
+}
 
 const app = express();
+
+// CORS configuration for production and development
+const corsOptions = {
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+app.use(cors(corsOptions));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// Health check endpoint for Render and monitoring services
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'healthy', 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
 
 app.use((req, res, next) => {
   const start = Date.now();

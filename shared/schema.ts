@@ -300,4 +300,97 @@ export const insertTenantActivityLogSchema = tenantActivityLogSchema.omit({
 export type TenantActivityLog = z.infer<typeof tenantActivityLogSchema>;
 export type InsertTenantActivityLog = z.infer<typeof insertTenantActivityLogSchema>;
 
+// Payment Intent Schema - Tracks payment lifecycle
+export const paymentIntentSchema = z.object({
+  _id: z.string().optional(),
+  landlordId: z.string(),
+  tenantId: z.string(),
+  billId: z.string(), // Reference to PaymentHistory
+  
+  // Payment details
+  amount: z.number().positive(),
+  currency: z.string().default("KES"),
+  phoneNumber: z.string(),
+  
+  // Gateway details
+  gateway: z.enum(["flutterwave", "daraja"]).default("flutterwave"),
+  gatewayTransactionId: z.string().optional(),
+  gatewayReference: z.string().optional(),
+  paymentReference: z.string(), // Our internal reference (e.g., RENT-2025-01-001)
+  
+  // Status tracking
+  status: z.enum(["pending", "processing", "success", "failed", "expired", "cancelled"]).default("pending"),
+  
+  // Idempotency
+  idempotencyKey: z.string(),
+  
+  // Metadata
+  gatewayResponse: z.any().optional(), // Raw gateway response
+  failureReason: z.string().optional(),
+  completedAt: z.date().optional(),
+  expiresAt: z.date(),
+  
+  // Retry tracking
+  attemptNumber: z.number().default(1),
+  
+  createdAt: z.date().optional(),
+  updatedAt: z.date().optional(),
+});
+
+export const insertPaymentIntentSchema = paymentIntentSchema.omit({
+  _id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type PaymentIntent = z.infer<typeof paymentIntentSchema>;
+export type InsertPaymentIntent = z.infer<typeof insertPaymentIntentSchema>;
+
+// Webhook Log Schema - Logs all webhook events
+export const webhookLogSchema = z.object({
+  _id: z.string().optional(),
+  
+  // Webhook source
+  gateway: z.enum(["flutterwave", "daraja", "other"]),
+  
+  // Event details
+  event: z.string(), // e.g., 'charge.completed'
+  eventId: z.string().optional(), // Gateway's event ID
+  
+  // Payload
+  payload: z.any(), // Full webhook body
+  headers: z.any().optional(), // HTTP headers
+  
+  // Verification
+  signatureValid: z.boolean().optional(),
+  signatureVerifiedAt: z.date().optional(),
+  
+  // Processing status
+  processed: z.boolean().default(false),
+  processedAt: z.date().optional(),
+  processingError: z.string().optional(),
+  
+  // Linked entities
+  paymentIntentId: z.string().optional(),
+  landlordId: z.string().optional(),
+  tenantId: z.string().optional(),
+  
+  // Response
+  responseStatus: z.number().optional(),
+  responseBody: z.any().optional(),
+  
+  createdAt: z.date().optional(),
+  updatedAt: z.date().optional(),
+});
+
+export const insertWebhookLogSchema = webhookLogSchema.omit({
+  _id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type WebhookLog = z.infer<typeof webhookLogSchema>;
+export type InsertWebhookLog = z.infer<typeof insertWebhookLogSchema>;
+
+
 
