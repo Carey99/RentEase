@@ -9,6 +9,7 @@ import { AuthController } from "./controllers/authController";
 import { PropertyController } from "./controllers/propertyController";
 import { TenantController } from "./controllers/tenantController";
 import { LandlordController } from "./controllers/landlordController";
+import { GatewayController } from "./controllers/gatewayController";
 import { PaymentController } from "./controllers/paymentController";
 import { 
   getRecentActivities, 
@@ -60,6 +61,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/landlords/:landlordId/settings", LandlordController.getSettings);
   app.put("/api/landlords/:landlordId/settings", LandlordController.updateSettings);
   app.put("/api/landlords/:landlordId/password", LandlordController.changePassword);
+
+  // Payment Gateway routes (Paystack configuration)
+  app.post("/api/landlords/:landlordId/gateway/configure", GatewayController.configureGateway);
+  app.get("/api/landlords/:landlordId/gateway/status", GatewayController.getGatewayStatus);
+  app.post("/api/landlords/:landlordId/gateway/test", GatewayController.testGateway);
+  app.delete("/api/landlords/:landlordId/gateway/configure", GatewayController.removeGateway);
 
   // Payment history routes
   app.get("/api/payment-history/tenant/:tenantId", PaymentController.getTenantPaymentHistory);
