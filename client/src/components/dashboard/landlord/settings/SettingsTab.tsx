@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Settings, User, Lock, Bell, Building, CreditCard, HelpCircle } from "lucide-react";
+import { Settings, User, Lock, Bell, Building, HelpCircle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,6 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useCurrentUser } from "@/hooks/dashboard/useDashboard";
-import { GatewaySetupWizard } from "../payment-gateway";
 
 interface LandlordSettings {
   profile: {
@@ -242,12 +241,8 @@ export default function SettingsTab() {
       </div>
 
       <Tabs defaultValue="profile">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="profile">Profile</TabsTrigger>
-          <TabsTrigger value="gateway">
-            <CreditCard className="h-4 w-4 mr-2" />
-            Payment Gateway
-          </TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
         </TabsList>
@@ -305,10 +300,6 @@ export default function SettingsTab() {
               </Button>
             </CardContent>
           </Card>
-        </TabsContent>
-
-        <TabsContent value="gateway" className="mt-6">
-          <GatewaySetupWizard landlordId={currentUser?.id || ''} />
         </TabsContent>
 
         <TabsContent value="notifications" className="mt-6">
