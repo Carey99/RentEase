@@ -313,7 +313,7 @@ export const paymentIntentSchema = z.object({
   phoneNumber: z.string(),
   
   // Gateway details
-  gateway: z.enum(["flutterwave", "daraja"]).default("flutterwave"),
+  gateway: z.enum(["paystack", "daraja"]).default("paystack"),
   gatewayTransactionId: z.string().optional(),
   gatewayReference: z.string().optional(),
   paymentReference: z.string(), // Our internal reference (e.g., RENT-2025-01-001)
@@ -351,7 +351,7 @@ export const webhookLogSchema = z.object({
   _id: z.string().optional(),
   
   // Webhook source
-  gateway: z.enum(["flutterwave", "daraja", "other"]),
+  gateway: z.enum(["paystack", "daraja", "other"]),
   
   // Event details
   event: z.string(), // e.g., 'charge.completed'
