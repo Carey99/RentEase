@@ -1,6 +1,8 @@
 /**
  * Phase 1 Utilities Test Script
  * Tests all Phase 1 utilities to ensure they work correctly
+ * 
+ * Run with: NODE_OPTIONS='--require dotenv/config' npx tsx test-phase1.ts
  */
 
 import { paystackService } from './server/utils/paystackService';
@@ -39,10 +41,9 @@ testPhones.forEach(phone => {
   const result = validatePhone(phone);
   console.log(`\nInput: ${phone}`);
   console.log(`Valid: ${result.valid ? '✅' : '❌'}`);
-  if (result.valid) {
+  if (result.valid && result.normalized) {
     console.log(`Normalized: ${result.normalized}`);
-    console.log(`Operator: ${result.operator}`);
-    console.log(`Formatted: ${result.formatted}`);
+    console.log(`Operator: ${getNetworkOperator(result.normalized)}`);
   } else {
     console.log(`Error: ${result.error}`);
   }
@@ -68,30 +69,33 @@ for (let i = 0; i < 5; i++) {
   
   console.log(`\n${i + 1}. Reference: ${ref}`);
   console.log(`   Valid: ${isValid ? '✅' : '❌'}`);
-  console.log(`   Parsed:`);
-  console.log(`     - Landlord ID: ${parsed.landlordId}`);
-  console.log(`     - Tenant ID: ${parsed.tenantId}`);
-  console.log(`     - Timestamp: ${parsed.timestamp}`);
-  console.log(`     - Hash: ${parsed.hash}`);
+  if (parsed) {
+    console.log(`   Parsed:`);
+    console.log(`     - Year/Month: ${parsed.yearMonth}`);
+    console.log(`     - Landlord ID: ${parsed.landlordId}`);
+    console.log(`     - Tenant ID: ${parsed.tenantId}`);
+    console.log(`     - Random: ${parsed.random}`);
+  }
 }
 
 // Test idempotency key
 console.log('\n\nGenerating idempotency keys:');
-const ref1 = generatePaymentReference(landlordId, tenantId);
-const key1a = generateIdempotencyKey(ref1);
-const key1b = generateIdempotencyKey(ref1);
+const billId1 = 'BILL001';
+const billId2 = 'BILL002';
 
-console.log(`\nReference: ${ref1}`);
-console.log(`Key 1: ${key1a}`);
-console.log(`Key 2: ${key1b}`);
-console.log(`Keys match: ${key1a === key1b ? '✅' : '❌'} (should match - same input)`);
+const key1a = generateIdempotencyKey(landlordId, tenantId, billId1);
+const key1b = generateIdempotencyKey(landlordId, tenantId, billId1);
 
-// Different reference should produce different key
-const ref2 = generatePaymentReference(landlordId, tenantId);
-const key2 = generateIdempotencyKey(ref2);
-console.log(`\nDifferent reference: ${ref2}`);
-console.log(`Different key: ${key2}`);
-console.log(`Keys differ: ${key1a !== key2 ? '✅' : '❌'} (should differ - different input)`);
+console.log(`\nBill 1: ${billId1}`);
+console.log(`Key 1a: ${key1a.substring(0, 32)}...`);
+console.log(`Key 1b: ${key1b.substring(0, 32)}...`);
+console.log(`Keys differ: ${key1a !== key1b ? '✅' : '❌'} (should differ - includes timestamp)`);
+
+// Different bill should produce different key
+const key2 = generateIdempotencyKey(landlordId, tenantId, billId2);
+console.log(`\nBill 2: ${billId2}`);
+console.log(`Key 2: ${key2.substring(0, 32)}...`);
+console.log(`All keys unique: ${key1a !== key2 && key1b !== key2 ? '✅' : '❌'}`);
 
 console.log('\n' + '═'.repeat(50));
 
