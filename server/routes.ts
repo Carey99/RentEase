@@ -10,6 +10,7 @@ import { PropertyController } from "./controllers/propertyController";
 import { TenantController } from "./controllers/tenantController";
 import { LandlordController } from "./controllers/landlordController";
 import { PaymentController } from "./controllers/paymentController";
+import { DarajaConfigController } from "./controllers/darajaConfigController";
 import { 
   getRecentActivities, 
   markActivityAsRead, 
@@ -61,6 +62,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/landlords/:landlordId/settings", LandlordController.updateSettings);
   app.put("/api/landlords/:landlordId/password", LandlordController.changePassword);
 
+  // Daraja M-Pesa configuration routes
+  app.post("/api/landlords/:landlordId/daraja/configure", DarajaConfigController.configure);
+  app.get("/api/landlords/:landlordId/daraja/status", DarajaConfigController.getStatus);
+  app.post("/api/landlords/:landlordId/daraja/test", DarajaConfigController.testConfiguration);
+  app.delete("/api/landlords/:landlordId/daraja/configure", DarajaConfigController.removeConfiguration);
+
   // Payment history routes
   app.get("/api/payment-history/tenant/:tenantId", PaymentController.getTenantPaymentHistory);
   app.get("/api/payment-history/landlord/:landlordId", PaymentController.getLandlordPaymentHistory);
@@ -68,6 +75,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/payment-history/property/:propertyId", PaymentController.getPropertyPaymentHistory);
   app.get("/api/payment-history/tenant/:tenantId/recorded-months/:year", PaymentController.getRecordedMonths);
   app.delete("/api/payment-history/:paymentId", PaymentController.deletePaymentHistory);
+
+  // Daraja payment routes (STK Push)
+  app.post("/api/payments/initiate", PaymentController.initiatePayment);
+  app.get("/api/payments/:paymentIntentId/status", PaymentController.getPaymentStatus);
 
   // Activity log routes
   app.get("/api/activities/landlord/:landlordId", getRecentActivities);
