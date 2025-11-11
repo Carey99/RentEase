@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,6 +32,7 @@ export function MpesaPaymentModal({
   onSuccess
 }: MpesaPaymentModalProps) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [amount, setAmount] = useState(defaultAmount.toString());
   const [phoneNumber, setPhoneNumber] = useState(defaultPhone);
   const [status, setStatus] = useState<PaymentStatus>('idle');
@@ -38,6 +40,7 @@ export function MpesaPaymentModal({
   const [countdown, setCountdown] = useState(120); // 2 minutes
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [resultMessage, setResultMessage] = useState<string | null>(null);
+  const [pollCount, setPollCount] = useState(0);
 
   // Reset state when modal opens/closes
   useEffect(() => {
@@ -63,39 +66,80 @@ export function MpesaPaymentModal({
     }
   }, [status, countdown]);
 
-  // Poll payment status
+  // Poll payment status with exponential backoff
   useEffect(() => {
     if (status === 'waiting' && paymentIntentId) {
-      const pollInterval = setInterval(async () => {
+      setPollCount(0);
+      
+      const checkPaymentStatus = async () => {
         try {
           const response = await fetch(`/api/payments/${paymentIntentId}/status`);
           if (response.ok) {
             const data = await response.json();
             
-            if (data.status === 'completed') {
+            console.log('Payment status check:', data.status, data);
+            
+            if (data.status === 'success' || data.status === 'completed') {
               setStatus('completed');
               setResultMessage(data.message || 'Payment completed successfully!');
+              
+              // Invalidate queries to refresh dashboard data
+              console.log('Invalidating queries...');
+              queryClient.invalidateQueries({ queryKey: ['tenant-property', tenantId] });
+              queryClient.invalidateQueries({ queryKey: ['payment-history', tenantId] });
+              queryClient.invalidateQueries({ queryKey: ['tenant-activities', tenantId] });
+              
               toast({
                 title: 'Payment Successful!',
-                description: 'Your rent payment has been processed.',
+                description: `KES ${parseFloat(amount).toLocaleString()} payment processed successfully.`,
               });
+              
               setTimeout(() => {
                 onSuccess();
                 onOpenChange(false);
               }, 2000);
-            } else if (data.status === 'failed') {
+            } else if (data.status === 'failed' || data.status === 'cancelled') {
               setStatus('failed');
-              setErrorMessage(data.message || data.resultDescription || 'Payment failed');
+              setErrorMessage(data.message || data.resultDesc || 'Payment failed');
+              
+              // Create activity log for failed payment
+              queryClient.invalidateQueries({ queryKey: ['tenant-activities', tenantId] });
+            } else if (data.status === 'timeout') {
+              setStatus('timeout');
+              setErrorMessage('Payment request timed out. Please try again.');
             }
           }
         } catch (error) {
           console.error('Error checking payment status:', error);
         }
-      }, 5000); // Poll every 5 seconds
+      };
+      
+      // Initial check after 3 seconds
+      const initialTimeout = setTimeout(checkPaymentStatus, 3000);
+      
+      // Poll every 5 seconds for first 60 seconds, then every 10 seconds
+      const pollInterval = setInterval(() => {
+        setPollCount(prev => {
+          const newCount = prev + 1;
+          // Stop polling after 24 attempts (2 minutes at 5s intervals)
+          if (newCount > 24) {
+            clearInterval(pollInterval);
+            if (status === 'waiting') {
+              setStatus('timeout');
+              setErrorMessage('Payment verification timed out. Check your payment history.');
+            }
+          }
+          return newCount;
+        });
+        checkPaymentStatus();
+      }, pollCount < 12 ? 5000 : 10000);
 
-      return () => clearInterval(pollInterval);
+      return () => {
+        clearTimeout(initialTimeout);
+        clearInterval(pollInterval);
+      };
     }
-  }, [status, paymentIntentId, onSuccess, onOpenChange, toast]);
+  }, [status, paymentIntentId, onSuccess, onOpenChange, toast, queryClient, tenantId, amount, pollCount]);
 
   const handleInitiatePayment = async () => {
     // Validate inputs
@@ -177,6 +221,7 @@ export function MpesaPaymentModal({
     setErrorMessage(null);
     setResultMessage(null);
     setCountdown(120);
+    setPollCount(0);
   };
 
   const formatTime = (seconds: number) => {

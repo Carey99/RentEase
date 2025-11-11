@@ -280,14 +280,16 @@ export class PaymentController {
       }
 
       // If already completed or failed, return cached status
-      if (paymentIntent.status === 'completed' || paymentIntent.status === 'failed') {
+      if (paymentIntent.status === 'success' || paymentIntent.status === 'completed' || 
+          paymentIntent.status === 'failed' || paymentIntent.status === 'timeout' ||
+          paymentIntent.status === 'cancelled') {
         console.log('  Status (cached):', paymentIntent.status);
         return res.json({
           status: paymentIntent.status,
           resultCode: paymentIntent.resultCode,
-          resultDescription: paymentIntent.resultDescription,
-          mpesaReceiptNumber: paymentIntent.mpesaReceiptNumber,
-          transactionDate: paymentIntent.transactionDate
+          resultDesc: paymentIntent.resultDesc,
+          transactionId: paymentIntent.transactionId,
+          message: paymentIntent.resultDesc
         });
       }
 
@@ -300,11 +302,11 @@ export class PaymentController {
           );
 
           // Update payment intent with latest status
-          paymentIntent.resultCode = statusResponse.resultCode;
-          paymentIntent.resultDescription = statusResponse.resultDesc;
+          paymentIntent.resultCode = Number(statusResponse.resultCode);
+          paymentIntent.resultDesc = statusResponse.resultDesc;
           
           if (statusResponse.success) {
-            paymentIntent.status = 'completed';
+            paymentIntent.status = 'success';
             paymentIntent.completedAt = new Date();
           } else if (statusResponse.resultCode !== '0' && statusResponse.resultCode !== '') {
             paymentIntent.status = 'failed';
@@ -317,7 +319,7 @@ export class PaymentController {
           return res.json({
             status: paymentIntent.status,
             resultCode: statusResponse.resultCode,
-            resultDescription: statusResponse.resultDesc,
+            resultDesc: statusResponse.resultDesc,
             message: getResultMessage(statusResponse.resultCode)
           });
         } catch (error) {
@@ -330,7 +332,7 @@ export class PaymentController {
       res.json({
         status: paymentIntent.status,
         resultCode: paymentIntent.resultCode,
-        resultDescription: paymentIntent.resultDescription
+        resultDesc: paymentIntent.resultDesc
       });
 
     } catch (error: any) {

@@ -473,7 +473,17 @@ export default function TenantDashboard() {
                     defaultAmount={parseFloat(tenantProperty.rentAmount || '0')}
                     phoneNumber={currentUser?.phone || ''}
                     onSuccess={async () => {
-                      // Refresh payment history and tenant property data
+                      // Refresh all tenant data after successful payment
+                      console.log('Payment successful - refreshing dashboard data...');
+                      await queryClient.invalidateQueries({ 
+                        queryKey: ['tenant-property', currentUser?.id] 
+                      });
+                      await queryClient.invalidateQueries({
+                        queryKey: ['payment-history', currentUser?.id]
+                      });
+                      await queryClient.invalidateQueries({
+                        queryKey: ['tenant-activities', currentUser?.id]
+                      });
                       await queryClient.invalidateQueries({ 
                         queryKey: ['/api/tenant-properties/tenant', currentUser?.id] 
                       });

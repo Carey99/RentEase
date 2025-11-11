@@ -11,6 +11,7 @@ import { TenantController } from "./controllers/tenantController";
 import { LandlordController } from "./controllers/landlordController";
 import { PaymentController } from "./controllers/paymentController";
 import { DarajaConfigController } from "./controllers/darajaConfigController";
+import { handleSTKCallback, handleSTKTimeout } from "./controllers/darajaCallbackController";
 import { 
   getRecentActivities, 
   markActivityAsRead, 
@@ -79,6 +80,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Daraja payment routes (STK Push)
   app.post("/api/payments/initiate", PaymentController.initiatePayment);
   app.get("/api/payments/:paymentIntentId/status", PaymentController.getPaymentStatus);
+
+  // Daraja callback routes (webhooks from M-Pesa)
+  app.post("/api/daraja/callback", handleSTKCallback);
+  app.post("/api/daraja/timeout", handleSTKTimeout);
 
   // Activity log routes
   app.get("/api/activities/landlord/:landlordId", getRecentActivities);
