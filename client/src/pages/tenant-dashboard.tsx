@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { DollarSign, Calendar, CheckCircle, AlertTriangle, CreditCard } from "lucide-react";
+import { DollarSign, Calendar, CheckCircle, AlertTriangle, CreditCard, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,12 +11,14 @@ import Sidebar from "@/components/dashboard/sidebar";
 import StatsCard from "@/components/dashboard/stats-card";
 import RecordedPaymentsCard from "@/components/dashboard/tenant/RecordedPaymentsCard";
 import TenantNotificationBell from "@/components/dashboard/TenantNotificationBell";
+import { MpesaPaymentModal } from "@/components/dashboard/tenant/MpesaPaymentModal";
 import { formatRentStatusText, getRentStatusColor } from "@/lib/rent-cycle-utils";
 
 export default function TenantDashboard() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [paymentAmount, setPaymentAmount] = useState('');
   const [isPaymentLoading, setIsPaymentLoading] = useState(false);
+  const [showMpesaModal, setShowMpesaModal] = useState(false);
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
 
@@ -405,24 +407,12 @@ export default function TenantDashboard() {
                 <Card className="border-2 border-green-200 shadow-lg">
                   <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50">
                     <CardTitle className="flex items-center text-green-900">
-                      <CreditCard className="mr-2 h-5 w-5" />
-                      Make Rent Payment
+                      <Smartphone className="mr-2 h-5 w-5" />
+                      Pay Rent via M-Pesa
                     </CardTitle>
                   </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="paymentAmount">Payment Amount (KSH)</Label>
-                      <Input
-                        id="paymentAmount"
-                        type="number"
-                        placeholder="Enter amount"
-                        value={paymentAmount}
-                        onChange={(e) => setPaymentAmount(e.target.value)}
-                        disabled={isPaymentLoading}
-                      />
-                    </div>
-                    
                     {tenantProperty && (
                       <div className="text-sm text-neutral-600 bg-neutral-50 p-3 rounded-md">
                         <p><strong>Expected Rent:</strong> KSH {tenantProperty.rentAmount || '0'}</p>
@@ -432,19 +422,78 @@ export default function TenantDashboard() {
                     )}
                     
                     <Button 
-                      onClick={handleMakePayment}
-                      disabled={isPaymentLoading || !paymentAmount}
-                      className="w-full"
+                      onClick={() => setShowMpesaModal(true)}
+                      className="w-full bg-green-600 hover:bg-green-700"
                     >
-                      {isPaymentLoading ? "Processing..." : "Make Payment"}
+                      <Smartphone className="mr-2 h-4 w-4" />
+                      Pay with M-Pesa
                     </Button>
                     
                     <p className="text-xs text-neutral-500 text-center">
-                      Payment will be recorded immediately and your landlord will be notified
+                      Secure payment via M-Pesa STK Push
                     </p>
+
+                    {/* Manual Payment Option */}
+                    <div className="pt-4 border-t">
+                      <p className="text-sm font-medium mb-2">Or record manual payment:</p>
+                      <div className="space-y-2">
+                        <Input
+                          id="paymentAmount"
+                          type="number"
+                          placeholder="Enter amount"
+                          value={paymentAmount}
+                          onChange={(e) => setPaymentAmount(e.target.value)}
+                          disabled={isPaymentLoading}
+                        />
+                        <Button 
+                          onClick={handleMakePayment}
+                          disabled={isPaymentLoading || !paymentAmount}
+                          className="w-full"
+                          variant="outline"
+                        >
+                          {isPaymentLoading ? "Processing..." : "Record Payment"}
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
+
+              {/* M-Pesa Payment Modal */}
+              {tenantProperty && (() => {
+                console.log('TenantProperty data:', tenantProperty);
+                const landlordId = tenantProperty.property?.landlordId || '';
+                console.log('Landlord ID:', landlordId);
+                return (
+                  <MpesaPaymentModal
+                    open={showMpesaModal}
+                    onOpenChange={setShowMpesaModal}
+                    tenantId={currentUser?.id || ''}
+                    landlordId={landlordId}
+                    defaultAmount={parseFloat(tenantProperty.rentAmount || '0')}
+                    phoneNumber={currentUser?.phone || ''}
+                    onSuccess={async () => {
+                      // Refresh all tenant data after successful payment
+                      console.log('Payment successful - refreshing dashboard data...');
+                      await queryClient.invalidateQueries({ 
+                        queryKey: ['tenant-property', currentUser?.id] 
+                      });
+                      await queryClient.invalidateQueries({
+                        queryKey: ['payment-history', currentUser?.id]
+                      });
+                      await queryClient.invalidateQueries({
+                        queryKey: ['tenant-activities', currentUser?.id]
+                      });
+                      await queryClient.invalidateQueries({ 
+                        queryKey: ['/api/tenant-properties/tenant', currentUser?.id] 
+                      });
+                      await queryClient.invalidateQueries({
+                        queryKey: ['/api/payment-history/tenant', currentUser?.id]
+                      });
+                    }}
+                  />
+                );
+              })()}
             </div>
           </div>
           </div>
