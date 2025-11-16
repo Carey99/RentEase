@@ -241,69 +241,98 @@ export default function PaymentOverview({ landlordId }: PaymentOverviewProps) {
         </CardHeader>
 
         <CardContent>
-          {/* Stats Cards */}
+          {/* Stats Cards - Modern Design with Gradients */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <p className="text-sm text-neutral-600 mb-1">Paid</p>
-              <p className="text-2xl font-bold text-green-900">{stats.paid}</p>
+            <div className="relative overflow-hidden bg-gradient-to-br from-green-50 to-emerald-100 border-0 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300 group">
+              <div className="absolute top-0 right-0 w-20 h-20 bg-green-500/10 rounded-full -mr-10 -mt-10 group-hover:scale-150 transition-transform duration-500"></div>
+              <div className="relative">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-medium text-green-700">Paid</p>
+                  <CheckCircle2 className="h-5 w-5 text-green-600" />
+                </div>
+                <p className="text-3xl font-bold text-green-900">{stats.paid}</p>
+                <p className="text-xs text-green-600 mt-1">Tenants</p>
+              </div>
             </div>
-            <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-4">
-              <p className="text-sm text-neutral-600 mb-1">Unpaid</p>
-              <p className="text-2xl font-bold text-neutral-900">{stats.unpaid}</p>
+            <div className="relative overflow-hidden bg-gradient-to-br from-orange-50 to-amber-100 border-0 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300 group">
+              <div className="absolute top-0 right-0 w-20 h-20 bg-orange-500/10 rounded-full -mr-10 -mt-10 group-hover:scale-150 transition-transform duration-500"></div>
+              <div className="relative">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-medium text-orange-700">Unpaid</p>
+                  <AlertCircle className="h-5 w-5 text-orange-600" />
+                </div>
+                <p className="text-3xl font-bold text-orange-900">{stats.unpaid}</p>
+                <p className="text-xs text-orange-600 mt-1">Tenants</p>
+              </div>
             </div>
-            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-              <p className="text-sm text-neutral-600 mb-1">Grace Period</p>
-              <p className="text-2xl font-bold text-orange-900">{stats.gracePeriod}</p>
+            <div className="relative overflow-hidden bg-gradient-to-br from-amber-50 to-yellow-100 border-0 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300 group">
+              <div className="absolute top-0 right-0 w-20 h-20 bg-amber-500/10 rounded-full -mr-10 -mt-10 group-hover:scale-150 transition-transform duration-500"></div>
+              <div className="relative">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-medium text-amber-700">Grace Period</p>
+                  <AlertCircle className="h-5 w-5 text-amber-600" />
+                </div>
+                <p className="text-3xl font-bold text-amber-900">{stats.gracePeriod}</p>
+                <p className="text-xs text-amber-600 mt-1">Tenants</p>
+              </div>
             </div>
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-              <p className="text-sm text-neutral-600 mb-1">Overdue</p>
-              <p className="text-2xl font-bold text-red-900">{stats.overdue}</p>
+            <div className="relative overflow-hidden bg-gradient-to-br from-red-50 to-rose-100 border-0 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300 group">
+              <div className="absolute top-0 right-0 w-20 h-20 bg-red-500/10 rounded-full -mr-10 -mt-10 group-hover:scale-150 transition-transform duration-500"></div>
+              <div className="relative">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-medium text-red-700">Overdue</p>
+                  <XCircle className="h-5 w-5 text-red-600" />
+                </div>
+                <p className="text-3xl font-bold text-red-900">{stats.overdue}</p>
+                <p className="text-xs text-red-600 mt-1">Tenants</p>
+              </div>
             </div>
           </div>
 
-          {/* Collection Summary */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-            <div className="flex justify-between items-center">
+          {/* Collection Summary - Modern Design */}
+          <div className="relative overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-6 mb-6 shadow-lg hover:shadow-xl transition-all duration-300">
+            <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -mr-20 -mt-20"></div>
+            <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full -ml-16 -mb-16"></div>
+            <div className="relative flex justify-between items-center">
               <div>
-                <p className="text-sm text-neutral-600">Total Collected</p>
-                <p className="text-2xl font-bold text-blue-900">
+                <p className="text-sm text-blue-100 mb-1 font-medium">Total Collected</p>
+                <p className="text-4xl font-bold text-white mb-1">
                   KSH {stats.totalCollected.toLocaleString()}
+                </p>
+                <p className="text-xs text-blue-200">
+                  {((stats.totalCollected / (stats.totalExpected || 1)) * 100).toFixed(1)}% collection rate
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-sm text-neutral-600">
+                <p className="text-sm text-blue-100 mb-1 font-medium">
                   {stats.hasBills ? "Total Billed" : "Base Rent"}
                 </p>
-                <p className="text-xl font-semibold text-neutral-700">
+                <p className="text-3xl font-bold text-white">
                   KSH {stats.totalExpected.toLocaleString()}
                 </p>
                 {!stats.hasBills && (
-                  <p className="text-xs text-neutral-500 mt-1">
+                  <p className="text-xs text-blue-200 mt-1">
                     Bills not yet created
                   </p>
                 )}
               </div>
             </div>
-            <div className="mt-2">
-              <div className="w-full bg-neutral-200 rounded-full h-2">
+            <div className="relative mt-4">
+              <div className="w-full bg-white/20 rounded-full h-3 overflow-hidden">
                 <div
-                  className="bg-blue-600 h-2 rounded-full transition-all"
+                  className="bg-gradient-to-r from-white to-blue-100 h-3 rounded-full transition-all duration-500 ease-out shadow-sm"
                   style={{
                     width: `${Math.min((stats.totalCollected / stats.totalExpected) * 100, 100)}%`,
                   }}
                 />
               </div>
-              <p className="text-xs text-neutral-600 mt-1">
-                {stats.totalExpected > 0
-                  ? `${((stats.totalCollected / stats.totalExpected) * 100).toFixed(1)}% collected`
-                  : "No expected payments"}
-              </p>
             </div>
           </div>
 
-          {/* Tenant List */}
-          <div className="space-y-2">
-            <h4 className="font-semibold text-sm text-neutral-700 mb-3">
+          {/* Tenant List - Modern Cards */}
+          <div className="space-y-3">
+            <h4 className="font-semibold text-base text-neutral-800 mb-4 flex items-center gap-2">
+              <span className="w-1 h-6 bg-gradient-to-b from-blue-500 to-indigo-600 rounded-full"></span>
               Tenants ({filteredTenants.length})
             </h4>
             {filteredTenants.map((tenant) => {
@@ -316,29 +345,49 @@ export default function PaymentOverview({ landlordId }: PaymentOverviewProps) {
               return (
                 <div
                   key={tenant.id}
-                  className="flex items-center justify-between p-3 border rounded-lg hover:shadow-md transition-shadow"
+                  className="relative group flex items-center justify-between p-5 bg-white border-0 rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden"
                 >
-                  <div className="flex items-center gap-3 flex-1">
-                    <Avatar className="h-10 w-10">
+                  {/* Status indicator line */}
+                  <div className={cn(
+                    "absolute left-0 top-0 bottom-0 w-1 transition-all duration-300",
+                    monthStatus.status === 'paid' && "bg-gradient-to-b from-green-500 to-emerald-600",
+                    monthStatus.status === 'overdue' && "bg-gradient-to-b from-red-500 to-rose-600",
+                    monthStatus.status === 'grace' && "bg-gradient-to-b from-orange-500 to-amber-600",
+                    monthStatus.status === 'unpaid' && "bg-gradient-to-b from-neutral-300 to-neutral-400"
+                  )}></div>
+
+                  {/* Background decoration */}
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-neutral-50 to-transparent rounded-full -mr-16 -mt-16 opacity-50 group-hover:scale-150 transition-transform duration-500"></div>
+
+                  <div className="relative flex items-center gap-4 flex-1">
+                    <Avatar className="h-12 w-12 ring-2 ring-neutral-100 shadow-sm">
                       <AvatarImage src={tenant.avatar || tenant.profileImage} />
-                      <AvatarFallback>{getInitials(tenant.name)}</AvatarFallback>
+                      <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-semibold">{getInitials(tenant.name)}</AvatarFallback>
                     </Avatar>
 
                     <div className="flex-1">
-                      <p className="font-medium">{tenant.name}</p>
-                      <p className="text-sm text-neutral-600">
-                        {tenant.propertyName} - {tenant.unitNumber}
+                      <p className="font-semibold text-neutral-900">{tenant.name}</p>
+                      <p className="text-sm text-neutral-500 flex items-center gap-1">
+                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                        {tenant.propertyName} · {tenant.unitNumber}
                       </p>
                     </div>
 
-                    <div className="text-right mr-4">
-                      <p className="text-sm text-neutral-600">Rent</p>
-                      <p className="font-semibold">KSH {tenant.rentAmount.toLocaleString()}</p>
+                    <div className="text-right mr-4 px-4 py-2 bg-neutral-50 rounded-lg">
+                      <p className="text-xs text-neutral-500 mb-0.5">Monthly Rent</p>
+                      <p className="font-bold text-neutral-900">KSH {tenant.rentAmount.toLocaleString()}</p>
                     </div>
 
                     <div className="flex items-center gap-2">
-                      {monthStatus.icon}
-                      <Badge className={monthStatus.color}>{monthStatus.badge}</Badge>
+                      <Badge className={cn(
+                        monthStatus.color,
+                        "shadow-sm border-0 font-medium px-3 py-1"
+                      )}>
+                        <span className="flex items-center gap-1.5">
+                          {monthStatus.icon}
+                          {monthStatus.badge}
+                        </span>
+                      </Badge>
                     </div>
                   </div>
 
@@ -346,10 +395,10 @@ export default function PaymentOverview({ landlordId }: PaymentOverviewProps) {
                     size="sm"
                     variant="outline"
                     onClick={() => setRecordPaymentTenant(tenant)}
-                    className="ml-3"
+                    className="relative ml-4 border-2 hover:border-blue-500 hover:bg-blue-50 hover:text-blue-600 transition-all duration-300 shadow-sm"
                   >
-                    <Plus className="h-4 w-4 mr-1" />
-                    Record
+                    <Plus className="h-4 w-4 mr-1.5" />
+                    Bill
                   </Button>
                 </div>
               );

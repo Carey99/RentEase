@@ -1,4 +1,4 @@
-import { Building, Users, DollarSign, AlertTriangle, UserPlus, UserMinus, CheckCircle, AlertCircle, Zap, Bell, FileText } from "lucide-react";
+import { Building, Users, DollarSign, UserPlus, UserMinus, CheckCircle, AlertCircle, Zap, Bell, FileText } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import StatsCard from "@/components/dashboard/stats-card";
@@ -7,7 +7,7 @@ import { useActivityNotifications } from "@/hooks/use-activity-notifications";
 import type { Property } from "@/types/dashboard";
 import { formatDistanceToNow } from "date-fns";
 import { calculateTotalDebt, calculateMonthlyRevenueFromBills } from "@/lib/payment-calculations";
-import { sumOutstanding, paidForBill, isTransactionRecord } from "@/lib/payment-utils";
+import { paidForBill, isTransactionRecord } from "@/lib/payment-utils";
 
 interface DashboardTabProps {
   properties: Property[];
@@ -72,15 +72,12 @@ export default function DashboardTab({ properties }: DashboardTabProps) {
                !isTransactionRecord(p);
       })
       .reduce((sum: number, p: any) => sum + paidForBill(p), 0),
-    
-    // Pending Bills: Sum of all outstanding balances using centralized helper
-    pendingBills: sumOutstanding(paymentHistory),
   };
 
   return (
     <div>
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         <StatsCard
           title="Total Properties"
           value={properties.length || 0}
@@ -100,13 +97,6 @@ export default function DashboardTab({ properties }: DashboardTabProps) {
           icon={<DollarSign className="h-6 w-6" />}
           color="green"
           data-testid="stat-revenue"
-        />
-        <StatsCard
-          title="Pending Bills"
-          value={`KSH ${stats.pendingBills.toLocaleString()}`}
-          icon={<AlertTriangle className="h-6 w-6" />}
-          color="orange"
-          data-testid="stat-pending-bills"
         />
       </div>
 

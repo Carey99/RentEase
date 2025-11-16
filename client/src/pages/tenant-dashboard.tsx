@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { DollarSign, Calendar, CheckCircle, AlertTriangle, CreditCard, Smartphone } from "lucide-react";
+import { DollarSign, Calendar, CheckCircle, AlertTriangle, CreditCard, Smartphone, AlertCircle, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,12 +12,74 @@ import StatsCard from "@/components/dashboard/stats-card";
 import RecordedPaymentsCard from "@/components/dashboard/tenant/RecordedPaymentsCard";
 import TenantNotificationBell from "@/components/dashboard/TenantNotificationBell";
 import { MpesaPaymentModal } from "@/components/dashboard/tenant/MpesaPaymentModal";
+import MonthlyPaymentBreakdown from "@/components/dashboard/shared/MonthlyPaymentBreakdown";
+import TenantSettingsTab from "@/components/dashboard/tenant/TenantSettingsTab";
 import { formatRentStatusText, getRentStatusColor } from "@/lib/rent-cycle-utils";
+import { sumOutstanding, balanceForCurrentMonth } from "@/lib/payment-utils";
+
+// Component to display landlord's M-Pesa payment details
+function LandlordPaymentDetails({ landlordId }: { landlordId: string }) {
+  const { data: darajaStatus } = useQuery({
+    queryKey: [`/api/landlords/${landlordId}/daraja/status`],
+    queryFn: async () => {
+      if (!landlordId) return null;
+      const response = await fetch(`/api/landlords/${landlordId}/daraja/status`);
+      if (!response.ok) return null;
+      return response.json();
+    },
+    enabled: !!landlordId,
+  });
+
+  if (!darajaStatus || !darajaStatus.isConfigured) {
+    return null; // Don't show if landlord hasn't configured M-Pesa
+  }
+
+  const { businessShortCode, businessType, businessName, accountNumber } = darajaStatus;
+
+  return (
+    <div className="pt-4 border-t">
+      <p className="text-sm font-medium mb-3">Or pay manually via M-Pesa:</p>
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-neutral-600">Payment Method:</span>
+          <span className="text-sm font-semibold text-blue-900">
+            {businessType === 'paybill' ? 'PayBill' : 'Buy Goods (Till)'}
+          </span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-neutral-600">
+            {businessType === 'paybill' ? 'Business Number:' : 'Till Number:'}
+          </span>
+          <span className="text-lg font-bold text-blue-900">{businessShortCode}</span>
+        </div>
+        {businessType === 'paybill' && accountNumber && (
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-neutral-600">Account Number:</span>
+            <span className="text-sm font-semibold text-blue-900">{accountNumber}</span>
+          </div>
+        )}
+        {businessName && (
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-neutral-600">Business Name:</span>
+            <span className="text-sm font-medium text-blue-900">{businessName}</span>
+          </div>
+        )}
+        <div className="pt-2 mt-2 border-t border-blue-200">
+          <p className="text-xs text-neutral-600 text-center">
+            Go to M-Pesa → Lipa na M-Pesa → 
+            {businessType === 'paybill' ? ' PayBill' : ' Buy Goods'}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function TenantDashboard() {
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [paymentAmount, setPaymentAmount] = useState('');
-  const [isPaymentLoading, setIsPaymentLoading] = useState(false);
+  // Manual payment removed - tenants now use STK Push or manual M-Pesa with displayed payment details
+  // const [paymentAmount, setPaymentAmount] = useState('');
+  // const [isPaymentLoading, setIsPaymentLoading] = useState(false);
   const [showMpesaModal, setShowMpesaModal] = useState(false);
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
@@ -40,8 +102,8 @@ export default function TenantDashboard() {
   const currentUser = getCurrentUser();
   const { toast } = useToast();
 
-  // Handle rent payment
-  const handleMakePayment = async () => {
+  // Manual payment handler - DISABLED (tenants now use STK Push or pay manually via M-Pesa)
+  /* const handleMakePayment = async () => {
     if (!currentUser?.id) {
       toast({
         title: "Error",
@@ -130,7 +192,7 @@ export default function TenantDashboard() {
     } finally {
       setIsPaymentLoading(false);
     }
-  };
+  }; */
 
   const { data: tenantProperty, isLoading, error } = useQuery({
     queryKey: ['/api/tenant-properties/tenant', currentUser?.id],
@@ -162,6 +224,70 @@ export default function TenantDashboard() {
     },
     enabled: !!currentUser?.id,
   });
+
+  // WebSocket for real-time payment updates
+  useEffect(() => {
+    if (!currentUser?.id) return;
+
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws/activities?userId=${currentUser.id}`;
+    
+    console.log('🔌 Connecting tenant to WebSocket for real-time updates:', wsUrl);
+    const ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+      console.log('✅ Tenant WebSocket connected');
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data);
+        console.log('📨 Tenant received WebSocket message:', message);
+
+        // Handle different message types
+        if (message.type === 'payment_confirmed') {
+          console.log('💰 Cash payment confirmed, refreshing data...');
+          
+          // Invalidate all relevant queries for immediate update
+          queryClient.invalidateQueries({ queryKey: ['/api/payment-history/tenant', currentUser.id] });
+          queryClient.invalidateQueries({ queryKey: ['/api/tenant-properties/tenant', currentUser.id] });
+          
+          // Show toast notification
+          toast({
+            title: "Payment Confirmed",
+            description: `Your cash payment of KSH ${message.data?.amount?.toLocaleString()} has been recorded.`,
+            variant: "default",
+          });
+        } else if (message.type === 'bill_created') {
+          console.log('📋 New bill created, refreshing data...');
+          queryClient.invalidateQueries({ queryKey: ['/api/payment-history/tenant', currentUser.id] });
+          
+          toast({
+            title: "New Bill",
+            description: message.data?.message || "A new bill has been created for you.",
+            variant: "default",
+          });
+        }
+      } catch (error) {
+        console.error('Error parsing WebSocket message:', error);
+      }
+    };
+
+    ws.onerror = (error) => {
+      console.error('❌ Tenant WebSocket error:', error);
+    };
+
+    ws.onclose = () => {
+      console.log('🔌 Tenant WebSocket disconnected');
+    };
+
+    // Cleanup on unmount
+    return () => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      }
+    };
+  }, [currentUser?.id, queryClient, toast]);
 
   // Only redirect if we're sure there's an issue
   useEffect(() => {
@@ -220,17 +346,20 @@ export default function TenantDashboard() {
               <StatsCard
                 title="Total Outstanding Debt"
                 value={(() => {
-                  // Calculate total outstanding balance across all bills (not transactions)
-                  const bills = (paymentHistory as any[]).filter((p) => !p.notes?.includes('Payment transaction'));
-                  const totalOutstanding = bills.reduce((sum, bill) => {
-                    const expectedRent = Number(bill.monthlyRent || 0);
-                    const expectedUtilities = Number(bill.totalUtilityCost || 0);
-                    const totalExpected = expectedRent + expectedUtilities;
-                    const paid = Number(bill.amount || 0);
-                    const balance = totalExpected - paid;
-                    return sum + (balance > 0 ? balance : 0);
-                  }, 0);
-                  return totalOutstanding > 0 ? `KSH ${totalOutstanding.toLocaleString()}` : 'KSH 0';
+                  // Calculate consolidated balance for current month (includes historical debts)
+                  const now = new Date();
+                  const currentMonth = now.getMonth() + 1; // 1-12
+                  const currentYear = now.getFullYear();
+                  
+                  // Use balanceForCurrentMonth to get consolidated balance
+                  const balance = balanceForCurrentMonth(
+                    paymentHistory as any[], 
+                    currentMonth, 
+                    currentYear,
+                    Number(tenantProperty?.rentAmount || 0)
+                  );
+                  
+                  return balance > 0 ? `KSH ${balance.toLocaleString()}` : 'KSH 0';
                 })()}
                 icon={<DollarSign className="h-6 w-6" />}
                 color="red"
@@ -433,28 +562,8 @@ export default function TenantDashboard() {
                       Secure payment via M-Pesa STK Push
                     </p>
 
-                    {/* Manual Payment Option */}
-                    <div className="pt-4 border-t">
-                      <p className="text-sm font-medium mb-2">Or record manual payment:</p>
-                      <div className="space-y-2">
-                        <Input
-                          id="paymentAmount"
-                          type="number"
-                          placeholder="Enter amount"
-                          value={paymentAmount}
-                          onChange={(e) => setPaymentAmount(e.target.value)}
-                          disabled={isPaymentLoading}
-                        />
-                        <Button 
-                          onClick={handleMakePayment}
-                          disabled={isPaymentLoading || !paymentAmount}
-                          className="w-full"
-                          variant="outline"
-                        >
-                          {isPaymentLoading ? "Processing..." : "Record Payment"}
-                        </Button>
-                      </div>
-                    </div>
+                    {/* Landlord Payment Details */}
+                    <LandlordPaymentDetails landlordId={tenantProperty?.property?.landlordId || ''} />
                   </div>
                 </CardContent>
               </Card>
@@ -505,17 +614,251 @@ export default function TenantDashboard() {
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold text-neutral-900">Payment History</h2>
             </div>
-            <Card>
-              <CardContent className="py-12">
-                <div className="text-center text-neutral-500">
-                  <CreditCard className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                  <p className="text-lg font-medium">Payment History</p>
-                  <p className="text-sm mt-2">Your payment records will appear here</p>
-                </div>
-              </CardContent>
-            </Card>
+            
+            {/* Monthly Payment Breakdown */}
+            <MonthlyPaymentBreakdown 
+              tenantId={currentUser?.id}
+              title="My Payment History"
+            />
           </div>
         );
+
+      case 'apartment':
+        return (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-neutral-900">My Apartment</h2>
+            </div>
+
+            {!tenantProperty ? (
+              <Card className="text-center py-12">
+                <CardContent>
+                  <div className="flex flex-col items-center gap-4">
+                    <svg className="h-16 w-16 text-neutral-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                    </svg>
+                    <div>
+                      <h3 className="text-lg font-semibold text-neutral-900 mb-2">No Apartment Assigned</h3>
+                      <p className="text-neutral-600 mb-4">
+                        You haven't been assigned to an apartment yet.
+                      </p>
+                      <p className="text-sm text-neutral-500">
+                        Contact your landlord to get registered for an apartment.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-6 md:grid-cols-2">
+                {/* Property Information Card */}
+                <Card>
+                  <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50">
+                    <CardTitle className="flex items-center gap-2">
+                      <svg className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                      </svg>
+                      Property Details
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-6">
+                    <div className="space-y-4">
+                      <div className="bg-neutral-50 rounded-lg p-4 space-y-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-neutral-600 font-medium">Property Name</span>
+                          <span className="text-neutral-900 font-semibold">{tenantProperty.property?.name || 'N/A'}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-neutral-600 font-medium">Unit Number</span>
+                          <span className="text-neutral-900 font-semibold">{tenantProperty.unitNumber || 'N/A'}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-neutral-600 font-medium">Property Type</span>
+                          <span className="text-neutral-900 font-semibold">{tenantProperty.propertyType || 'N/A'}</span>
+                        </div>
+                        {tenantProperty.property?.address && (
+                          <div className="flex justify-between items-start">
+                            <span className="text-neutral-600 font-medium">Address</span>
+                            <span className="text-neutral-900 text-right">{tenantProperty.property.address}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="bg-green-50 rounded-lg p-4 border-2 border-green-200">
+                        <div className="flex justify-between items-center">
+                          <span className="text-green-700 font-semibold text-base">Monthly Rent</span>
+                          <span className="text-green-700 font-bold text-2xl">KSH {Number(tenantProperty.rentAmount || 0).toLocaleString()}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Utilities & Charges Card */}
+                <Card>
+                  <CardHeader className="bg-gradient-to-r from-amber-50 to-yellow-50">
+                    <CardTitle className="flex items-center gap-2">
+                      <svg className="h-5 w-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                      Utilities & Charges
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-6">
+                    {tenantProperty.property?.utilities && tenantProperty.property.utilities.length > 0 ? (
+                      <div className="space-y-3">
+                        <p className="text-sm text-neutral-600 mb-4">
+                          The following utility rates are set by your landlord. Actual charges will be calculated based on your usage.
+                        </p>
+                        {tenantProperty.property.utilities.map((utility: any, index: number) => (
+                          <div key={index} className="bg-amber-50 rounded-lg p-4 border border-amber-200">
+                            <div className="flex justify-between items-center">
+                              <div className="flex items-center gap-2">
+                                <div className="h-2 w-2 rounded-full bg-amber-500"></div>
+                                <span className="font-semibold text-neutral-900">{utility.type}</span>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-amber-700 font-bold text-lg">KSH {Number(utility.price || 0).toLocaleString()}</span>
+                                <span className="text-neutral-600 text-sm ml-1">per unit</span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-4">
+                          <div className="flex items-start gap-2">
+                            <AlertCircle className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                            <p className="text-xs text-blue-700">
+                              <strong>Note:</strong> Your landlord may update utility rates from time to time. You will be notified of any changes.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <svg className="h-12 w-12 text-neutral-300 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        <p className="text-neutral-500">No utilities configured</p>
+                        <p className="text-sm text-neutral-400 mt-1">Your landlord hasn't set up utility charges yet</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Rent Status Card */}
+                <Card>
+                  <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50">
+                    <CardTitle className="flex items-center gap-2">
+                      <CheckCircle className="h-5 w-5 text-green-600" />
+                      Rent Status
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-6">
+                    {tenantProperty.rentCycle ? (
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center py-2 border-b">
+                          <span className="text-neutral-600 font-medium">Status</span>
+                          <span className={`px-3 py-1 rounded-full text-sm font-semibold ${getRentStatusColor(tenantProperty.rentCycle.rentStatus)}`}>
+                            {formatRentStatusText(
+                              tenantProperty.rentCycle.daysRemaining,
+                              tenantProperty.rentCycle.rentStatus,
+                              tenantProperty.rentCycle.advancePaymentDays,
+                              tenantProperty.rentCycle.debtAmount,
+                              tenantProperty.rentCycle.monthsOwed
+                            )}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center py-2 border-b">
+                          <span className="text-neutral-600 font-medium">Next Due Date</span>
+                          <span className="text-neutral-900 font-semibold">
+                            {tenantProperty.rentCycle.nextDueDate 
+                              ? new Date(tenantProperty.rentCycle.nextDueDate).toLocaleDateString('en-US', {
+                                  year: 'numeric',
+                                  month: 'long',
+                                  day: 'numeric'
+                                })
+                              : 'N/A'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center py-2 border-b">
+                          <span className="text-neutral-600 font-medium">Days Remaining</span>
+                          <span className={`font-bold ${
+                            tenantProperty.rentCycle.daysRemaining < 0 ? 'text-red-600' :
+                            tenantProperty.rentCycle.daysRemaining <= 7 ? 'text-orange-600' :
+                            'text-green-600'
+                          }`}>
+                            {tenantProperty.rentCycle.daysRemaining < 0 
+                              ? `${Math.abs(tenantProperty.rentCycle.daysRemaining)} days overdue`
+                              : `${tenantProperty.rentCycle.daysRemaining} days`}
+                          </span>
+                        </div>
+                        {tenantProperty.rentCycle.lastPaymentDate && (
+                          <div className="flex justify-between items-center py-2 border-b">
+                            <span className="text-neutral-600 font-medium">Last Payment</span>
+                            <span className="text-neutral-900 font-semibold">
+                              {new Date(tenantProperty.rentCycle.lastPaymentDate).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric'
+                              })}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-neutral-500 text-center py-8">No rent cycle information available</p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Landlord Information Card */}
+                {tenantProperty.landlord && (
+                  <Card className="md:col-span-2">
+                    <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50">
+                      <CardTitle className="flex items-center gap-2">
+                        <User className="h-5 w-5 text-purple-600" />
+                        Landlord Information
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-6">
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div className="flex justify-between items-center py-2 border-b">
+                          <span className="text-neutral-600 font-medium">Name</span>
+                          <span className="text-neutral-900 font-semibold">{tenantProperty.landlord.fullName || 'N/A'}</span>
+                        </div>
+                        {tenantProperty.landlord.email && (
+                          <div className="flex justify-between items-center py-2 border-b">
+                            <span className="text-neutral-600 font-medium">Email</span>
+                            <a href={`mailto:${tenantProperty.landlord.email}`} className="text-blue-600 hover:underline">
+                              {tenantProperty.landlord.email}
+                            </a>
+                          </div>
+                        )}
+                        {tenantProperty.landlord.phone && (
+                          <div className="flex justify-between items-center py-2 border-b">
+                            <span className="text-neutral-600 font-medium">Phone</span>
+                            <a href={`tel:${tenantProperty.landlord.phone}`} className="text-blue-600 hover:underline">
+                              {tenantProperty.landlord.phone}
+                            </a>
+                          </div>
+                        )}
+                        {tenantProperty.landlord.company && (
+                          <div className="flex justify-between items-center py-2 border-b">
+                            <span className="text-neutral-600 font-medium">Company</span>
+                            <span className="text-neutral-900 font-semibold">{tenantProperty.landlord.company}</span>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            )}
+          </div>
+        );
+
+      case 'settings':
+        return <TenantSettingsTab tenantId={currentUser?.id} />;
 
       default:
         return (
@@ -532,7 +875,12 @@ export default function TenantDashboard() {
   return (
     <div className="min-h-screen bg-neutral-50">
       <div className="flex">
-        <Sidebar role="tenant" userName={currentUser.name || currentUser.fullName || 'User'} />
+        <Sidebar 
+          role="tenant" 
+          userName={currentUser.name || currentUser.fullName || 'User'}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+        />
 
         {/* Main Content */}
         <div className="flex-1 overflow-hidden">

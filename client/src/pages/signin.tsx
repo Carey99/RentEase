@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -8,80 +7,45 @@ import { ArrowLeft, Eye, EyeOff, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useAuth } from "@/hooks/useAuth";
 
 const signinSchema = z.object({
   email: z.string().email("Please enter a valid email"),
   password: z.string().min(1, "Password is required"),
+  rememberMe: z.boolean().optional(),
 });
 
 type SigninFormData = z.infer<typeof signinSchema>;
 
 export default function SigninPage() {
   const [, setLocation] = useLocation();
-  const { toast } = useToast();
+  const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
-
-  const signinMutation = useMutation({
-    mutationFn: async (data: SigninFormData) => {
-      try {
-        const response = await fetch('/api/auth/signin', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data),
-          credentials: 'include',
-        });
-
-        if (!response.ok) {
-          const error = await response.json();
-          return { success: false, error: error.message || 'Invalid credentials' };
-        }
-        
-        const result = await response.json();
-        return { success: true, data: result };
-      } catch (err) {
-        return { success: false, error: 'Network error. Please try again.' };
-      }
-    },
-    onSuccess: (result) => {
-      if (result.success) {
-        // Save user data to localStorage for session persistence
-        localStorage.setItem('rentease_user', JSON.stringify(result.data.user));
-        
-        toast({
-          title: "Welcome back!",
-          description: `Successfully signed in as ${result.data.user.role}`,
-        });
-        setLocation(`/dashboard/${result.data.user.role}`);
-      } else {
-        toast({
-          title: "Invalid credentials",
-          description: result.error,
-          variant: "destructive",
-        });
-      }
-    },
-    onError: () => {
-      toast({
-        title: "Sign in failed", 
-        description: "Something went wrong. Please try again.",
-        variant: "destructive",
-      });
-    },
-  });
+  const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<SigninFormData>({
     resolver: zodResolver(signinSchema),
     defaultValues: {
       email: "",
       password: "",
+      rememberMe: false,
     },
   });
 
   const onSubmit = async (data: SigninFormData) => {
-    signinMutation.mutate(data);
+    setIsLoading(true);
+    const success = await login(data.email, data.password, data.rememberMe || false);
+    setIsLoading(false);
+
+    if (success) {
+      // Get user from localStorage to determine role
+      const userData = localStorage.getItem("rentease_user");
+      if (userData) {
+        const user = JSON.parse(userData);
+        setLocation(`/dashboard/${user.role}`);
+      }
+    }
   };
 
   const goBack = () => {
@@ -165,14 +129,29 @@ export default function SigninPage() {
               )}
             </div>
 
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="rememberMe"
+                checked={form.watch("rememberMe")}
+                onCheckedChange={(checked) => form.setValue("rememberMe", checked as boolean)}
+                data-testid="checkbox-remember-me"
+              />
+              <Label
+                htmlFor="rememberMe"
+                className="text-sm font-normal text-neutral-600 cursor-pointer"
+              >
+                Remember me for 30 days
+              </Label>
+            </div>
+
             <Button
               type="submit"
               className="w-full bg-primary hover:bg-secondary text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200"
-              disabled={signinMutation.isPending}
+              disabled={isLoading}
               data-testid="button-signin"
             >
-              {signinMutation.isPending ? "Signing in..." : "Sign In"}
-              {!signinMutation.isPending && <LogIn className="ml-2 h-4 w-4" />}
+              {isLoading ? "Signing in..." : "Sign In"}
+              {!isLoading && <LogIn className="ml-2 h-4 w-4" />}
             </Button>
           </form>
 

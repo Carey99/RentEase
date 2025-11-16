@@ -11,7 +11,7 @@ function pluralizeDays(count: number): string {
 
 export function formatRentStatusText(
   daysRemaining: number,
-  rentStatus: 'active' | 'overdue' | 'grace_period' | 'paid',
+  rentStatus: 'active' | 'overdue' | 'grace_period' | 'paid' | 'partial',
   advancePaymentDays?: number,
   debtAmount?: number,
   monthsOwed?: number,
@@ -22,6 +22,11 @@ export function formatRentStatusText(
   // Handle new tenants - show welcome message instead of overdue
   if (isNewTenant && rentStatus === 'active' && daysRemaining > 0) {
     return `First payment due in ${daysRemaining} ${pluralizeDays(daysRemaining)}`;
+  }
+  
+  // For partial payment status, show "Partial"
+  if (rentStatus === 'partial') {
+    return 'Partial';
   }
   
   // For paid status, show days remaining to next payment instead of "Paid for Month"
@@ -46,10 +51,12 @@ export function formatRentStatusText(
   return 'Active';
 }
 
-export function getRentStatusColor(rentStatus: 'active' | 'overdue' | 'grace_period' | 'paid'): string {
+export function getRentStatusColor(rentStatus: 'active' | 'overdue' | 'grace_period' | 'paid' | 'partial'): string {
   switch (rentStatus) {
     case 'paid':
       return 'bg-green-100 text-green-800';
+    case 'partial':
+      return 'bg-yellow-100 text-yellow-800';
     case 'overdue':
       return 'bg-red-100 text-red-800';
     case 'grace_period':

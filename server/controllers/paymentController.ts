@@ -200,11 +200,26 @@ export class PaymentController {
       console.log('  Business Short Code:', landlord.darajaConfig.businessShortCode);
       console.log('  Business Type:', landlord.darajaConfig.businessType);
       
+      // Validate that landlord has Daraja credentials
+      if (!landlord.darajaConfig.consumerKey || 
+          !landlord.darajaConfig.consumerSecret || 
+          !landlord.darajaConfig.passkey ||
+          !landlord.darajaConfig.environment) {
+        return res.status(400).json({
+          error: 'Incomplete M-Pesa configuration',
+          message: 'Landlord needs to update their M-Pesa configuration with API credentials. Please contact your landlord to complete the setup in Settings → Payment Gateway.'
+        });
+      }
+
+      console.log('✅ Landlord has all required Daraja credentials');
+      console.log('  Environment:', landlord.darajaConfig.environment);
+      
       // Validate business type
-      if (!['paybill', 'till'].includes(landlord.darajaConfig.businessType)) {
+      const businessType = landlord.darajaConfig.businessType;
+      if (!businessType || !['paybill', 'till'].includes(businessType)) {
         return res.status(400).json({
           error: 'Invalid configuration',
-          message: `Invalid business type: ${landlord.darajaConfig.businessType}. Must be 'paybill' or 'till'.`
+          message: `Invalid business type: ${businessType}. Must be 'paybill' or 'till'.`
         });
       }
 
@@ -227,21 +242,22 @@ export class PaymentController {
 
       console.log('📝 PaymentIntent created:', paymentIntent._id);
 
-      // Initiate STK Push
+      // Initiate STK Push with landlord credentials
+      // Cast landlord to any to avoid type conflicts with Mongoose document
       const stkResponse = await initiateSTKPush({
         landlordId,
         tenantId,
         tenantPhone: phoneNumber,
         amount,
-        businessShortCode: landlord.darajaConfig.businessShortCode,
-        businessType: landlord.darajaConfig.businessType,
-        accountReference: landlord.darajaConfig.accountNumber,
+        businessShortCode: landlord.darajaConfig.businessShortCode!,
+        businessType: landlord.darajaConfig.businessType as 'paybill' | 'till',
+        accountReference: landlord.darajaConfig.accountNumber || undefined,
         transactionDesc: `Rent-${new Date().getMonth() + 1}`
-      });
+      }, landlord as any);
 
       // Update PaymentIntent with STK Push details
-      paymentIntent.merchantRequestId = stkResponse.merchantRequestId;
-      paymentIntent.checkoutRequestId = stkResponse.checkoutRequestId;
+      paymentIntent.merchantRequestID = stkResponse.merchantRequestId;
+      paymentIntent.checkoutRequestID = stkResponse.checkoutRequestId;
       await paymentIntent.save();
 
       console.log('✅ STK Push initiated successfully');
@@ -279,8 +295,26 @@ export class PaymentController {
         return res.status(404).json({ error: 'Payment not found' });
       }
 
+      // Get landlord for Daraja credentials
+      const landlord = await Landlord.findById(paymentIntent.landlordId);
+      if (!landlord) {
+        return res.status(404).json({ error: 'Landlord not found' });
+      }
+
+      // Check if callback was already received
+      if (paymentIntent.callbackReceived) {
+        console.log('  ✅ Callback received, status:', paymentIntent.status);
+        return res.json({
+          status: paymentIntent.status,
+          resultCode: paymentIntent.resultCode,
+          resultDesc: paymentIntent.resultDesc,
+          transactionId: paymentIntent.transactionId,
+          message: paymentIntent.resultDesc || getResultMessage(String(paymentIntent.resultCode))
+        });
+      }
+
       // If already completed or failed, return cached status
-      if (paymentIntent.status === 'success' || paymentIntent.status === 'completed' || 
+      if (paymentIntent.status === 'success' || 
           paymentIntent.status === 'failed' || paymentIntent.status === 'timeout' ||
           paymentIntent.status === 'cancelled') {
         console.log('  Status (cached):', paymentIntent.status);
@@ -289,26 +323,51 @@ export class PaymentController {
           resultCode: paymentIntent.resultCode,
           resultDesc: paymentIntent.resultDesc,
           transactionId: paymentIntent.transactionId,
-          message: paymentIntent.resultDesc
+          message: paymentIntent.resultDesc || getResultMessage(String(paymentIntent.resultCode))
         });
       }
 
-      // Query Daraja API for latest status
-      if (paymentIntent.checkoutRequestId) {
+      // Query Daraja API for latest status with landlord credentials
+      if (paymentIntent.checkoutRequestID) {
         try {
+          // Cast landlord to any to avoid type conflicts with Mongoose document
           const statusResponse = await querySTKPushStatus(
             paymentIntent.businessShortCode,
-            paymentIntent.checkoutRequestId
+            paymentIntent.checkoutRequestID,
+            landlord as any
           );
 
           // Update payment intent with latest status
-          paymentIntent.resultCode = Number(statusResponse.resultCode);
+          const resultCode = statusResponse.resultCode;
+          paymentIntent.resultCode = Number(resultCode);
           paymentIntent.resultDesc = statusResponse.resultDesc;
           
-          if (statusResponse.success) {
+          console.log('  📊 Processing result code:', resultCode);
+          
+          if (statusResponse.success && resultCode === '0') {
+            // Payment successful
+            console.log('  ✅ Payment successful');
             paymentIntent.status = 'success';
             paymentIntent.completedAt = new Date();
-          } else if (statusResponse.resultCode !== '0' && statusResponse.resultCode !== '') {
+          } else if (resultCode === '4999') {
+            // Still processing - keep status as pending
+            console.log('  ⏳ Transaction still processing (4999), keeping status as pending');
+            paymentIntent.status = 'pending';
+          } else if (resultCode === '1032' || resultCode === '17') {
+            // User cancelled
+            console.log('  ❌ Payment cancelled by user');
+            paymentIntent.status = 'cancelled';
+          } else if (resultCode === '1037') {
+            // Timeout - user didn't enter PIN
+            console.log('  ⏱️  Payment timeout - PIN not entered');
+            paymentIntent.status = 'timeout';
+          } else if (resultCode === '1') {
+            // Insufficient funds
+            console.log('  💰 Insufficient funds');
+            paymentIntent.status = 'failed';
+          } else if (resultCode && resultCode !== '0' && resultCode !== '') {
+            // Any other non-zero code means failed
+            console.log('  ❌ Payment failed with code:', resultCode);
             paymentIntent.status = 'failed';
           }
 

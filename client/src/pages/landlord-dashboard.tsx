@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Sidebar from "@/components/dashboard/sidebar";
 import DashboardTab from "@/components/dashboard/landlord/tabs/DashboardTab";
 import PropertiesTab from "@/components/dashboard/landlord/tabs/PropertiesTab";
@@ -10,20 +10,84 @@ import PaymentOverview from "@/components/dashboard/landlord/payments/PaymentOve
 import MonthlyPaymentBreakdown from "@/components/dashboard/shared/MonthlyPaymentBreakdown";
 import { SettingsTab } from "@/components/dashboard/landlord/settings";
 import AddPropertyDialog from "@/components/dashboard/landlord/properties/AddPropertyDialog";
+import RecordCashPayment from "@/components/dashboard/landlord/RecordCashPayment";
 import DebtTrackingTab from "@/components/dashboard/landlord/DebtTrackingTab";
 import { useDashboard, useCurrentUser } from "@/hooks/dashboard/useDashboard";
 import type { Property } from "@/types/dashboard";
+import { Button } from "@/components/ui/button";
+import { DollarSign } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 export default function LandlordDashboard() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [, setLocation] = useLocation();
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
   const [showAddPropertyDialog, setShowAddPropertyDialog] = useState(false);
+  const [showCashPaymentDialog, setShowCashPaymentDialog] = useState(false);
 
   const currentUser = useCurrentUser();
   const { properties, createPropertyMutation } = useDashboard();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   console.log('👤 Current User:', currentUser);
+
+  // WebSocket for real-time payment notifications
+  useEffect(() => {
+    if (!currentUser?.id) return;
+
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws/activities?userId=${currentUser.id}`;
+    
+    console.log('🔌 Connecting landlord to WebSocket for real-time updates:', wsUrl);
+    const ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+      console.log('✅ Landlord WebSocket connected');
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data);
+        console.log('📨 Landlord received WebSocket message:', message);
+
+        // Handle different message types
+        if (message.type === 'payment_received') {
+          console.log('💰 Payment received, refreshing data...');
+          
+          // Invalidate all relevant queries for immediate update
+          queryClient.invalidateQueries({ queryKey: [`/api/tenants/landlord/${currentUser.id}`] });
+          queryClient.invalidateQueries({ queryKey: [`/api/payment-history/landlord/${currentUser.id}`] });
+          queryClient.invalidateQueries({ queryKey: ['payment-history'] });
+          queryClient.invalidateQueries({ queryKey: ['tenants'] });
+          
+          // Show toast notification
+          toast({
+            title: "Payment Received",
+            description: `${message.data?.tenantName} paid KSH ${message.data?.amount?.toLocaleString()} via ${message.data?.paymentMethod}`,
+            variant: "default",
+          });
+        }
+      } catch (error) {
+        console.error('Error parsing WebSocket message:', error);
+      }
+    };
+
+    ws.onerror = (error) => {
+      console.error('❌ Landlord WebSocket error:', error);
+    };
+
+    ws.onclose = () => {
+      console.log('🔌 Landlord WebSocket disconnected');
+    };
+
+    // Cleanup on unmount
+    return () => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      }
+    };
+  }, [currentUser?.id, queryClient, toast]);
 
   // Fetch all tenants and payment history for debt tracking
   const { data: allTenants = [], isLoading: tenantsLoading, error: tenantsError } = useQuery({
@@ -111,6 +175,15 @@ export default function LandlordDashboard() {
       case 'payments':
         return currentUser ? (
           <div className="space-y-6">
+            <div className="flex justify-end mb-4">
+              <Button 
+                onClick={() => setShowCashPaymentDialog(true)} 
+                className="gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-md"
+              >
+                <DollarSign className="h-4 w-4" />
+                Record Cash Payment
+              </Button>
+            </div>
             <PaymentOverview landlordId={currentUser.id} />
             <MonthlyPaymentBreakdown 
               landlordId={currentUser.id}
@@ -174,6 +247,16 @@ export default function LandlordDashboard() {
         createPropertyMutation={createPropertyMutation}
         currentUser={currentUser}
       />
+
+      {/* Record Cash Payment Dialog */}
+      {currentUser && (
+        <RecordCashPayment
+          open={showCashPaymentDialog}
+          onOpenChange={setShowCashPaymentDialog}
+          tenants={allTenants}
+          landlordId={currentUser.id}
+        />
+      )}
     </div>
   );
 }

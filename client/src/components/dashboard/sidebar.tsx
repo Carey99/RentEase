@@ -1,7 +1,7 @@
-import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Home, BarChart3, Building, Users, FileText, Settings, LogOut, CreditCard, AlertTriangle } from "lucide-react";
 import { NotificationBell } from "./NotificationBell";
+import { useAuth } from "@/hooks/useAuth";
 
 interface SidebarProps {
   role: 'landlord' | 'tenant';
@@ -11,7 +11,7 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ role, userName, activeTab = 'dashboard', onTabChange }: SidebarProps) {
-  const [, setLocation] = useLocation();
+  const { logout } = useAuth();
 
   const landlordNavItems = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
@@ -31,8 +31,8 @@ export default function Sidebar({ role, userName, activeTab = 'dashboard', onTab
 
   const navItems = role === 'landlord' ? landlordNavItems : tenantNavItems;
 
-  const logout = () => {
-    setLocation('/');
+  const handleLogout = async () => {
+    await logout();
   };
 
   return (
@@ -75,7 +75,7 @@ export default function Sidebar({ role, userName, activeTab = 'dashboard', onTab
 
         <div className="border-t border-neutral-200 mt-6 pt-6 px-3">
           <Button
-            onClick={logout}
+            onClick={handleLogout}
             variant="ghost"
             className="w-full justify-start text-red-600 hover:bg-red-50"
             data-testid="button-logout"

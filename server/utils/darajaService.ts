@@ -3,12 +3,33 @@
  * 
  * Handles M-Pesa STK Push payment requests.
  * Routes payments to landlord-specific paybill/till numbers dynamically.
+ * 
+ * UPDATED: Now supports per-landlord Daraja credentials
  */
 
 import axios from 'axios';
-import { getAccessToken, getBaseUrl } from './darajaAuth';
+import { getAccessToken, getBaseUrl, LandlordDarajaCredentials } from './darajaAuth';
 import { normalizePhoneNumber } from './phoneValidator';
 import { generatePaymentReference, generateAccountReference, generateTransactionDescription } from './paymentReference';
+import { decrypt, isEncrypted } from './encryption';
+
+/**
+ * Landlord with Daraja configuration
+ * Using any for database document to avoid type conflicts
+ */
+export interface LandlordWithDaraja {
+  _id: any; // ObjectId or string
+  darajaConfig: {
+    consumerKey?: string | null;
+    consumerSecret?: string | null;
+    passkey?: string | null;
+    environment?: 'sandbox' | 'production';
+    businessShortCode?: string | null;
+    businessType?: 'paybill' | 'till' | null;
+    isConfigured?: boolean;
+    isActive?: boolean;
+  };
+}
 
 interface STKPushRequest {
   landlordId: string;
@@ -41,11 +62,18 @@ interface STKStatusResponse {
 /**
  * Generate password for STK Push request
  * Password = Base64(BusinessShortCode + Passkey + Timestamp)
+ * 
+ * @param businessShortCode - Landlord's business short code
+ * @param passkey - Landlord's Daraja passkey
+ * @param timestamp - Request timestamp
  */
-export function generatePassword(businessShortCode: string, timestamp: string): string {
-  const passkey = process.env.DARAJA_PASSKEY;
+export function generatePassword(
+  businessShortCode: string,
+  passkey: string,
+  timestamp: string
+): string {
   if (!passkey) {
-    throw new Error('DARAJA_PASSKEY not configured');
+    throw new Error('Daraja passkey not configured for this landlord');
   }
 
   const dataToEncode = `${businessShortCode}${passkey}${timestamp}`;
@@ -70,14 +98,54 @@ export function generateTimestamp(): string {
 /**
  * Initiate STK Push to tenant's phone
  * Payment goes directly to landlord's paybill/till
+ * 
+ * @param request - Payment request details
+ * @param landlord - Landlord with Daraja credentials
  */
-export async function initiateSTKPush(request: STKPushRequest): Promise<STKPushResponse> {
+export async function initiateSTKPush(
+  request: STKPushRequest,
+  landlord: LandlordWithDaraja
+): Promise<STKPushResponse> {
   try {
     console.log('\n💳 Initiating STK Push...');
+    console.log('  Landlord ID:', landlord._id);
     console.log('  Amount:', request.amount);
     console.log('  Phone:', request.tenantPhone);
     console.log('  Business Short Code:', request.businessShortCode);
     console.log('  Business Type:', request.businessType);
+
+    // Validate landlord Daraja config
+    if (!landlord.darajaConfig.isConfigured || !landlord.darajaConfig.isActive) {
+      throw new Error('Landlord M-Pesa payment gateway is not configured or inactive');
+    }
+
+    const { consumerKey, consumerSecret, passkey, environment } = landlord.darajaConfig;
+
+    if (!consumerKey || !consumerSecret || !passkey || !environment) {
+      throw new Error('Landlord Daraja credentials are incomplete');
+    }
+
+    // Safely decrypt credentials (handle both encrypted and plain text)
+    let decryptedConsumerKey = consumerKey;
+    let decryptedConsumerSecret = consumerSecret;
+    let decryptedPasskey = passkey;
+
+    try {
+      if (isEncrypted(consumerKey)) {
+        decryptedConsumerKey = decrypt(consumerKey);
+      }
+      if (isEncrypted(consumerSecret)) {
+        decryptedConsumerSecret = decrypt(consumerSecret);
+      }
+      if (isEncrypted(passkey)) {
+        decryptedPasskey = decrypt(passkey);
+      }
+    } catch (error) {
+      console.error('Error decrypting credentials in initiateSTKPush:', error);
+      // Continue with original values if decryption fails
+    }
+
+    console.log('  Environment:', environment);
 
     // Normalize phone number
     const phoneNumber = normalizePhoneNumber(request.tenantPhone);
@@ -97,15 +165,33 @@ export async function initiateSTKPush(request: STKPushRequest): Promise<STKPushR
                            generateTransactionDescription(new Date());
     console.log('  Transaction Desc:', transactionDesc);
 
-    // Get access token
-    const token = await getAccessToken();
+    // Get access token using landlord's DECRYPTED credentials
+    const credentials: LandlordDarajaCredentials = {
+      consumerKey: decryptedConsumerKey,
+      consumerSecret: decryptedConsumerSecret,
+      environment
+    };
+    const token = await getAccessToken(credentials, landlord._id.toString());
 
-    // Generate timestamp and password
+    // Generate timestamp and password using landlord's DECRYPTED passkey
     const timestamp = generateTimestamp();
-    const password = generatePassword(request.businessShortCode, timestamp);
+    const password = generatePassword(
+      request.businessShortCode,
+      decryptedPasskey,
+      timestamp
+    );
 
-    // Get callback URL (in production, this should be your public domain)
-    const callbackUrl = process.env.DARAJA_CALLBACK_URL || 'https://your-domain.com/api/daraja/callback';
+    // Get callback URL - use environment variable or construct from request
+    // For localhost testing, you can use ngrok URL in DARAJA_CALLBACK_URL
+    let callbackUrl = process.env.DARAJA_CALLBACK_URL || 'https://your-domain.com/api/daraja/callback';
+    
+    // If no callback URL is set, log a warning
+    if (callbackUrl === 'https://your-domain.com/api/daraja/callback') {
+      console.log('⚠️  WARNING: Using placeholder callback URL. Set DARAJA_CALLBACK_URL in .env for testing.');
+      console.log('   For localhost testing, use ngrok: DARAJA_CALLBACK_URL=https://your-ngrok-url.ngrok.io/api/daraja/callback');
+    }
+    
+    console.log('📞 Callback URL:', callbackUrl);
 
     // Prepare STK Push request
     const stkPushPayload = {
@@ -124,8 +210,8 @@ export async function initiateSTKPush(request: STKPushRequest): Promise<STKPushR
 
     console.log('\n📤 Sending STK Push request to Daraja API...');
 
-    // Send STK Push request
-    const baseUrl = getBaseUrl();
+    // Send STK Push request using landlord's environment
+    const baseUrl = getBaseUrl(environment);
     const response = await axios.post(
       `${baseUrl}/mpesa/stkpush/v1/processrequest`,
       stkPushPayload,
@@ -168,21 +254,69 @@ export async function initiateSTKPush(request: STKPushRequest): Promise<STKPushR
 /**
  * Query STK Push transaction status
  * Check if payment was completed, failed, or still pending
+ * 
+ * @param businessShortCode - Landlord's business short code
+ * @param checkoutRequestId - Checkout request ID from STK Push
+ * @param landlord - Landlord with Daraja credentials
  */
 export async function querySTKPushStatus(
   businessShortCode: string,
-  checkoutRequestId: string
+  checkoutRequestId: string,
+  landlord: LandlordWithDaraja
 ): Promise<STKStatusResponse> {
   try {
     console.log('\n🔍 Querying STK Push status...');
+    console.log('  Landlord ID:', landlord._id);
     console.log('  Checkout Request ID:', checkoutRequestId);
 
-    // Get access token
-    const token = await getAccessToken();
+    // Validate landlord Daraja config
+    if (!landlord.darajaConfig.isConfigured || !landlord.darajaConfig.isActive) {
+      throw new Error('Landlord M-Pesa payment gateway is not configured or inactive');
+    }
 
-    // Generate timestamp and password
+    const { consumerKey, consumerSecret, passkey, environment } = landlord.darajaConfig;
+
+    if (!consumerKey || !consumerSecret || !passkey || !environment) {
+      throw new Error('Landlord Daraja credentials are incomplete');
+    }
+
+    // Safely decrypt credentials (handle both encrypted and plain text)
+    let decryptedConsumerKey = consumerKey;
+    let decryptedConsumerSecret = consumerSecret;
+    let decryptedPasskey = passkey;
+
+    try {
+      if (isEncrypted(consumerKey)) {
+        decryptedConsumerKey = decrypt(consumerKey);
+      }
+      if (isEncrypted(consumerSecret)) {
+        decryptedConsumerSecret = decrypt(consumerSecret);
+      }
+      if (isEncrypted(passkey)) {
+        decryptedPasskey = decrypt(passkey);
+      }
+    } catch (error) {
+      console.error('Error decrypting credentials in querySTKPushStatus:', error);
+      // Continue with original values if decryption fails
+    }
+
+    console.log('  Environment:', environment);
+
+    // Get access token using landlord's DECRYPTED credentials
+    const credentials: LandlordDarajaCredentials = {
+      consumerKey: decryptedConsumerKey,
+      consumerSecret: decryptedConsumerSecret,
+      environment
+    };
+    const token = await getAccessToken(credentials, landlord._id.toString());
+
+    // Generate timestamp and password using landlord's DECRYPTED passkey
     const timestamp = generateTimestamp();
-    const password = generatePassword(businessShortCode, timestamp);
+    const password = generatePassword(
+      businessShortCode,
+      decryptedPasskey,
+      timestamp
+    );
 
     // Prepare query request
     const queryPayload = {
@@ -194,8 +328,8 @@ export async function querySTKPushStatus(
 
     console.log('📤 Sending status query to Daraja API...');
 
-    // Send query request
-    const baseUrl = getBaseUrl();
+    // Send query request using landlord's environment
+    const baseUrl = getBaseUrl(environment);
     const response = await axios.post(
       `${baseUrl}/mpesa/stkpushquery/v1/query`,
       queryPayload,
@@ -238,6 +372,7 @@ export async function querySTKPushStatus(
  * 1032 - Request cancelled by user
  * 1037 - Timeout (user didn't enter PIN)
  * 2001 - Invalid initiator
+ * 4999 - Still processing (pending)
  */
 export const RESULT_CODES = {
   SUCCESS: '0',
@@ -246,7 +381,8 @@ export const RESULT_CODES = {
   SYSTEM_BUSY: '26',
   REQUEST_CANCELLED: '1032',
   TIMEOUT: '1037',
-  INVALID_INITIATOR: '2001'
+  INVALID_INITIATOR: '2001',
+  STILL_PROCESSING: '4999'
 };
 
 /**
@@ -267,6 +403,8 @@ export function getResultMessage(resultCode: string): string {
       return 'System busy, please try again';
     case RESULT_CODES.INVALID_INITIATOR:
       return 'Invalid payment initiator';
+    case RESULT_CODES.STILL_PROCESSING:
+      return 'Payment is still being processed - please wait';
     default:
       return `Payment failed (Code: ${resultCode})`;
   }

@@ -1,6 +1,6 @@
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Receipt, Calendar, DollarSign } from "lucide-react";
-import { expectedForBill, paidForBill, isTransactionRecord } from "@/lib/payment-utils";
+import { expectedForBill, paidForBill, isTransactionRecord, expectedForCurrentMonth, balanceForCurrentMonth } from "@/lib/payment-utils";
 import { Badge } from "@/components/ui/badge";
 
 interface PaymentRecord {
@@ -45,20 +45,54 @@ export default function RecordedPaymentsCard({ payments, expectedRent }: Recorde
          !(p as any).notes?.includes('Payment transaction') // Exclude transaction records
   );
 
-  // Get the bill record for current month (should be only one after filtering)
-  const currentBill = currentMonthPayments.length > 0 ? currentMonthPayments[0] : null;
+  // Sort by createdAt/paymentDate to get most recent bill if there are duplicates
+  const sortedPayments = [...currentMonthPayments].sort((a, b) => {
+    const dateA = new Date(a.paymentDate).getTime();
+    const dateB = new Date(b.paymentDate).getTime();
+    return dateB - dateA; // Most recent first
+  });
+
+  // Get the most recent bill record for current month (should be only one, but use most recent if duplicates exist)
+  const currentBill = sortedPayments.length > 0 ? sortedPayments[0] : null;
   
-  // Calculate expected bill (rent + utilities from the bill) using helpers
+  // Debug: Log if there are duplicates
+  if (sortedPayments.length > 1) {
+    console.warn(`⚠️  Found ${sortedPayments.length} bill records for ${currentMonth}/${currentYear}. Using most recent.`, sortedPayments);
+  }
+  
+  // Filter out transaction records to get all bills
+  const allBills = payments.filter(p => !isTransactionRecord(p));
+  
+  // Calculate CONSOLIDATED expected amount (current month + historical debts)
+  const totalExpected = expectedForCurrentMonth(allBills, currentMonth, currentYear, expectedRent);
+  
+  // Current month's base charges (rent + utilities only, no historical debt)
+  const currentMonthBase = currentBill ? expectedForBill(currentBill, expectedRent) : expectedRent;
   const totalUtilitiesInBill = currentBill ? Number(currentBill.totalUtilityCost || 0) : 0;
   const expectedBill = currentBill ? (currentBill.monthlyRent || expectedRent) : (expectedRent || 0);
-  const totalExpected = currentBill ? expectedForBill(currentBill, expectedRent) : (expectedRent || 0);
+  
+  // Calculate historical debt separately for display
+  const historicalDebt = totalExpected - currentMonthBase;
+  
   // Use actual cumulative amount recorded on the bill
   const totalPaid = currentBill ? paidForBill(currentBill) : 0;
-  // Calculate balance: what's still owed
-  const balance = totalExpected - totalPaid;
   
-  // Use the actual status from the payment record
-  const overallStatus = currentBill?.status || null;
+  // Calculate balance using consolidated approach
+  const balance = balanceForCurrentMonth(allBills, currentMonth, currentYear, expectedRent);
+  
+  // Determine status based on consolidated calculation
+  let overallStatus: string;
+  if (!currentBill) {
+    overallStatus = 'pending';
+  } else if (balance === 0) {
+    overallStatus = 'completed';
+  } else if (balance < 0) {
+    overallStatus = 'overpaid';
+  } else if (totalPaid > 0) {
+    overallStatus = 'partial';
+  } else {
+    overallStatus = 'pending';
+  }
 
   // Get payment status badge
   const getStatusBadge = (status: string) => {
@@ -108,8 +142,14 @@ export default function RecordedPaymentsCard({ payments, expectedRent }: Recorde
                     <span className="font-medium text-amber-700">KSH {totalUtilitiesInBill.toLocaleString()}</span>
                   </div>
                 )}
+                {historicalDebt > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-neutral-600">Previous Balance:</span>
+                    <span className="font-medium text-red-600">KSH {historicalDebt.toLocaleString()}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm border-t border-purple-200 pt-2">
-                  <span className="text-neutral-700 font-medium">Expected Bill:</span>
+                  <span className="text-neutral-700 font-medium">Total Expected:</span>
                   <span className="font-semibold">KSH {totalExpected.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between text-sm">
@@ -141,8 +181,11 @@ export default function RecordedPaymentsCard({ payments, expectedRent }: Recorde
                 // Use helpers for expected and paid amounts
                 const paymentExpectedAmount = expectedForBill(payment, expectedRent);
                 const paymentPaidAmount = paidForBill(payment);
-                const actualStatus = payment.status;
                 const displayAmount = paymentPaidAmount > 0 ? paymentPaidAmount : paymentExpectedAmount;
+                
+                // Use the calculated overallStatus (which considers consolidated billing)
+                // instead of the stored status which doesn't account for historical debts
+                const displayStatus = overallStatus;
 
                 return (
                   <div key={payment._id} className="border border-neutral-200 rounded-lg p-3 hover:bg-neutral-50 transition-colors">
@@ -151,7 +194,7 @@ export default function RecordedPaymentsCard({ payments, expectedRent }: Recorde
                         <DollarSign className="h-4 w-4 text-purple-600" />
                         <span className="font-semibold text-neutral-900">KSH {displayAmount.toLocaleString()}</span>
                       </div>
-                      {getStatusBadge(actualStatus)}
+                      {getStatusBadge(displayStatus)}
                     </div>
 
                     <div className="text-sm text-neutral-600 space-y-1">
@@ -163,8 +206,16 @@ export default function RecordedPaymentsCard({ payments, expectedRent }: Recorde
                       {/* Base Rent */}
                       <div className="flex justify-between pl-5">
                         <span>Base Rent:</span>
-                        <span className="font-medium">KSH {(payment.monthlyRent || expectedRent).toLocaleString()}</span>
+                        <span className="font-semibold">KSH {payment.monthlyRent.toLocaleString()}</span>
                       </div>
+                      
+                      {/* Historical Debt (if this bill includes it) */}
+                      {historicalDebt > 0 && (
+                        <div className="flex justify-between pl-5 text-red-600">
+                          <span>Previous Balance:</span>
+                          <span className="font-semibold">KSH {historicalDebt.toLocaleString()}</span>
+                        </div>
+                      )}
 
                       {/* Utility Charges */}
                       {payment.utilityCharges && payment.utilityCharges.length > 0 && (
@@ -187,10 +238,10 @@ export default function RecordedPaymentsCard({ payments, expectedRent }: Recorde
                         </div>
                       )}
 
-                      {/* Total Expected */}
+                      {/* Total Expected - Use consolidated amount for current month */}
                       <div className="flex justify-between pl-5 pt-2 border-t border-neutral-200">
                         <span className="font-medium">Total Expected:</span>
-                        <span className="font-semibold">KSH {paymentExpectedAmount.toLocaleString()}</span>
+                        <span className="font-semibold">KSH {totalExpected.toLocaleString()}</span>
                       </div>
                     </div>
                   </div>

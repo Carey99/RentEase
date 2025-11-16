@@ -55,15 +55,14 @@ export function MpesaPaymentModal({
     }
   }, [open, defaultAmount, defaultPhone]);
 
-  // Countdown timer
+  // Countdown timer - but don't timeout automatically, let polling decide
   useEffect(() => {
     if (status === 'waiting' && countdown > 0) {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
       return () => clearTimeout(timer);
-    } else if (status === 'waiting' && countdown === 0) {
-      setStatus('timeout');
-      setErrorMessage('Payment timed out. Please try again.');
     }
+    // Don't auto-timeout when countdown reaches 0
+    // Let the polling logic handle actual timeout detection
   }, [status, countdown]);
 
   // Poll payment status with exponential backoff
@@ -98,15 +97,22 @@ export function MpesaPaymentModal({
                 onSuccess();
                 onOpenChange(false);
               }, 2000);
+            } else if (data.status === 'pending' || (data.resultCode && data.resultCode === '4999')) {
+              // Transaction still processing - keep polling
+              console.log('⏳ Payment still processing, continuing to poll...');
+              // Don't change status, continue polling
+            } else if (data.status === 'timeout') {
+              console.log('⏱️  Payment timeout detected from backend');
+              setStatus('timeout');
+              setErrorMessage(data.message || data.resultDesc || 'Payment timed out - PIN not entered');
+              queryClient.invalidateQueries({ queryKey: ['tenant-activities', tenantId] });
             } else if (data.status === 'failed' || data.status === 'cancelled') {
-              setStatus('failed');
+              console.log('❌ Payment failed or cancelled:', data.status);
+              setStatus(data.status);
               setErrorMessage(data.message || data.resultDesc || 'Payment failed');
               
               // Create activity log for failed payment
               queryClient.invalidateQueries({ queryKey: ['tenant-activities', tenantId] });
-            } else if (data.status === 'timeout') {
-              setStatus('timeout');
-              setErrorMessage('Payment request timed out. Please try again.');
             }
           }
         } catch (error) {
@@ -114,32 +120,51 @@ export function MpesaPaymentModal({
         }
       };
       
-      // Initial check after 3 seconds
-      const initialTimeout = setTimeout(checkPaymentStatus, 3000);
+      // Initial check after 5 seconds (give time for callback to arrive)
+      const initialTimeout = setTimeout(checkPaymentStatus, 5000);
       
-      // Poll every 5 seconds for first 60 seconds, then every 10 seconds
+      // Poll every 6 seconds consistently for 2 minutes (20 attempts total)
+      let attempts = 0;
+      let intervalCleared = false;
+      
       const pollInterval = setInterval(() => {
-        setPollCount(prev => {
-          const newCount = prev + 1;
-          // Stop polling after 24 attempts (2 minutes at 5s intervals)
-          if (newCount > 24) {
-            clearInterval(pollInterval);
-            if (status === 'waiting') {
-              setStatus('timeout');
-              setErrorMessage('Payment verification timed out. Check your payment history.');
-            }
-          }
-          return newCount;
-        });
-        checkPaymentStatus();
-      }, pollCount < 12 ? 5000 : 10000);
+        if (intervalCleared) return; // Safety check
+        
+        attempts++;
+        setPollCount(attempts);
+        console.log(`📊 Poll attempt ${attempts}/20`);
+        
+        // Stop polling after 20 attempts (2 minutes at 6s intervals)
+        if (attempts >= 20) {
+          intervalCleared = true;
+          clearInterval(pollInterval);
+          console.log('⏰ Maximum polling attempts reached - stopping polls');
+          
+          // Check final status after a brief delay
+          setTimeout(() => {
+            setStatus(prevStatus => {
+              console.log('  Current status before timeout check:', prevStatus);
+              if (prevStatus === 'waiting') {
+                console.log('  ⏱️  Setting timeout status - no response after 20 attempts');
+                setErrorMessage('Payment verification timed out. If you completed the payment, it may still be processing. Please check your payment history in a few minutes.');
+                return 'timeout';
+              }
+              console.log('  Status already changed to:', prevStatus);
+              return prevStatus;
+            });
+          }, 500);
+        } else {
+          checkPaymentStatus();
+        }
+      }, 6000); // Poll every 6 seconds
 
       return () => {
         clearTimeout(initialTimeout);
         clearInterval(pollInterval);
       };
     }
-  }, [status, paymentIntentId, onSuccess, onOpenChange, toast, queryClient, tenantId, amount, pollCount]);
+    // Remove pollCount from dependencies to avoid re-running the effect
+  }, [status, paymentIntentId, onSuccess, onOpenChange, toast, queryClient, tenantId, amount]);
 
   const handleInitiatePayment = async () => {
     // Validate inputs
@@ -325,7 +350,10 @@ export function MpesaPaymentModal({
                 <p className="text-lg font-medium">Waiting for confirmation</p>
                 <p className="text-3xl font-bold text-primary">{formatTime(countdown)}</p>
                 <p className="text-sm text-muted-foreground text-center">
-                  The payment request will expire in {formatTime(countdown)}
+                  Checking payment status... ({pollCount}/20 checks)
+                </p>
+                <p className="text-xs text-muted-foreground text-center">
+                  Take your time to enter your PIN. We'll wait up to 2 minutes.
                 </p>
               </div>
 

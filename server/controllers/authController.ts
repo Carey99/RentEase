@@ -8,6 +8,7 @@ import { storage } from "../storage";
 import { insertUserSchema } from "@shared/schema";
 import { ZodError } from "zod";
 import { logActivity, createActivityLog } from "./activityController";
+import { createUserSession, destroyUserSession } from "../middleware/auth";
 
 export class AuthController {
   /**
@@ -68,7 +69,7 @@ export class AuthController {
    */
   static async login(req: Request, res: Response) {
     try {
-      const { email, password } = req.body;
+      const { email, password, rememberMe } = req.body;
 
       if (!email || !password) {
         return res.status(400).json({ error: "Email and password are required" });
@@ -79,10 +80,16 @@ export class AuthController {
         return res.status(401).json({ error: "Invalid credentials" });
       }
 
+      // Create session
+      createUserSession(req, user.id, user.role, rememberMe || false);
+
       const { password: _, ...userWithoutPassword } = user;
       res.json({
         message: "Login successful",
         user: userWithoutPassword,
+        session: {
+          expiresIn: rememberMe ? "30 days" : "7 days"
+        }
       });
     } catch (error) {
       console.error("Error during login:", error);
@@ -96,7 +103,7 @@ export class AuthController {
    */
   static async signin(req: Request, res: Response) {
     try {
-      const { email, password } = req.body;
+      const { email, password, rememberMe } = req.body;
 
       if (!email || !password) {
         return res.status(400).json({ error: "Email and password are required" });
@@ -107,10 +114,16 @@ export class AuthController {
         return res.status(401).json({ error: "Invalid credentials" });
       }
 
+      // Create session
+      createUserSession(req, user.id, user.role, rememberMe || false);
+
       const { password: _, ...userWithoutPassword } = user;
       res.json({
         message: "Sign in successful",
         user: userWithoutPassword,
+        session: {
+          expiresIn: rememberMe ? "30 days" : "7 days"
+        }
       });
     } catch (error) {
       console.error("Error during signin:", error);
@@ -134,6 +147,63 @@ export class AuthController {
     } catch (error) {
       console.error("Error getting user:", error);
       res.status(500).json({ error: "Failed to get user" });
+    }
+  }
+
+  /**
+   * Get current session user
+   * GET /api/auth/session
+   */
+  static async getSession(req: Request, res: Response) {
+    try {
+      if (!req.session?.userId) {
+        return res.status(401).json({ 
+          error: "No active session",
+          sessionExpired: true 
+        });
+      }
+
+      const user = await storage.getUser(req.session.userId);
+      if (!user) {
+        return res.status(404).json({ 
+          error: "User not found",
+          sessionExpired: true 
+        });
+      }
+
+      const { password, ...userWithoutPassword } = user;
+      res.json({
+        user: userWithoutPassword,
+        session: {
+          createdAt: req.session.createdAt,
+          rememberMe: req.session.rememberMe,
+          expiresIn: req.session.rememberMe ? "30 days" : "7 days"
+        }
+      });
+    } catch (error) {
+      console.error("Error getting session:", error);
+      res.status(500).json({ error: "Failed to get session" });
+    }
+  }
+
+  /**
+   * Logout user (destroy session)
+   * POST /api/auth/logout
+   */
+  static async logout(req: Request, res: Response) {
+    try {
+      const userId = req.session?.userId;
+      
+      await destroyUserSession(req);
+      
+      console.log(`👋 User ${userId} logged out successfully`);
+      res.json({ 
+        message: "Logged out successfully",
+        success: true 
+      });
+    } catch (error) {
+      console.error("Error during logout:", error);
+      res.status(500).json({ error: "Logout failed" });
     }
   }
 }

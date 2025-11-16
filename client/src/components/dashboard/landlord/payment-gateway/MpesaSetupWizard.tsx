@@ -7,7 +7,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { CheckCircle2, XCircle, Loader2, Smartphone, Building2, AlertCircle } from 'lucide-react';
+import { CheckCircle2, XCircle, Loader2, Smartphone, Building2, AlertCircle, Eye, EyeOff, ExternalLink } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface MpesaSetupWizardProps {
   landlordId: string;
@@ -18,6 +19,10 @@ interface DarajaConfig {
   businessType: 'paybill' | 'till';
   businessName: string;
   accountNumber: string;
+  consumerKey: string;
+  consumerSecret: string;
+  passkey: string;
+  environment: 'sandbox' | 'production';
 }
 
 interface ConfigStatus {
@@ -27,8 +32,14 @@ interface ConfigStatus {
   businessType: 'paybill' | 'till' | null;
   businessName: string | null;
   accountNumber: string | null;
+  environment: 'sandbox' | 'production' | null;
+  hasCredentials: boolean;
   configuredAt: string | null;
   lastTestedAt: string | null;
+  // Masked credential fields (for display only)
+  consumerKeyMasked?: string | null;
+  consumerSecretMasked?: string | null;
+  passkeyMasked?: string | null;
 }
 
 export function MpesaSetupWizard({ landlordId }: MpesaSetupWizardProps) {
@@ -38,11 +49,18 @@ export function MpesaSetupWizard({ landlordId }: MpesaSetupWizardProps) {
   const [fetchingStatus, setFetchingStatus] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [status, setStatus] = useState<ConfigStatus | null>(null);
+  const [showConsumerKey, setShowConsumerKey] = useState(false);
+  const [showConsumerSecret, setShowConsumerSecret] = useState(false);
+  const [showPasskey, setShowPasskey] = useState(false);
   const [config, setConfig] = useState<DarajaConfig>({
     businessShortCode: '',
     businessType: 'paybill',
     businessName: '',
-    accountNumber: ''
+    accountNumber: '',
+    consumerKey: '',
+    consumerSecret: '',
+    passkey: '',
+    environment: 'sandbox'
   });
 
   // Fetch current configuration status
@@ -65,6 +83,11 @@ export function MpesaSetupWizard({ landlordId }: MpesaSetupWizardProps) {
       if (response.ok) {
         const data = await response.json();
         console.log('M-Pesa status data:', data);
+        console.log('Masked credentials:', {
+          consumerKeyMasked: data.consumerKeyMasked,
+          consumerSecretMasked: data.consumerSecretMasked,
+          passkeyMasked: data.passkeyMasked
+        });
         setStatus(data);
         
         // Pre-fill form if configured
@@ -73,7 +96,17 @@ export function MpesaSetupWizard({ landlordId }: MpesaSetupWizardProps) {
             businessShortCode: data.businessShortCode || '',
             businessType: data.businessType || 'paybill',
             businessName: data.businessName || '',
-            accountNumber: data.accountNumber || ''
+            accountNumber: data.accountNumber || '',
+            // Show masked credentials if available, otherwise keep empty
+            consumerKey: data.consumerKeyMasked || '',
+            consumerSecret: data.consumerSecretMasked || '',
+            passkey: data.passkeyMasked || '',
+            environment: data.environment || 'sandbox'
+          });
+          console.log('Form pre-filled with config:', {
+            consumerKey: data.consumerKeyMasked || '',
+            consumerSecret: data.consumerSecretMasked || '',
+            passkey: data.passkeyMasked || ''
           });
         }
       } else {
@@ -181,7 +214,11 @@ export function MpesaSetupWizard({ landlordId }: MpesaSetupWizardProps) {
           businessShortCode: '',
           businessType: 'paybill',
           businessName: '',
-          accountNumber: ''
+          accountNumber: '',
+          consumerKey: '',
+          consumerSecret: '',
+          passkey: '',
+          environment: 'sandbox'
         });
         await fetchStatus();
       }
@@ -269,7 +306,9 @@ export function MpesaSetupWizard({ landlordId }: MpesaSetupWizardProps) {
                   </p>
                   <AlertDescription className="text-sm space-y-1">
                     <div>Type: <Badge variant="outline">{status.businessType}</Badge></div>
+                    <div>Environment: <Badge variant="outline" className={status.environment === 'production' ? 'bg-green-100' : 'bg-yellow-100'}>{status.environment}</Badge></div>
                     <div>Business Short Code: <span className="font-mono">{status.businessShortCode}</span></div>
+                    <div>Credentials: <Badge variant={status.hasCredentials ? 'default' : 'destructive'}>{status.hasCredentials ? 'Configured' : 'Missing'}</Badge></div>
                     {status.accountNumber && (
                       <div>Account Reference: <span className="font-mono">{status.accountNumber}</span></div>
                     )}
@@ -321,9 +360,9 @@ export function MpesaSetupWizard({ landlordId }: MpesaSetupWizardProps) {
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            <strong>How it works:</strong> Enter your M-Pesa paybill or till number below. 
-            When your tenants pay rent, the money goes directly to YOUR M-Pesa account. 
-            RentEase simply facilitates the payment.
+            <strong>How it works:</strong> Configure your own Daraja API credentials and M-Pesa paybill/till number below. 
+            When your tenants pay rent, the money goes <strong>directly to YOUR M-Pesa account</strong>. 
+            RentEase securely uses your credentials to facilitate the payment request.
           </AlertDescription>
         </Alert>
 
@@ -400,6 +439,165 @@ export function MpesaSetupWizard({ landlordId }: MpesaSetupWizardProps) {
             </p>
           </div>
 
+          {/* Daraja API Credentials Section */}
+          <div className="border-t pt-6 space-y-4">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="h-4 w-4 text-blue-600 mt-0.5" />
+              <div>
+                <h3 className="font-medium text-sm">Daraja API Credentials</h3>
+                <p className="text-xs text-muted-foreground mt-1">
+                  You need to register on the{' '}
+                  <a 
+                    href="https://developer.safaricom.co.ke/" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline inline-flex items-center gap-1"
+                  >
+                    Safaricom Daraja Portal
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                  {' '}to get these credentials.
+                </p>
+              </div>
+            </div>
+
+            {/* Environment Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="environment">Environment *</Label>
+              <Select
+                value={config.environment}
+                onValueChange={(value: 'sandbox' | 'production') => 
+                  setConfig({ ...config, environment: value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sandbox">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="bg-yellow-100">Sandbox</Badge>
+                      <span className="text-sm">For testing (free)</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="production">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="bg-green-100">Production</Badge>
+                      <span className="text-sm">Live payments</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Use <strong>Sandbox</strong> for testing, <strong>Production</strong> for real payments
+              </p>
+            </div>
+
+            {/* Consumer Key */}
+            <div className="space-y-2">
+              <Label htmlFor="consumerKey">Consumer Key *</Label>
+              <div className="relative">
+                <Input
+                  id="consumerKey"
+                  type={showConsumerKey ? 'text' : 'password'}
+                  placeholder={config.environment === 'sandbox' ? 'e.g., xxxxxxxxxxxxx' : 'Your production consumer key'}
+                  value={config.consumerKey}
+                  onChange={(e) => setConfig({ ...config, consumerKey: e.target.value })}
+                  required
+                  className="font-mono text-sm pr-10"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                  onClick={() => setShowConsumerKey(!showConsumerKey)}
+                >
+                  {showConsumerKey ? (
+                    <EyeOff className="h-4 w-4 text-gray-400" />
+                  ) : (
+                    <Eye className="h-4 w-4 text-gray-400" />
+                  )}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {status?.hasCredentials 
+                  ? 'Encrypted credential shown. Clear to update with new value.'
+                  : `Get this from your Daraja ${config.environment} app`}
+              </p>
+            </div>
+
+            {/* Consumer Secret */}
+            <div className="space-y-2">
+              <Label htmlFor="consumerSecret">Consumer Secret *</Label>
+              <div className="relative">
+                <Input
+                  id="consumerSecret"
+                  type={showConsumerSecret ? 'text' : 'password'}
+                  placeholder="Your consumer secret"
+                  value={config.consumerSecret}
+                  onChange={(e) => setConfig({ ...config, consumerSecret: e.target.value })}
+                  required
+                  className="font-mono text-sm pr-10"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                  onClick={() => setShowConsumerSecret(!showConsumerSecret)}
+                >
+                  {showConsumerSecret ? (
+                    <EyeOff className="h-4 w-4 text-gray-400" />
+                  ) : (
+                    <Eye className="h-4 w-4 text-gray-400" />
+                  )}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {status?.hasCredentials 
+                  ? 'Encrypted credential shown. Clear to update with new value.'
+                  : `Get this from your Daraja ${config.environment} app (keep it secret!)`}
+              </p>
+            </div>
+
+            {/* Passkey */}
+            <div className="space-y-2">
+              <Label htmlFor="passkey">Lipa Na M-Pesa Passkey *</Label>
+              <div className="relative">
+                <Input
+                  id="passkey"
+                  type={showPasskey ? 'text' : 'password'}
+                  placeholder={config.environment === 'sandbox' ? 'Sandbox passkey provided by Safaricom' : 'Your production passkey'}
+                  value={config.passkey}
+                  onChange={(e) => setConfig({ ...config, passkey: e.target.value })}
+                  required
+                  className="font-mono text-sm pr-10"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                  onClick={() => setShowPasskey(!showPasskey)}
+                >
+                  {showPasskey ? (
+                    <EyeOff className="h-4 w-4 text-gray-400" />
+                  ) : (
+                    <Eye className="h-4 w-4 text-gray-400" />
+                  )}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {status?.hasCredentials 
+                  ? 'Encrypted credential shown. Clear to update with new value.'
+                  : (config.environment === 'sandbox' 
+                    ? 'For sandbox, use: bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919'
+                    : 'Get this from Safaricom when you activate Lipa Na M-Pesa Online')}
+              </p>
+            </div>
+          </div>
+
           {/* Account Number (for Paybill only) */}
           {config.businessType === 'paybill' && (
             <div className="space-y-2">
@@ -421,7 +619,7 @@ export function MpesaSetupWizard({ landlordId }: MpesaSetupWizardProps) {
           <div className="flex gap-3 pt-4">
             <Button
               type="submit"
-              disabled={loading || !config.businessShortCode}
+              disabled={loading || !config.businessShortCode || !config.consumerKey || !config.consumerSecret || !config.passkey}
               className="flex-1"
             >
               {loading ? (
@@ -441,13 +639,29 @@ export function MpesaSetupWizard({ landlordId }: MpesaSetupWizardProps) {
 
         {/* Help Text */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">
-          <p className="font-medium text-sm text-blue-900">Need help?</p>
+          <p className="font-medium text-sm text-blue-900">Getting Started with Daraja</p>
           <ul className="text-xs text-blue-800 space-y-1 list-disc list-inside">
-            <li>Your paybill/till number is provided by Safaricom when you register for M-Pesa business</li>
-            <li>Don't have one? Visit any Safaricom shop to register (usually takes 1-2 days)</li>
-            <li>For testing, you can use sandbox number: 174379 (paybill)</li>
-            <li>Once configured, your tenants can pay rent directly via M-Pesa</li>
+            <li>Visit <a href="https://developer.safaricom.co.ke/" target="_blank" rel="noopener noreferrer" className="underline">developer.safaricom.co.ke</a> and create an account</li>
+            <li>Create a new app to get your Consumer Key and Consumer Secret</li>
+            <li>For <strong>Sandbox</strong>: Use the test credentials provided above</li>
+            <li>For <strong>Production</strong>: Register your business with Safaricom to get real credentials</li>
+            <li>The Passkey is provided when you activate "Lipa Na M-Pesa Online" for your paybill/till</li>
+            <li>Test your setup in Sandbox before going live in Production</li>
           </ul>
+        </div>
+
+        {/* Security Notice */}
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+          <div className="flex items-start gap-2">
+            <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5" />
+            <div>
+              <p className="font-medium text-sm text-amber-900">Security Notice</p>
+              <p className="text-xs text-amber-800 mt-1">
+                Your credentials are encrypted and stored securely. Never share them with anyone. 
+                RentEase will only use them to process payments on your behalf.
+              </p>
+            </div>
+          </div>
         </div>
       </CardContent>
     </Card>
