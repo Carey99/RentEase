@@ -1691,6 +1691,9 @@ export class MongoStorage implements IStorage {
 
   async getPaymentHistory(tenantId: string): Promise<PaymentHistory[]> {
     try {
+      // Get tenant information first
+      const tenant = await TenantModel.findById(tenantId).lean();
+      
       // Get ALL payment records including bills and transactions
       const payments = await PaymentHistoryModel.find({ tenantId })
         .populate('propertyId', 'name')
@@ -1717,6 +1720,11 @@ export class MongoStorage implements IStorage {
           utilityCharges: (payment as any).utilityCharges || [],
           totalUtilityCost: (payment as any).totalUtilityCost || 0,
           createdAt: payment.createdAt,
+          tenant: {
+            _id: tenantId,
+            id: tenantId,
+            name: tenant?.fullName || 'Unknown Tenant'
+          },
           property: {
             _id: property._id ? property._id.toString() : payment.propertyId.toString(),
             id: property._id ? property._id.toString() : payment.propertyId.toString(), // Add id field for consistency
