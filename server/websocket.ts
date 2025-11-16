@@ -278,3 +278,24 @@ class ActivityNotificationService {
 
 // Export singleton instance
 export const activityNotificationService = new ActivityNotificationService();
+
+/**
+ * Helper function to broadcast a custom message to a specific user
+ * Detects userType automatically (landlord or tenant)
+ */
+export function broadcastToUser(userId: string, message: any) {
+  // Try both landlord and tenant
+  const isLandlord = activityNotificationService.getConnectionCount(userId, 'landlord') > 0;
+  const isTenant = activityNotificationService.getConnectionCount(userId, 'tenant') > 0;
+  
+  if (isLandlord) {
+    activityNotificationService.broadcastActivity(userId, message, 'landlord');
+  }
+  if (isTenant) {
+    activityNotificationService.broadcastActivity(userId, message, 'tenant');
+  }
+  
+  if (!isLandlord && !isTenant) {
+    console.log(`📭 No active WebSocket connections for user ${userId}`);
+  }
+}

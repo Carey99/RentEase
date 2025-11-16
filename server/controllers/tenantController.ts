@@ -181,6 +181,40 @@ export class TenantController {
   }
 
   /**
+   * Change tenant password
+   * PUT /api/tenants/:tenantId/password
+   */
+  static async changePassword(req: Request, res: Response) {
+    try {
+      const { tenantId } = req.params;
+      const { currentPassword, newPassword } = req.body;
+
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ error: "Current password and new password are required" });
+      }
+
+      if (newPassword.length < 8) {
+        return res.status(400).json({ error: "New password must be at least 8 characters long" });
+      }
+
+      const success = await storage.changeTenantPassword(tenantId, currentPassword, newPassword);
+
+      if (!success) {
+        return res.status(400).json({ error: "Invalid current password or tenant not found" });
+      }
+
+      res.json({
+        success: true,
+        message: "Password changed successfully"
+      });
+
+    } catch (error) {
+      console.error("Error changing tenant password:", error);
+      res.status(500).json({ error: "Failed to change password" });
+    }
+  }
+
+  /**
    * Create tenant property relationship
    * POST /api/tenant-properties
    */

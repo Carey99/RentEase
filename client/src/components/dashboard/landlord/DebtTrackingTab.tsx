@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertCircle, CheckCircle, DollarSign, TrendingUp, AlertTriangle } from "lucide-react";
-import { isTransactionRecord, expectedForBill, paidForBill, balanceForBill, sumOutstanding } from "@/lib/payment-utils";
+import { isTransactionRecord, expectedForBill, paidForBill, balanceForBill, sumOutstanding, expectedForCurrentMonth, balanceForCurrentMonth } from "@/lib/payment-utils";
 
 interface PaymentRecord {
   _id: string;
@@ -82,12 +82,31 @@ export default function DebtTrackingTab({ tenants }: DebtTrackingTabProps) {
            !(p as any).notes?.includes('Payment transaction')
     );
 
-  // Calculate expected amount (rent + utilities) for selected month using utility helpers
-  const expectedAmount = selectedMonthPayment ? expectedForBill(selectedMonthPayment, tenant.monthlyRent) : (tenant.monthlyRent || 0);
-  // Amount actually paid against this bill (cumulative)
-  const amountPaid = selectedMonthPayment ? paidForBill(selectedMonthPayment) : 0;
-  const outstandingBalance = expectedAmount - amountPaid;
-  const paymentStatus = selectedMonthPayment?.status || 'no_bill';
+    // Filter all bills (no transactions)
+    const allBills = tenant.payments.filter((p: any) => !isTransactionRecord(p));
+
+    // Calculate CONSOLIDATED expected amount (includes historical debts)
+    const expectedAmount = expectedForCurrentMonth(allBills, selectedMonth, selectedYear, tenant.monthlyRent);
+    
+    // Amount actually paid against current month's bill
+    const amountPaid = selectedMonthPayment ? paidForBill(selectedMonthPayment) : 0;
+    
+    // Outstanding balance using consolidated calculation
+    const outstandingBalance = balanceForCurrentMonth(allBills, selectedMonth, selectedYear, tenant.monthlyRent);
+    
+    // Determine status based on consolidated balance
+    let paymentStatus: string;
+    if (!selectedMonthPayment) {
+      paymentStatus = 'no_bill';
+    } else if (outstandingBalance === 0) {
+      paymentStatus = 'completed';
+    } else if (outstandingBalance < 0) {
+      paymentStatus = 'overpaid';
+    } else if (amountPaid > 0) {
+      paymentStatus = 'partial';
+    } else {
+      paymentStatus = 'pending';
+    }
 
     // Find the last payment made by this tenant (any payment with amount > 0)
     const paymentsWithAmount = tenant.payments
@@ -127,16 +146,22 @@ export default function DebtTrackingTab({ tenants }: DebtTrackingTabProps) {
         };
       });
 
-    // Total debt is sum of all POSITIVE balances (unpaid amounts) across all months
-    const totalDebt = sumOutstanding(tenant.payments || [], tenant.monthlyRent);
+    // Total debt is the CONSOLIDATED balance for the current/selected month
+    // (includes historical debts that are rolled into current month)
+    const totalDebt = outstandingBalance > 0 ? outstandingBalance : 0;
 
     // Get historical debts (for the breakdown section)
-    const historicalDebts = allDebts.filter(debt => 
-      debt.balance > 0 && (
-        debt.year < selectedYear || 
-        (debt.year === selectedYear && debt.month < selectedMonth)
-      )
-    );
+    // IMPORTANT: With consolidated billing, historical debts are included in current month
+    // Only show historical debts if current month is NOT fully paid
+    // If current month IS paid (totalDebt = 0), then historical debts are also resolved
+    const historicalDebts = totalDebt > 0 
+      ? allDebts.filter(debt => 
+          debt.balance > 0 && (
+            debt.year < selectedYear || 
+            (debt.year === selectedYear && debt.month < selectedMonth)
+          )
+        )
+      : []; // If consolidated bill is paid, all historical debts are resolved
 
     return {
       ...tenant,
@@ -161,12 +186,15 @@ export default function DebtTrackingTab({ tenants }: DebtTrackingTabProps) {
     };
   });
 
+  // Filter to show ONLY tenants with outstanding debt (remove fully paid tenants)
+  const tenantsWithOutstandingDebt = tenantsWithDebt.filter(t => t.totalDebt > 0);
+  
   // Sort by total debt (highest first)
-  const sortedTenants = tenantsWithDebt.sort((a, b) => b.totalDebt - a.totalDebt);
+  const sortedTenants = tenantsWithOutstandingDebt.sort((a, b) => b.totalDebt - a.totalDebt);
 
   // Calculate overall statistics
   const totalOutstanding = sortedTenants.reduce((sum, t) => sum + t.totalDebt, 0);
-  const tenantsWithDebtCount = sortedTenants.filter(t => t.hasDebt).length;
+  const tenantsWithDebtCount = sortedTenants.length; // All shown tenants have debt
   const totalExpectedThisMonth = sortedTenants.reduce((sum, t) => sum + t.selectedMonth.expected, 0);
   const totalCollectedThisMonth = sortedTenants.reduce((sum, t) => sum + t.selectedMonth.paid, 0);
   const collectionRate = totalExpectedThisMonth > 0 
@@ -382,11 +410,26 @@ export default function DebtTrackingTab({ tenants }: DebtTrackingTabProps) {
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        <span className={`font-bold text-lg ${
-                          tenant.totalDebt > 0 ? 'text-red-600' : 'text-green-600'
-                        }`}>
-                          KSH {tenant.totalDebt.toLocaleString()}
-                        </span>
+                        {tenant.totalDebt > 0 ? (
+                          <div>
+                            <span className="font-bold text-lg text-red-600">
+                              KSH {tenant.totalDebt.toLocaleString()}
+                            </span>
+                            {tenant.selectedMonth.balance < 0 && (
+                              <div className="text-xs text-blue-600 mt-1">
+                                (Current month: +{Math.abs(tenant.selectedMonth.balance)} credit)
+                              </div>
+                            )}
+                          </div>
+                        ) : tenant.selectedMonth.balance < 0 ? (
+                          <span className="font-bold text-lg text-blue-600">
+                            KSH {Math.abs(tenant.selectedMonth.balance).toLocaleString()} (Credit)
+                          </span>
+                        ) : (
+                          <span className="font-bold text-lg text-green-600">
+                            KSH 0
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell>
                         {getStatusBadge(tenant.selectedMonth.status)}

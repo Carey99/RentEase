@@ -7,6 +7,7 @@ import { seedDatabase } from "./seed";
 import { rentCycleScheduler } from "./schedulers/rentCycleScheduler";
 import { billNotificationScheduler } from "./schedulers/billNotificationScheduler";
 import { activityNotificationService } from "./websocket";
+import { sessionConfig, validateSession } from "./middleware/auth";
 import dotenv from "dotenv";
 
 // Only load .env file in development (Render injects env vars directly in production)
@@ -26,6 +27,10 @@ app.use(cors(corsOptions));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// Session middleware - MUST be before routes
+app.use(sessionConfig);
+app.use(validateSession);
 
 // Health check endpoint for Render and monitoring services
 app.get('/health', (req, res) => {

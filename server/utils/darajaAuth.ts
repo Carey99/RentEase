@@ -4,68 +4,84 @@
  * Handles OAuth token generation and management for Safaricom's Daraja API.
  * Token is valid for 1 hour and is cached to avoid unnecessary API calls.
  * 
- * RentEase uses ONE Daraja account for all landlords (Approach 1 - Aggregator Model)
+ * UPDATED: Now supports per-landlord credentials (each landlord has their own Daraja account)
  */
 
 import axios from 'axios';
-
-// Environment configuration
-const DARAJA_CONSUMER_KEY = process.env.DARAJA_CONSUMER_KEY!;
-const DARAJA_CONSUMER_SECRET = process.env.DARAJA_CONSUMER_SECRET!;
-const DARAJA_ENV = process.env.DARAJA_ENV || 'sandbox';
 
 // Base URLs
 const SANDBOX_BASE_URL = 'https://sandbox.safaricom.co.ke';
 const PRODUCTION_BASE_URL = 'https://api.safaricom.co.ke';
 
-const BASE_URL = DARAJA_ENV === 'production' ? PRODUCTION_BASE_URL : SANDBOX_BASE_URL;
-
-// Validate required credentials
-if (!DARAJA_CONSUMER_KEY || !DARAJA_CONSUMER_SECRET) {
-  throw new Error(
-    'Daraja API credentials are required. Set DARAJA_CONSUMER_KEY and DARAJA_CONSUMER_SECRET in .env'
-  );
+/**
+ * Landlord credentials interface
+ */
+export interface LandlordDarajaCredentials {
+  consumerKey: string;
+  consumerSecret: string;
+  environment: 'sandbox' | 'production';
 }
 
 /**
- * Token cache
- * Stores the access token and its expiry time to avoid unnecessary API calls
+ * Token cache per landlord
+ * Key: landlordId, Value: token data
  */
 interface TokenCache {
-  accessToken: string | null;
-  expiresAt: number | null; // Timestamp in milliseconds
+  accessToken: string;
+  expiresAt: number; // Timestamp in milliseconds
 }
 
-const tokenCache: TokenCache = {
-  accessToken: null,
-  expiresAt: null
-};
+const tokenCacheMap = new Map<string, TokenCache>();
 
 /**
- * Generate OAuth access token
+ * Generate cache key for a landlord's credentials
+ */
+function getCacheKey(consumerKey: string, environment: string): string {
+  return `${consumerKey}:${environment}`;
+}
+
+/**
+ * Get base URL for environment
+ */
+function getBaseUrlForEnvironment(environment: 'sandbox' | 'production'): string {
+  return environment === 'production' ? PRODUCTION_BASE_URL : SANDBOX_BASE_URL;
+}
+
+/**
+ * Generate OAuth access token for specific landlord credentials
  * Token is valid for 1 hour (3600 seconds)
  * 
+ * @param credentials - Landlord's Daraja credentials
+ * @param landlordId - Landlord ID for logging purposes
  * @returns Access token string
  */
-export async function generateAccessToken(): Promise<string> {
+export async function generateAccessToken(
+  credentials: LandlordDarajaCredentials,
+  landlordId: string
+): Promise<string> {
   try {
+    const { consumerKey, consumerSecret, environment } = credentials;
+    const cacheKey = getCacheKey(consumerKey, environment);
+    
     // Check if cached token is still valid (with 5-minute buffer)
     const now = Date.now();
     const bufferTime = 5 * 60 * 1000; // 5 minutes in milliseconds
+    const cachedToken = tokenCacheMap.get(cacheKey);
     
-    if (tokenCache.accessToken && tokenCache.expiresAt && (tokenCache.expiresAt - bufferTime) > now) {
-      console.log('✅ Using cached Daraja access token');
-      return tokenCache.accessToken;
+    if (cachedToken && (cachedToken.expiresAt - bufferTime) > now) {
+      console.log(`✅ Using cached Daraja access token for landlord ${landlordId}`);
+      return cachedToken.accessToken;
     }
 
-    console.log('🔄 Generating new Daraja access token...');
+    console.log(`🔄 Generating new Daraja access token for landlord ${landlordId} (${environment})...`);
 
     // Create Basic Auth credentials
-    const auth = Buffer.from(`${DARAJA_CONSUMER_KEY}:${DARAJA_CONSUMER_SECRET}`).toString('base64');
+    const auth = Buffer.from(`${consumerKey}:${consumerSecret}`).toString('base64');
+    const baseUrl = getBaseUrlForEnvironment(environment);
 
     // Request new token
     const response = await axios.get(
-      `${BASE_URL}/oauth/v1/generate?grant_type=client_credentials`,
+      `${baseUrl}/oauth/v1/generate?grant_type=client_credentials`,
       {
         headers: {
           Authorization: `Basic ${auth}`
@@ -79,51 +95,76 @@ export async function generateAccessToken(): Promise<string> {
 
     // Cache the token
     const expiresIn = parseInt(response.data.expires_in) || 3600; // Default 1 hour
-    tokenCache.accessToken = response.data.access_token;
-    tokenCache.expiresAt = now + (expiresIn * 1000);
-
-    console.log(`✅ New Daraja access token generated (expires in ${expiresIn}s)`);
+    const accessToken = response.data.access_token;
     
-    return tokenCache.accessToken;
+    tokenCacheMap.set(cacheKey, {
+      accessToken,
+      expiresAt: now + (expiresIn * 1000)
+    });
+
+    console.log(`✅ New Daraja access token generated for landlord ${landlordId} (expires in ${expiresIn}s)`);
+    
+    return accessToken;
   } catch (error: any) {
-    console.error('❌ Failed to generate Daraja access token:', error.response?.data || error.message);
+    console.error(`❌ Failed to generate Daraja access token for landlord ${landlordId}:`, error.response?.data || error.message);
     throw new Error(`Daraja authentication failed: ${error.response?.data?.error_description || error.message}`);
   }
 }
 
 /**
- * Get current access token (generates new one if needed)
+ * Get current access token for landlord (generates new one if needed)
  * 
+ * @param credentials - Landlord's Daraja credentials
+ * @param landlordId - Landlord ID for logging purposes
  * @returns Access token string
  */
-export async function getAccessToken(): Promise<string> {
-  return generateAccessToken();
+export async function getAccessToken(
+  credentials: LandlordDarajaCredentials,
+  landlordId: string
+): Promise<string> {
+  return generateAccessToken(credentials, landlordId);
 }
 
 /**
- * Clear token cache (useful for testing or forcing refresh)
+ * Clear token cache for specific landlord (useful for testing or forcing refresh)
+ * 
+ * @param consumerKey - Landlord's consumer key
+ * @param environment - Environment (sandbox or production)
  */
-export function clearTokenCache(): void {
-  tokenCache.accessToken = null;
-  tokenCache.expiresAt = null;
-  console.log('🗑️  Daraja token cache cleared');
+export function clearTokenCache(consumerKey: string, environment: string): void {
+  const cacheKey = getCacheKey(consumerKey, environment);
+  tokenCacheMap.delete(cacheKey);
+  console.log(`🗑️  Daraja token cache cleared for ${cacheKey}`);
 }
 
 /**
- * Test Daraja API connection
+ * Clear all token caches (useful for testing)
+ */
+export function clearAllTokenCaches(): void {
+  tokenCacheMap.clear();
+  console.log('🗑️  All Daraja token caches cleared');
+}
+
+/**
+ * Test Daraja API connection with specific credentials
  * Attempts to generate a token to verify credentials are correct
  * 
+ * @param credentials - Landlord's Daraja credentials
+ * @param landlordId - Landlord ID for logging purposes
  * @returns Success status and message
  */
-export async function testConnection(): Promise<{ success: boolean; message: string }> {
+export async function testConnection(
+  credentials: LandlordDarajaCredentials,
+  landlordId: string
+): Promise<{ success: boolean; message: string }> {
   try {
-    clearTokenCache(); // Force fresh token generation
-    const token = await generateAccessToken();
+    clearTokenCache(credentials.consumerKey, credentials.environment); // Force fresh token generation
+    const token = await generateAccessToken(credentials, landlordId);
     
     if (token) {
       return {
         success: true,
-        message: `Daraja API connection successful (${DARAJA_ENV} environment)`
+        message: `Daraja API connection successful (${credentials.environment} environment)`
       };
     }
     
@@ -140,19 +181,11 @@ export async function testConnection(): Promise<{ success: boolean; message: str
 }
 
 /**
- * Get Daraja API base URL
+ * Get Daraja API base URL for environment
  * 
- * @returns Base URL for current environment
+ * @param environment - Environment (sandbox or production)
+ * @returns Base URL for specified environment
  */
-export function getBaseUrl(): string {
-  return BASE_URL;
-}
-
-/**
- * Get current environment
- * 
- * @returns 'sandbox' or 'production'
- */
-export function getEnvironment(): string {
-  return DARAJA_ENV;
+export function getBaseUrl(environment: 'sandbox' | 'production'): string {
+  return getBaseUrlForEnvironment(environment);
 }

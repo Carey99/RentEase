@@ -1,36 +1,28 @@
 import { useState, useEffect } from "react";
-import { Settings, User, Lock, Bell, Building, HelpCircle, Smartphone } from "lucide-react";
+import { Settings, User, Lock, Check, X } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { useCurrentUser } from "@/hooks/dashboard/useDashboard";
-import { MpesaSetupWizard } from "../payment-gateway";
-import { Check, X, AlertCircle } from "lucide-react";
+
+interface TenantProfile {
+  fullName: string;
+  email: string;
+  phone: string;
+}
 
 // Password strength checker
 function getPasswordStrength(password: string): { score: number; label: string; color: string } {
   if (!password) return { score: 0, label: '', color: '' };
   
   let score = 0;
-  
-  // Length check (minimum 8 characters)
   if (password.length >= 8) score++;
   if (password.length >= 12) score++;
-  
-  // Has lowercase
   if (/[a-z]/.test(password)) score++;
-  
-  // Has uppercase
   if (/[A-Z]/.test(password)) score++;
-  
-  // Has number
   if (/[0-9]/.test(password)) score++;
-  
-  // Has special character
   if (/[^a-zA-Z0-9]/.test(password)) score++;
   
   if (score <= 2) return { score, label: 'Weak', color: 'text-red-600' };
@@ -48,29 +40,12 @@ function getPasswordRequirements(password: string) {
   ];
 }
 
-interface LandlordSettings {
-  profile: {
-    fullName: string;
-    email: string;
-    phone: string;
-    company: string;
-    address: string;
-  };
-  notifications: {
-    emailNotifications: boolean;
-    smsNotifications: boolean;
-    newTenantAlerts: boolean;
-    paymentReminders: boolean;
-  };
-  preferences: {
-    currency: string;
-    timezone: string;
-    language: string;
-  };
+interface TenantSettingsTabProps {
+  tenantId?: string;
 }
 
-export default function SettingsTab() {
-  const [settings, setSettings] = useState<LandlordSettings | null>(null);
+export default function TenantSettingsTab({ tenantId }: TenantSettingsTabProps) {
+  const [profile, setProfile] = useState<TenantProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [passwordForm, setPasswordForm] = useState({
@@ -79,77 +54,66 @@ export default function SettingsTab() {
     confirmPassword: ''
   });
   const { toast } = useToast();
-  const currentUser = useCurrentUser();
 
-  // Load settings from backend
   useEffect(() => {
-    const fetchSettings = async () => {
-      if (!currentUser?.id) return;
+    const fetchProfile = async () => {
+      if (!tenantId) return;
       
       try {
-        const response = await fetch(`/api/landlords/${currentUser.id}/settings`);
+        const response = await fetch(`/api/tenants/${tenantId}`);
         if (response.ok) {
           const data = await response.json();
-          setSettings(data);
-        } else {
-          toast({
-            title: "Error",
-            description: "Failed to load settings",
-            variant: "destructive",
+          setProfile({
+            fullName: data.fullName || '',
+            email: data.email || '',
+            phone: data.phone || ''
           });
         }
       } catch (error) {
-        console.error('Error fetching settings:', error);
-        toast({
-          title: "Error", 
-          description: "Failed to load settings",
-          variant: "destructive",
-        });
+        console.error('Error fetching profile:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchSettings();
-  }, [currentUser?.id, toast]);
+    fetchProfile();
+  }, [tenantId]);
 
-  // Save settings to backend
-  const saveSettings = async (updates: Partial<LandlordSettings>) => {
-    if (!currentUser?.id || !settings) return;
+  const handleProfileSave = async () => {
+    if (!tenantId || !profile) return;
     
     setSaving(true);
     try {
-      console.log('Saving settings:', updates);
-      
-      const response = await fetch(`/api/landlords/${currentUser.id}/settings`, {
+      const response = await fetch(`/api/tenants/${tenantId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(updates),
+        body: JSON.stringify(profile),
       });
 
       if (response.ok) {
-        const result = await response.json();
-        console.log('Save response:', result);
-        
-        // The response has { success, settings, message } structure
-        const updatedSettings = result.settings || result;
-        setSettings(updatedSettings);
-        
         toast({
           title: "Success",
-          description: result.message || "Settings saved successfully",
+          description: "Profile updated successfully",
         });
+        
+        // Update localStorage
+        const userData = localStorage.getItem('rentease_user');
+        if (userData) {
+          const user = JSON.parse(userData);
+          user.fullName = profile.fullName;
+          user.phone = profile.phone;
+          localStorage.setItem('rentease_user', JSON.stringify(user));
+        }
       } else {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to save settings');
+        throw new Error('Failed to update profile');
       }
-    } catch (error: any) {
-      console.error('Error saving settings:', error);
+    } catch (error) {
+      console.error('Error saving profile:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to save settings",
+        description: "Failed to update profile",
         variant: "destructive",
       });
     } finally {
@@ -157,31 +121,9 @@ export default function SettingsTab() {
     }
   };
 
-  const handleProfileSave = async () => {
-    if (!settings) return;
-    await saveSettings({ profile: settings.profile });
-  };
-
-  const handleNotificationSave = async () => {
-    if (!settings) return;
-    await saveSettings({ notifications: settings.notifications });
-  };
-
-  const handleNotificationToggle = (key: keyof LandlordSettings['notifications']) => {
-    if (!settings) return;
-    setSettings({
-      ...settings,
-      notifications: {
-        ...settings.notifications,
-        [key]: !settings.notifications[key]
-      }
-    });
-  };
-
   const handlePasswordChange = async () => {
-    if (!currentUser?.id) return;
+    if (!tenantId) return;
     
-    // Validation
     if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
       toast({
         title: "Error",
@@ -193,7 +135,7 @@ export default function SettingsTab() {
 
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       toast({
-        title: "Error", 
+        title: "Error",
         description: "New passwords do not match",
         variant: "destructive",
       });
@@ -209,7 +151,6 @@ export default function SettingsTab() {
       return;
     }
 
-    // Check password strength
     const strength = getPasswordStrength(passwordForm.newPassword);
     if (strength.score < 3) {
       toast({
@@ -222,9 +163,7 @@ export default function SettingsTab() {
 
     setSaving(true);
     try {
-      console.log('Changing password...');
-      
-      const response = await fetch(`/api/landlords/${currentUser.id}/password`, {
+      const response = await fetch(`/api/tenants/${tenantId}/password`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -236,14 +175,12 @@ export default function SettingsTab() {
       });
 
       const result = await response.json();
-      console.log('Password change response:', result);
 
       if (response.ok && result.success) {
         toast({
           title: "Success",
           description: result.message || "Password changed successfully",
         });
-        // Clear the form
         setPasswordForm({
           currentPassword: '',
           newPassword: '',
@@ -268,14 +205,11 @@ export default function SettingsTab() {
     }
   };
 
-  const handleProfileChange = (field: keyof LandlordSettings['profile'], value: string) => {
-    if (!settings) return;
-    setSettings({
-      ...settings,
-      profile: {
-        ...settings.profile,
-        [field]: value
-      }
+  const handleProfileChange = (field: keyof TenantProfile, value: string) => {
+    if (!profile) return;
+    setProfile({
+      ...profile,
+      [field]: value
     });
   };
 
@@ -287,7 +221,7 @@ export default function SettingsTab() {
     );
   }
 
-  if (!settings) {
+  if (!profile) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="text-neutral-600">Failed to load settings</div>
@@ -303,59 +237,49 @@ export default function SettingsTab() {
       </div>
 
       <Tabs defaultValue="profile">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="profile">Profile</TabsTrigger>
-          <TabsTrigger value="payment-gateway">Payment Gateway</TabsTrigger>
-          <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>Profile Information</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <User className="h-5 w-5" />
+                Profile Information
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label>Full Name</Label>
-                  <Input 
-                    value={settings.profile.fullName}
+                  <Label htmlFor="fullName">Full Name</Label>
+                  <Input
+                    id="fullName"
+                    value={profile.fullName}
                     onChange={(e) => handleProfileChange('fullName', e.target.value)}
+                    placeholder="Enter your full name"
                   />
                 </div>
                 <div>
-                  <Label>Email</Label>
-                  <Input 
-                    value={settings.profile.email}
-                    onChange={(e) => handleProfileChange('email', e.target.value)}
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={profile.email}
+                    disabled
+                    className="bg-neutral-100"
                   />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Phone</Label>
-                  <Input 
-                    value={settings.profile.phone}
-                    onChange={(e) => handleProfileChange('phone', e.target.value)}
-                    placeholder="+254712345678"
-                  />
-                </div>
-                <div>
-                  <Label>Company</Label>
-                  <Input 
-                    value={settings.profile.company}
-                    onChange={(e) => handleProfileChange('company', e.target.value)}
-                    placeholder="Company name (optional)"
-                  />
+                  <p className="text-xs text-neutral-500 mt-1">Email cannot be changed</p>
                 </div>
               </div>
               <div>
-                <Label>Address</Label>
-                <Input 
-                  value={settings.profile.address}
-                  onChange={(e) => handleProfileChange('address', e.target.value)}
-                  placeholder="Your address"
+                <Label htmlFor="phone">Phone Number</Label>
+                <Input
+                  id="phone"
+                  value={profile.phone}
+                  onChange={(e) => handleProfileChange('phone', e.target.value)}
+                  placeholder="+254712345678"
                 />
               </div>
               <Button onClick={handleProfileSave} disabled={saving}>
@@ -365,61 +289,19 @@ export default function SettingsTab() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="payment-gateway" className="mt-6">
-          {currentUser?.id && <MpesaSetupWizard landlordId={currentUser.id} />}
-        </TabsContent>
-
-        <TabsContent value="notifications" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Notification Settings</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Label>Email Notifications</Label>
-                <Switch 
-                  checked={settings.notifications.emailNotifications}
-                  onCheckedChange={() => handleNotificationToggle('emailNotifications')}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <Label>SMS Alerts</Label>
-                <Switch 
-                  checked={settings.notifications.smsNotifications}
-                  onCheckedChange={() => handleNotificationToggle('smsNotifications')}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <Label>New Tenant Alerts</Label>
-                <Switch 
-                  checked={settings.notifications.newTenantAlerts}
-                  onCheckedChange={() => handleNotificationToggle('newTenantAlerts')}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <Label>Payment Reminders</Label>
-                <Switch 
-                  checked={settings.notifications.paymentReminders}
-                  onCheckedChange={() => handleNotificationToggle('paymentReminders')}
-                />
-              </div>
-              <Button onClick={handleNotificationSave} disabled={saving}>
-                {saving ? "Saving..." : "Save Settings"}
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
         <TabsContent value="security" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>Security Settings</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Lock className="h-5 w-5" />
+                Security Settings
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
                 <Label>Current Password</Label>
-                <Input 
-                  type="password" 
+                <Input
+                  type="password"
                   placeholder="Enter current password"
                   value={passwordForm.currentPassword}
                   onChange={(e) => setPasswordForm({
@@ -430,8 +312,8 @@ export default function SettingsTab() {
               </div>
               <div>
                 <Label>New Password</Label>
-                <Input 
-                  type="password" 
+                <Input
+                  type="password"
                   placeholder="Enter new password (min. 8 characters)"
                   value={passwordForm.newPassword}
                   onChange={(e) => setPasswordForm({
@@ -448,12 +330,12 @@ export default function SettingsTab() {
                       </span>
                     </div>
                     <div className="w-full bg-neutral-200 rounded-full h-2">
-                      <div 
+                      <div
                         className={`h-2 rounded-full transition-all ${
-                          getPasswordStrength(passwordForm.newPassword).score <= 2 
-                            ? 'bg-red-500' 
-                            : getPasswordStrength(passwordForm.newPassword).score <= 4 
-                            ? 'bg-orange-500' 
+                          getPasswordStrength(passwordForm.newPassword).score <= 2
+                            ? 'bg-red-500'
+                            : getPasswordStrength(passwordForm.newPassword).score <= 4
+                            ? 'bg-orange-500'
                             : 'bg-green-500'
                         }`}
                         style={{ width: `${(getPasswordStrength(passwordForm.newPassword).score / 6) * 100}%` }}
@@ -479,8 +361,8 @@ export default function SettingsTab() {
               </div>
               <div>
                 <Label>Confirm New Password</Label>
-                <Input 
-                  type="password" 
+                <Input
+                  type="password"
                   placeholder="Confirm new password"
                   value={passwordForm.confirmPassword}
                   onChange={(e) => setPasswordForm({

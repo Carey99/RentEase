@@ -29,7 +29,8 @@ export interface IStorage {
   getTenantsByLandlord(landlordId: string): Promise<any[]>;
   getTenant(tenantId: string): Promise<any | undefined>;
   updateTenant(tenantId: string, updates: Partial<Tenant>): Promise<Tenant | undefined>; // Update tenant details from dashboard
-  deleteTenant(tenantId: string): Promise<boolean>; // Cascade delete: removes tenant, credentials, payment history, property associations
+  deleteTenant(tenantId: string): Promise<boolean>; // Cascade delete: removes tenant, credentials, payment history, activity logs, property associations
+  changeTenantPassword(tenantId: string, currentPassword: string, newPassword: string): Promise<boolean>;
   
   // Landlord settings operations
   getLandlordSettings(landlordId: string): Promise<any>;
@@ -268,14 +269,78 @@ export class MongoStorage implements IStorage {
         return undefined;
       }
 
+      // Get the old property to detect utility changes
+      const oldProperty = await PropertyModel.findById(id).lean();
+      
       const updatedProperty = await PropertyModel.findByIdAndUpdate(
         id,
         updates,
         { new: true }
-      ).lean();
+      ).populate('tenants').lean();
 
       if (!updatedProperty) {
         return undefined;
+      }
+
+      // Detect if utilities were changed
+      if (updates.utilities && oldProperty) {
+        const oldUtilities = oldProperty.utilities || [];
+        const newUtilities = updates.utilities || [];
+        
+        // Check if utilities changed
+        const utilitiesChanged = JSON.stringify(oldUtilities) !== JSON.stringify(newUtilities);
+        
+        if (utilitiesChanged && updatedProperty.tenants && Array.isArray(updatedProperty.tenants)) {
+          console.log(`🔔 Utilities changed for property ${updatedProperty.name}, notifying ${updatedProperty.tenants.length} tenants`);
+          
+          // Notify all tenants in this property about utility changes
+          for (const tenant of updatedProperty.tenants) {
+            const tenantId = typeof tenant === 'object' && tenant._id ? tenant._id.toString() : tenant.toString();
+            const tenantDoc = await TenantModel.findById(tenantId);
+            
+            if (tenantDoc) {
+              // Create detailed utility change message
+              const utilityChanges: string[] = [];
+              
+              // Check for new utilities
+              newUtilities.forEach((newUtil: any) => {
+                const oldUtil = oldUtilities.find((old: any) => old.type === newUtil.type);
+                if (!oldUtil) {
+                  utilityChanges.push(`New utility added: ${newUtil.type} at KSH ${newUtil.price}/unit`);
+                } else if (oldUtil.price !== newUtil.price) {
+                  utilityChanges.push(`${newUtil.type}: KSH ${oldUtil.price} → KSH ${newUtil.price} per unit`);
+                }
+              });
+              
+              // Check for removed utilities
+              oldUtilities.forEach((oldUtil: any) => {
+                const stillExists = newUtilities.find((newUtil: any) => newUtil.type === oldUtil.type);
+                if (!stillExists) {
+                  utilityChanges.push(`${oldUtil.type} utility removed`);
+                }
+              });
+              
+              const changesText = utilityChanges.length > 0 
+                ? utilityChanges.join('; ') 
+                : 'Utility rates have been updated';
+              
+              await logTenantActivity(createTenantActivityLog(
+                tenantId,
+                'system_alert',
+                'Utility Rates Updated',
+                `Your landlord has updated the utility rates for ${updatedProperty.name}. ${changesText}. Please check the "My Apartment" tab for current rates.`,
+                {
+                  landlordId: updatedProperty.landlordId.toString(),
+                  propertyId: updatedProperty._id.toString(),
+                  propertyName: updatedProperty.name,
+                },
+                'medium'
+              ));
+              
+              console.log(`  ✓ Notified tenant ${tenantDoc.fullName} about utility changes`);
+            }
+          }
+        }
       }
 
       return {
@@ -421,51 +486,53 @@ export class MongoStorage implements IStorage {
       
       console.log(`  🆕 Has any payments: ${hasAnyPayments}, Is truly new tenant: ${isNewTenant}`);
       
-      // Check payment history to see if current month bill is PAID (not just pending)
-      const completedPayments = await PaymentHistoryModel.find({
+      // Check for bills for current month (exclude transaction records)
+      const currentMonthBills = await PaymentHistoryModel.find({
         tenantId: tenant._id,
         forMonth: currentMonth,
         forYear: currentYear,
-        status: 'completed' // ONLY count as paid if status is 'completed'
-      }).lean();
+        notes: { $not: /Payment transaction/ } // Only look at actual bills, not transaction receipts
+      }).sort({ createdAt: -1 }).lean();
       
-      // Also check for partial payments
-      const partialPayments = await PaymentHistoryModel.find({
+      // Get the most recent bill (in case of duplicates)
+      const currentMonthBill = currentMonthBills.length > 0 ? currentMonthBills[0] : null;
+      
+      // Log if there are duplicates
+      if (currentMonthBills.length > 1) {
+        console.log(`  ⚠️  WARNING: Found ${currentMonthBills.length} bills for ${currentMonth}/${currentYear}, using most recent`);
+      }
+      
+      // Check payment status from the bill itself
+      const currentMonthPaid = currentMonthBill?.status === 'completed' || currentMonthBill?.status === 'overpaid';
+      const hasPartialPayment = currentMonthBill?.status === 'partial';
+      
+      console.log(`  📋 Current month bill:`, {
+        exists: !!currentMonthBill,
+        billId: currentMonthBill?._id,
+        status: currentMonthBill?.status,
+        amount: currentMonthBill?.amount,
+        monthlyRent: currentMonthBill?.monthlyRent,
+        utilities: currentMonthBill?.totalUtilityCost,
+      });
+      
+      // Get the actual LAST completed bill across ALL months
+      const allCompletedBills = await PaymentHistoryModel.find({
         tenantId: tenant._id,
-        forMonth: currentMonth,
-        forYear: currentYear,
-        status: 'partial'
-      }).lean();
-      
-      // Check for any bill (pending, partial, or completed) for current month
-      const currentMonthBill = await PaymentHistoryModel.findOne({
-        tenantId: tenant._id,
-        forMonth: currentMonth,
-        forYear: currentYear
-      }).lean();
-      
-      const currentMonthPaid = completedPayments.length > 0;
-      const hasPartialPayment = partialPayments.length > 0;
-      
-      // Get the actual LAST completed payment across ALL months (not just current month)
-      const allCompletedPayments = await PaymentHistoryModel.find({
-        tenantId: tenant._id,
-        status: 'completed'
+        status: { $in: ['completed', 'overpaid'] },
+        notes: { $not: /Payment transaction/ }
       }).sort({ paymentDate: -1 }).limit(1).lean();
       
-      const lastPayment = allCompletedPayments.length > 0 ? allCompletedPayments[0] : null;
-      const partialPayment = partialPayments.length > 0 ? partialPayments[0] : null;
+      const lastPayment = allCompletedBills.length > 0 ? allCompletedBills[0] : null;
       
       console.log(`  💰 Current month (${currentMonth}/${currentYear}) PAID: ${currentMonthPaid}`);
-      console.log(`  📋 Current month bill exists: ${!!currentMonthBill}`);
       console.log(`  ⚠️  Has PARTIAL payment: ${hasPartialPayment}`);
       if (lastPayment) {
-        console.log(`  💵 Last payment: ${lastPayment.amount} on ${lastPayment.paymentDate}`);
+        console.log(`  💵 Last completed payment: ${lastPayment.amount} on ${lastPayment.paymentDate} for ${lastPayment.forMonth}/${lastPayment.forYear}`);
       }
-      if (partialPayment) {
-        const expectedAmount = partialPayment.monthlyRent + (partialPayment.totalUtilityCost || 0);
-        const remainingBalance = expectedAmount - partialPayment.amount;
-        console.log(`  💰 Partial payment: Paid ${partialPayment.amount} / ${expectedAmount}, Balance: ${remainingBalance}`);
+      if (hasPartialPayment && currentMonthBill) {
+        const expectedAmount = currentMonthBill.monthlyRent + (currentMonthBill.totalUtilityCost || 0);
+        const remainingBalance = expectedAmount - currentMonthBill.amount;
+        console.log(`  💰 Partial payment: Paid ${currentMonthBill.amount} / ${expectedAmount}, Balance: ${remainingBalance}`);
       }
 
       // Calculate current month's due date
@@ -476,7 +543,7 @@ export class MongoStorage implements IStorage {
       const nextYear = currentMonth === 12 ? currentYear + 1 : currentYear;
       const nextDueDate = new Date(nextYear, nextMonth - 1, rentSettings.paymentDay);
       
-      let rentStatus: 'active' | 'overdue' | 'grace_period' | 'paid' = 'active';
+      let rentStatus: 'active' | 'overdue' | 'grace_period' | 'paid' | 'partial' = 'active';
       let daysRemaining: number;
       let daysOverdue: number = 0;
       
@@ -491,13 +558,19 @@ export class MongoStorage implements IStorage {
         daysRemaining = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
         console.log(`  ✨ No bill for current month - tenant is current: ${daysRemaining} days to next cycle`);
       } else if (currentMonthPaid) {
-        // Current month bill exists AND is paid
+        // Current month bill exists AND is fully paid
         rentStatus = 'paid';
         const timeDiff = nextDueDate.getTime() - now.getTime();
         daysRemaining = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
         console.log(`  ✅ PAID for ${currentMonth}/${currentYear}: Next due in ${daysRemaining} days (${nextDueDate.toDateString()})`);
+      } else if (hasPartialPayment) {
+        // Current month has partial payment - show as "partial" status
+        rentStatus = 'partial';
+        const timeDiff = nextDueDate.getTime() - now.getTime();
+        daysRemaining = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+        console.log(`  💰 PARTIAL PAYMENT for ${currentMonth}/${currentYear}: ${currentMonthBill.amount} paid`);
       } else {
-        // Current month bill exists but NOT PAID - check if overdue based on due date
+        // Current month bill exists but NO PAYMENT - check if overdue based on due date
         if (now >= currentDueDate) {
           // OVERDUE - calculate days PAST the due date (counting UP)
           const timeDiff = now.getTime() - currentDueDate.getTime();
@@ -526,13 +599,13 @@ export class MongoStorage implements IStorage {
 
       // Calculate partial payment details if exists
       let partialPaymentInfo = null;
-      if (hasPartialPayment && partialPayment) {
-        const expectedAmount = partialPayment.monthlyRent + (partialPayment.totalUtilityCost || 0);
+      if (hasPartialPayment && currentMonthBill) {
+        const expectedAmount = currentMonthBill.monthlyRent + (currentMonthBill.totalUtilityCost || 0);
         partialPaymentInfo = {
-          amountPaid: partialPayment.amount,
+          amountPaid: currentMonthBill.amount,
           expectedAmount,
-          remainingBalance: expectedAmount - partialPayment.amount,
-          paymentDate: partialPayment.paymentDate
+          remainingBalance: expectedAmount - currentMonthBill.amount,
+          paymentDate: currentMonthBill.paymentDate
         };
       }
 
@@ -852,11 +925,21 @@ export class MongoStorage implements IStorage {
         );
       }
 
-      // 2. Delete ALL payment history records for this tenant (complete financial history)
+      // 2. Delete ALL payment history records for this tenant (bills and transactions)
       const paymentDeleteResult = await PaymentHistoryModel.deleteMany({ tenantId: tenantId });
       console.log(`💰 Deleted ${paymentDeleteResult.deletedCount} payment history records`);
 
-      // 3. Delete the tenant document (includes login credentials: email/password)
+      // 3. Delete ALL tenant activity logs (tenant's personal activity feed)
+      const tenantActivityDeleteResult = await TenantActivityLogModel.deleteMany({ tenantId: tenantId });
+      console.log(`📋 Deleted ${tenantActivityDeleteResult.deletedCount} tenant activity logs`);
+
+      // 4. Delete ALL landlord activity logs related to this tenant
+      const landlordActivityDeleteResult = await ActivityLogModel.deleteMany({ 
+        'metadata.tenantId': tenantId 
+      });
+      console.log(`📊 Deleted ${landlordActivityDeleteResult.deletedCount} landlord activity logs`);
+
+      // 5. Delete the tenant document (includes login credentials: email/password)
       // This removes:
       // - Personal information (name, email, phone)
       // - Login credentials (email/password)
@@ -873,6 +956,8 @@ export class MongoStorage implements IStorage {
         console.log(`   - Tenant record: DELETED`);
         console.log(`   - Login credentials: DELETED`);
         console.log(`   - Payment history (${paymentDeleteResult.deletedCount} records): DELETED`);
+        console.log(`   - Tenant activity logs (${tenantActivityDeleteResult.deletedCount} records): DELETED`);
+        console.log(`   - Landlord activity logs (${landlordActivityDeleteResult.deletedCount} records): DELETED`);
         console.log(`   - Property association: REMOVED`);
         console.log(`   🎯 Tenant completely removed from database - no trace left`);
       } else {
@@ -920,55 +1005,126 @@ export class MongoStorage implements IStorage {
 
   async updateLandlordSettings(landlordId: string, updates: any): Promise<any> {
     try {
+      console.log('📝 Updating landlord settings:', { landlordId, updates });
+      
       const updateData: any = {};
       
+      // Handle profile updates (root level fields)
       if (updates.profile) {
-        Object.assign(updateData, updates.profile);
+        if (updates.profile.fullName) updateData.fullName = updates.profile.fullName;
+        if (updates.profile.email) updateData.email = updates.profile.email;
+        if (updates.profile.phone) updateData.phone = updates.profile.phone;
+        if (updates.profile.company) updateData.company = updates.profile.company;
+        if (updates.profile.address) updateData.address = updates.profile.address;
       }
       
-      if (updates.notifications || updates.preferences) {
-        updateData.settings = {
-          ...updates.notifications,
-          ...updates.preferences
-        };
+      // Handle notification and preference updates (nested in settings)
+      if (updates.notifications) {
+        updateData['settings.emailNotifications'] = updates.notifications.emailNotifications;
+        updateData['settings.smsNotifications'] = updates.notifications.smsNotifications;
+        updateData['settings.newTenantAlerts'] = updates.notifications.newTenantAlerts;
+        updateData['settings.paymentReminders'] = updates.notifications.paymentReminders;
       }
+      
+      if (updates.preferences) {
+        if (updates.preferences.currency) updateData['settings.currency'] = updates.preferences.currency;
+        if (updates.preferences.timezone) updateData['settings.timezone'] = updates.preferences.timezone;
+        if (updates.preferences.language) updateData['settings.language'] = updates.preferences.language;
+      }
+
+      console.log('📊 Update data prepared:', updateData);
 
       const updatedLandlord = await LandlordModel.findByIdAndUpdate(
         landlordId,
         { $set: updateData },
-        { new: true }
+        { new: true, runValidators: true }
       ).lean();
 
+      if (!updatedLandlord) {
+        throw new Error('Landlord not found');
+      }
+
+      console.log('✅ Landlord settings updated successfully');
       return this.getLandlordSettings(landlordId);
     } catch (error) {
-      console.error('Error updating landlord settings:', error);
+      console.error('❌ Error updating landlord settings:', error);
       throw error;
     }
   }
 
   async changeLandlordPassword(landlordId: string, currentPassword: string, newPassword: string): Promise<boolean> {
     try {
-      // verifies the current password
-      const landlord = await LandlordModel.findById(landlordId).lean();
+      console.log('🔐 Attempting to change password for landlord:', landlordId);
+      
+      // Verify the current password
+      const landlord = await LandlordModel.findById(landlordId);
       if (!landlord) {
-        throw new Error('Landlord not found');
+        console.log('❌ Landlord not found');
+        return false;
       }
 
+      console.log('🔍 Verifying current password...');
       if (landlord.password !== currentPassword) {
-        throw new Error('Current password is incorrect');
+        console.log('❌ Current password is incorrect');
+        return false;
       }
 
       // Update with new password
+      console.log('✅ Current password verified, updating to new password...');
       const result = await LandlordModel.findByIdAndUpdate(
         landlordId,
         { $set: { password: newPassword } },
         { new: true }
       );
 
-      return !!result;
+      if (result) {
+        console.log('✅ Password changed successfully');
+        return true;
+      }
+      
+      console.log('❌ Failed to update password');
+      return false;
     } catch (error) {
-      console.error('Error changing landlord password:', error);
-      throw error;
+      console.error('❌ Error changing landlord password:', error);
+      return false;
+    }
+  }
+
+  async changeTenantPassword(tenantId: string, currentPassword: string, newPassword: string): Promise<boolean> {
+    try {
+      console.log('🔐 Attempting to change password for tenant:', tenantId);
+      
+      // Verify the current password
+      const tenant = await TenantModel.findById(tenantId);
+      if (!tenant) {
+        console.log('❌ Tenant not found');
+        return false;
+      }
+
+      console.log('🔍 Verifying current password...');
+      if (tenant.password !== currentPassword) {
+        console.log('❌ Current password is incorrect');
+        return false;
+      }
+
+      // Update with new password
+      console.log('✅ Current password verified, updating to new password...');
+      const result = await TenantModel.findByIdAndUpdate(
+        tenantId,
+        { $set: { password: newPassword } },
+        { new: true }
+      );
+
+      if (result) {
+        console.log('✅ Password changed successfully');
+        return true;
+      }
+      
+      console.log('❌ Failed to update password');
+      return false;
+    } catch (error) {
+      console.error('❌ Error changing tenant password:', error);
+      return false;
     }
   }
 
@@ -1011,11 +1167,53 @@ export class MongoStorage implements IStorage {
         throw new Error('Invalid rent amount for tenant');
       }
 
-      console.log(`📝 Creating BILL for tenant ${tenantId}: $${paymentAmount} for ${forMonth}/${forYear}`);
+      // Calculate historical debt from previous unpaid months
+      const historicalBills = await PaymentHistoryModel.find({
+        tenantId,
+        status: { $in: ['pending', 'partial'] },
+        notes: { $not: /Payment transaction/ }, // Exclude transaction records
+        $or: [
+          { forYear: { $lt: forYear } }, // Previous years
+          { forYear: forYear, forMonth: { $lt: forMonth } } // Previous months this year
+        ]
+      });
+
+      let historicalDebt = 0;
+      const historicalDebtDetails: string[] = [];
+      
+      historicalBills.forEach(bill => {
+        const expected = bill.monthlyRent + (bill.totalUtilityCost || 0);
+        const paid = bill.amount || 0;
+        const balance = expected - paid;
+        
+        if (balance > 0) {
+          historicalDebt += balance;
+          historicalDebtDetails.push(`${bill.forMonth}/${bill.forYear}: KSH ${balance}`);
+        }
+      });
+
+      console.log(`📝 Creating BILL for tenant ${tenantId} for ${forMonth}/${forYear}`);
+      if (historicalDebt > 0) {
+        console.log(`  ⚠️  Including historical debt: KSH ${historicalDebt}`);
+        console.log(`  Details: ${historicalDebtDetails.join(', ')}`);
+      }
+
+      // Current month charges
+      const currentMonthCharges = monthlyRentAmount + (totalUtilityCost || 0);
+      
+      // Total bill = current month + historical debt
+      const totalBillAmount = currentMonthCharges + historicalDebt;
+
+      // Create notes including historical debt info
+      let billNotes = `Bill for ${forMonth}/${forYear} - Rent: KSH ${monthlyRentAmount}, Utilities: KSH ${totalUtilityCost || 0}`;
+      if (historicalDebt > 0) {
+        billNotes += ` | Includes historical debt: KSH ${historicalDebt} (${historicalDebtDetails.join(', ')})`;
+      }
 
       // Landlord is creating a BILL (not recording payment received)
       // Status is 'pending' until tenant actually pays
       // IMPORTANT: amount should be 0 initially (nothing paid yet)
+      // monthlyRent field stores just the rent, but we track total in notes
       const newPayment = await this.createPaymentHistory({
         tenantId,
         landlordId: tenant.apartmentInfo?.landlordId?.toString() || '',
@@ -1024,16 +1222,15 @@ export class MongoStorage implements IStorage {
         paymentDate,
         forMonth,
         forYear,
-        monthlyRent: monthlyRentAmount,
+        monthlyRent: totalBillAmount, // Store TOTAL expected (rent + utilities + historical debt)
         paymentMethod: 'Not specified', // Tenant will specify when paying
         status: 'pending', // Bill is pending payment
-        notes: `Bill for ${forMonth}/${forYear} - Rent: $${monthlyRentAmount}, Utilities: $${totalUtilityCost || 0}`,
+        notes: billNotes,
         utilityCharges: utilityCharges || [],
-        totalUtilityCost: totalUtilityCost || 0,
+        totalUtilityCost: totalUtilityCost || 0, // Keep utilities separate for display
       });
 
       // Log tenant activity - New bill created
-      const totalBillAmount = monthlyRentAmount + (totalUtilityCost || 0);
       await logTenantActivity(createTenantActivityLog(
         tenantId,
         'bill_created',
@@ -1085,72 +1282,283 @@ export class MongoStorage implements IStorage {
         throw new Error('This bill does not belong to this tenant');
       }
 
-      if (payment.status === 'completed') {
-        throw new Error('This bill has already been paid in full');
+      const tenantIdStr = payment.tenantId.toString();
+
+      console.log(`\n💳 Processing payment: KSH ${amountPaid} for tenant ${tenantIdStr}`);
+
+      // Check if this bill already includes historical debt (consolidated bill)
+      const billIncludesHistoricalDebt = payment.notes?.includes('Includes historical debt');
+      
+      if (billIncludesHistoricalDebt) {
+        console.log(`📝 This is a consolidated bill (includes historical debt)`);
+        
+        // For consolidated bills, payment goes to THIS bill only
+        // Historical bills will be marked as resolved separately
+        const expectedAmount = payment.monthlyRent; // Already includes everything
+        const previousAmountPaid = payment.amount || 0;
+        const totalPaidNow = previousAmountPaid + amountPaid;
+        
+        let paymentStatus: 'pending' | 'partial' | 'completed' | 'overpaid';
+        
+        if (totalPaidNow < expectedAmount) {
+          paymentStatus = 'partial';
+        } else if (totalPaidNow === expectedAmount) {
+          paymentStatus = 'completed';
+        } else {
+          paymentStatus = 'overpaid';
+        }
+
+        // Update this bill
+        await PaymentHistoryModel.findByIdAndUpdate(payment._id, {
+          $set: {
+            amount: totalPaidNow,
+            status: paymentStatus,
+            notes: payment.notes 
+              ? `${payment.notes} | Payment of ${amountPaid} received on ${new Date().toDateString()}`
+              : `Payment of ${amountPaid} received on ${new Date().toDateString()}`
+          }
+        });
+
+        // If fully paid or overpaid, mark ALL historical bills as completed (resolved by this payment)
+        if (paymentStatus === 'completed' || paymentStatus === 'overpaid') {
+          const historicalBills = await PaymentHistoryModel.find({
+            tenantId: tenantIdStr,
+            status: { $in: ['pending', 'partial'] },
+            notes: { $not: /Payment transaction/ },
+            $or: [
+              { forYear: { $lt: payment.forYear } },
+              { forYear: payment.forYear, forMonth: { $lt: payment.forMonth } }
+            ]
+          });
+
+          for (const oldBill of historicalBills) {
+            const oldExpected = oldBill.monthlyRent + (oldBill.totalUtilityCost || 0);
+            await PaymentHistoryModel.findByIdAndUpdate(oldBill._id, {
+              $set: {
+                amount: oldExpected, // Mark as fully paid
+                status: 'completed',
+                notes: (oldBill.notes || '') + ` | Resolved by ${payment.forMonth}/${payment.forYear} consolidated payment`
+              }
+            });
+            console.log(`  ✓ Marked historical bill ${oldBill.forMonth}/${oldBill.forYear} as completed`);
+          }
+        }
+
+        // Create transaction record
+        await this.createPaymentHistory({
+          tenantId: payment.tenantId.toString(),
+          landlordId: payment.landlordId.toString(),
+          propertyId: payment.propertyId.toString(),
+          amount: amountPaid,
+          paymentDate: new Date(),
+          forMonth: payment.forMonth,
+          forYear: payment.forYear,
+          monthlyRent: payment.monthlyRent,
+          paymentMethod,
+          status: paymentStatus,
+          notes: `Payment transaction for ${payment.forMonth}/${payment.forYear}`,
+          utilityCharges: payment.utilityCharges,
+          totalUtilityCost: payment.totalUtilityCost,
+        });
+
+        console.log(`✅ Consolidated payment processed: Status ${paymentStatus}`);
+        
+        // Skip the old smart allocation logic
+        const tenant = await TenantModel.findById(payment.tenantId);
+        const allPaid = paymentStatus === 'completed';
+        
+        if (tenant && tenant.apartmentInfo?.landlordId) {
+          await logActivity(createActivityLog(
+            tenant.apartmentInfo.landlordId.toString(),
+            allPaid ? 'payment_received' : 'debt_created',
+            allPaid ? 'Payment Received - All Clear' : 'Payment Received',
+            `${tenant.fullName} paid KSH ${amountPaid.toLocaleString()}${allPaid ? ' - All bills cleared including historical debt' : ''}`,
+            {
+              tenantId: tenant._id?.toString(),
+              tenantName: tenant.fullName,
+              propertyId: tenant.apartmentInfo.propertyId?.toString() || undefined,
+              propertyName: tenant.apartmentInfo.propertyName || undefined,
+              paymentId: payment._id?.toString(),
+              amount: amountPaid,
+              unitNumber: tenant.apartmentInfo.unitNumber || undefined,
+            },
+            allPaid ? 'medium' : 'low'
+          ));
+        }
+
+        await logTenantActivity(createTenantActivityLog(
+          payment.tenantId.toString(),
+          allPaid ? 'payment_processed' : 'partial_payment_received',
+          allPaid ? 'Payment Confirmed - All Clear' : 'Payment Received',
+          allPaid 
+            ? `Your payment of KSH ${amountPaid.toLocaleString()} has been processed. All bills are now paid!`
+            : `Payment of KSH ${amountPaid.toLocaleString()} received. Remaining balance: KSH ${(expectedAmount - totalPaidNow).toLocaleString()}`,
+          {
+            landlordId: payment.landlordId.toString(),
+            propertyId: payment.propertyId.toString(),
+            paymentId: payment._id?.toString(),
+            amount: amountPaid,
+          },
+          allPaid ? 'medium' : 'low'
+        ));
+
+        return true;
       }
 
-      // Calculate expected amount (rent + utilities)
-      const expectedAmount = payment.monthlyRent + (payment.totalUtilityCost || 0);
-      
-      // Track cumulative payments if there were previous partial payments
-      const previousAmountPaid = payment.amount || 0;
-      const totalPaidNow = previousAmountPaid + amountPaid;
-      
-      // Determine payment status
-      let paymentStatus: 'pending' | 'partial' | 'completed' | 'overpaid';
-      
-      if (totalPaidNow < expectedAmount) {
+      // Old logic for non-consolidated bills (kept for backwards compatibility)
+      // Get ALL unpaid/partial bills for this tenant (oldest first)
+      const allBills = await PaymentHistoryModel.find({
+        tenantId: tenantIdStr,
+        status: { $in: ['pending', 'partial'] },
+        notes: { $not: /Payment transaction/ } // Exclude transaction records
+      }).sort({ forYear: 1, forMonth: 1 }); // Oldest first
+
+      console.log(`📋 Found ${allBills.length} unpaid/partial bills for tenant`);
+      allBills.forEach(bill => {
+        const expected = bill.monthlyRent + (bill.totalUtilityCost || 0);
+        const paid = bill.amount || 0;
+        console.log(`  - ${bill.forMonth}/${bill.forYear}: Expected ${expected}, Paid ${paid}, Balance ${expected - paid}`);
+      });
+
+      // Smart payment allocation: distribute payment across bills (oldest first)
+      let remainingAmount = amountPaid;
+      const updatedBills: Array<{ bill: any; amountApplied: number; newStatus: string }> = [];
+
+      for (const bill of allBills) {
+        if (remainingAmount <= 0) break;
+
+        const expectedAmount = bill.monthlyRent + (bill.totalUtilityCost || 0);
+        const previousAmountPaid = bill.amount || 0;
+        const billBalance = expectedAmount - previousAmountPaid;
+
+        if (billBalance <= 0) continue; // Bill already paid, skip
+
+        const amountToApply = Math.min(remainingAmount, billBalance);
+        const newTotalPaid = previousAmountPaid + amountToApply;
+        
+        let newStatus: 'pending' | 'partial' | 'completed' | 'overpaid';
+        if (newTotalPaid < expectedAmount) {
+          newStatus = 'partial';
+        } else if (newTotalPaid === expectedAmount) {
+          newStatus = 'completed';
+        } else {
+          newStatus = 'overpaid';
+        }
+
+        updatedBills.push({
+          bill,
+          amountApplied: amountToApply,
+          newStatus
+        });
+
+        remainingAmount -= amountToApply;
+        
+        console.log(`  ✓ Applying KSH ${amountToApply} to ${bill.forMonth}/${bill.forYear} - New total: ${newTotalPaid}/${expectedAmount} (${newStatus})`);
+      }
+
+      // If there's still remaining amount, apply to the target bill (might create overpayment)
+      if (remainingAmount > 0 && payment) {
+        const expectedAmount = payment.monthlyRent + (payment.totalUtilityCost || 0);
+        const previousAmountPaid = payment.amount || 0;
+        const amountToApply = remainingAmount;
+        const newTotalPaid = previousAmountPaid + amountToApply;
+        
+        let newStatus: 'pending' | 'partial' | 'completed' | 'overpaid';
+        if (newTotalPaid < expectedAmount) {
+          newStatus = 'partial';
+        } else if (newTotalPaid === expectedAmount) {
+          newStatus = 'completed';
+        } else {
+          newStatus = 'overpaid';
+        }
+
+        // Check if this bill is already in updatedBills
+        const existingUpdate = updatedBills.find(u => u.bill._id.toString() === payment._id.toString());
+        if (existingUpdate) {
+          existingUpdate.amountApplied += amountToApply;
+          const totalApplied = (payment.amount || 0) + existingUpdate.amountApplied;
+          existingUpdate.newStatus = totalApplied < expectedAmount ? 'partial' : totalApplied === expectedAmount ? 'completed' : 'overpaid';
+        } else {
+          updatedBills.push({
+            bill: payment,
+            amountApplied: amountToApply,
+            newStatus
+          });
+        }
+
+        console.log(`  ✓ Applying remaining KSH ${amountToApply} to ${payment.forMonth}/${payment.forYear}`);
+        remainingAmount = 0;
+      }
+
+      // Determine overall payment status for the transaction record
+      let paymentStatus: 'pending' | 'partial' | 'completed' | 'overpaid' = 'completed';
+      const allBillsPaid = updatedBills.every(u => u.newStatus === 'completed' || u.newStatus === 'overpaid');
+      if (!allBillsPaid) {
         paymentStatus = 'partial';
-        console.log(`⚠️  Partial payment: Paid ${totalPaidNow} / ${expectedAmount}`);
-      } else if (totalPaidNow === expectedAmount) {
-        paymentStatus = 'completed';
-        console.log(`✅ Full payment: Paid ${totalPaidNow} / ${expectedAmount}`);
-      } else {
-        paymentStatus = 'overpaid';
-        console.log(`💰 Overpaid: Paid ${totalPaidNow} / ${expectedAmount}`);
       }
 
-      // Create a NEW payment transaction record (separate receipt for this payment)
-      const paymentTransaction = await this.createPaymentHistory({
+      // Apply updates to all affected bills
+      for (const update of updatedBills) {
+        const newTotalPaid = (update.bill.amount || 0) + update.amountApplied;
+        
+        await PaymentHistoryModel.findByIdAndUpdate(update.bill._id, {
+          $set: {
+            amount: newTotalPaid,
+            status: update.newStatus,
+            notes: update.bill.notes 
+              ? `${update.bill.notes} | Payment of ${update.amountApplied} received on ${new Date().toDateString()}`
+              : `Payment of ${update.amountApplied} received on ${new Date().toDateString()}`
+          }
+        });
+
+        console.log(`  📝 Updated bill ${update.bill.forMonth}/${update.bill.forYear}: Total now ${newTotalPaid}, Status: ${update.newStatus}`);
+      }
+
+      // Create a transaction record for this payment (for receipt purposes)
+      const billsAffected = updatedBills.map(u => `${u.bill.forMonth}/${u.bill.forYear}`).join(', ');
+      await this.createPaymentHistory({
         tenantId: payment.tenantId.toString(),
         landlordId: payment.landlordId.toString(),
         propertyId: payment.propertyId.toString(),
-        amount: amountPaid, // Only the amount paid in THIS transaction
+        amount: amountPaid,
         paymentDate: new Date(),
         forMonth: payment.forMonth,
         forYear: payment.forYear,
         monthlyRent: payment.monthlyRent,
         paymentMethod,
-        status: paymentStatus, // Use the calculated status (partial/completed/overpaid)
-        notes: `Payment transaction for ${payment.forMonth}/${payment.forYear}`,
+        status: paymentStatus,
+        notes: `Payment transaction for ${payment.forMonth}/${payment.forYear} (Applied to: ${billsAffected})`,
         utilityCharges: payment.utilityCharges,
         totalUtilityCost: payment.totalUtilityCost,
       });
 
-      // Update the original bill to track cumulative payment status
-      await PaymentHistoryModel.findByIdAndUpdate(paymentId, {
-        $set: {
-          amount: totalPaidNow, // Update with cumulative amount
-          status: paymentStatus,
-          notes: payment.notes 
-            ? `${payment.notes} | Payment of ${amountPaid} received on ${new Date().toDateString()}`
-            : `Payment of ${amountPaid} received on ${new Date().toDateString()}`
-        }
-      });
-
-      console.log(`✅ Payment processed: Tenant ${payment.tenantId} paid ${amountPaid} for ${payment.forMonth}/${payment.forYear}`);
-      console.log(`   Total paid: ${totalPaidNow} / ${expectedAmount}, Status: ${paymentStatus}, Method: ${paymentMethod}`);
+      console.log(`✅ Payment of KSH ${amountPaid} processed successfully`);
+      console.log(`   Method: ${paymentMethod}, Applied to ${updatedBills.length} bill(s): ${billsAffected}`);
 
       // Get tenant info for activity log
       const tenant = await TenantModel.findById(payment.tenantId);
       
+      // Calculate total remaining balance across all unpaid bills
+      const remainingBills = await PaymentHistoryModel.find({
+        tenantId: tenantIdStr,
+        status: { $in: ['pending', 'partial'] },
+        notes: { $not: /Payment transaction/ }
+      });
+      
+      const totalRemainingBalance = remainingBills.reduce((sum, bill) => {
+        const expected = bill.monthlyRent + (bill.totalUtilityCost || 0);
+        const paid = bill.amount || 0;
+        return sum + (expected - paid);
+      }, 0);
+      
       // Log payment activity for LANDLORD
       if (tenant && tenant.apartmentInfo?.landlordId) {
+        const allPaid = totalRemainingBalance === 0;
         await logActivity(createActivityLog(
           tenant.apartmentInfo.landlordId.toString(),
-          paymentStatus === 'completed' || paymentStatus === 'overpaid' ? 'payment_received' : 'debt_created',
-          paymentStatus === 'completed' ? 'Payment Received' : 'Partial Payment Received',
-          `${tenant.fullName} paid KSH ${amountPaid.toLocaleString()} for ${payment.forMonth}/${payment.forYear}${paymentStatus === 'partial' ? ` (${totalPaidNow}/${expectedAmount} paid)` : ''}`,
+          allPaid ? 'payment_received' : 'debt_created',
+          allPaid ? 'Payment Received' : 'Payment Received',
+          `${tenant.fullName} paid KSH ${amountPaid.toLocaleString()}${allPaid ? ' - All bills cleared' : ` - ${updatedBills.length} bill(s) updated`}`,
           {
             tenantId: tenant._id?.toString(),
             tenantName: tenant.fullName,
@@ -1160,25 +1568,26 @@ export class MongoStorage implements IStorage {
             amount: amountPaid,
             unitNumber: tenant.apartmentInfo.unitNumber || undefined,
           },
-          paymentStatus === 'completed' ? 'medium' : 'low'
+          allPaid ? 'medium' : 'low'
         ));
       }
 
       // Log payment activity for TENANT
+      const allPaid = totalRemainingBalance === 0;
       await logTenantActivity(createTenantActivityLog(
         payment.tenantId.toString(),
-        paymentStatus === 'completed' || paymentStatus === 'overpaid' ? 'payment_processed' : 'partial_payment_received',
-        paymentStatus === 'completed' ? 'Payment Confirmed' : 'Partial Payment Received',
-        paymentStatus === 'completed' 
-          ? `Your payment of KSH ${amountPaid.toLocaleString()} for ${payment.forMonth}/${payment.forYear} has been processed successfully.`
-          : `Partial payment of KSH ${amountPaid.toLocaleString()} received. Remaining balance: KSH ${(expectedAmount - totalPaidNow).toLocaleString()}`,
+        allPaid ? 'payment_processed' : 'partial_payment_received',
+        allPaid ? 'Payment Confirmed - All Clear' : 'Payment Received',
+        allPaid 
+          ? `Your payment of KSH ${amountPaid.toLocaleString()} has been processed. All bills are now paid!`
+          : `Payment of KSH ${amountPaid.toLocaleString()} received and applied to ${updatedBills.length} bill(s). Remaining balance: KSH ${totalRemainingBalance.toLocaleString()}`,
         {
           landlordId: payment.landlordId.toString(),
           propertyId: payment.propertyId.toString(),
           paymentId: payment._id?.toString(),
           amount: amountPaid,
         },
-        paymentStatus === 'completed' ? 'medium' : 'low'
+        allPaid ? 'medium' : 'low'
       ));
 
       // Rent cycle will show this month as paid only if status is 'completed'

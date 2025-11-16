@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { useCurrentUser as useAuthUser } from "@/hooks/useAuth";
 import type { 
   CurrentUser, 
   Property, 
@@ -13,22 +14,9 @@ import type {
   PropertyFormState 
 } from "@/types/dashboard";
 
+// Re-export from useAuth for backward compatibility
 export function useCurrentUser(): CurrentUser | null {
-  const getCurrentUser = () => {
-    try {
-      // Try both keys for compatibility
-      let userData = localStorage.getItem('rentease_user');
-      if (!userData) {
-        userData = localStorage.getItem('currentUser');
-      }
-      return userData ? JSON.parse(userData) : null;
-    } catch (error) {
-      console.error('Error parsing user data:', error);
-      return null;
-    }
-  };
-
-  return getCurrentUser();
+  return useAuthUser();
 }
 
 export function useDashboardState() {

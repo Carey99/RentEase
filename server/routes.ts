@@ -12,6 +12,8 @@ import { LandlordController } from "./controllers/landlordController";
 import { PaymentController } from "./controllers/paymentController";
 import { DarajaConfigController } from "./controllers/darajaConfigController";
 import { handleSTKCallback, handleSTKTimeout } from "./controllers/darajaCallbackController";
+import { ReceiptController } from "./controllers/receiptController";
+import { CashPaymentController } from "./controllers/cashPaymentController";
 import { 
   getRecentActivities, 
   markActivityAsRead, 
@@ -30,6 +32,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/register", AuthController.register);
   app.post("/api/auth/login", AuthController.login);
   app.post("/api/auth/signin", AuthController.signin);
+  app.post("/api/auth/logout", AuthController.logout);
+  app.get("/api/auth/session", AuthController.getSession);
   app.get("/api/users/:id", AuthController.getUserById);
   app.get("/api/auth/current/:id", AuthController.getUserById);
 
@@ -51,6 +55,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/tenants/:tenantId", TenantController.getTenant);
   app.put("/api/tenants/:tenantId", TenantController.updateTenant);
   app.delete("/api/tenants/:tenantId", TenantController.deleteTenant);
+  app.put("/api/tenants/:tenantId/password", TenantController.changePassword);
   app.post("/api/tenants/:tenantId/payment", TenantController.recordPayment); // Landlord creates bill
   app.post("/api/tenants/:tenantId/make-payment", TenantController.makePayment); // Tenant pays bill
 
@@ -77,9 +82,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/payment-history/tenant/:tenantId/recorded-months/:year", PaymentController.getRecordedMonths);
   app.delete("/api/payment-history/:paymentId", PaymentController.deletePaymentHistory);
 
+  // Cash payment routes
+  app.post("/api/payments/cash", CashPaymentController.recordCashPayment);
+
   // Daraja payment routes (STK Push)
   app.post("/api/payments/initiate", PaymentController.initiatePayment);
   app.get("/api/payments/:paymentIntentId/status", PaymentController.getPaymentStatus);
+  
+  // Receipt download route
+  app.get("/api/payments/:paymentId/receipt", ReceiptController.downloadReceipt);
 
   // Daraja callback routes (webhooks from M-Pesa)
   app.post("/api/daraja/callback", handleSTKCallback);

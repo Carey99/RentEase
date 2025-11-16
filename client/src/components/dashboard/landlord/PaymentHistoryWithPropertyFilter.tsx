@@ -1,8 +1,9 @@
 import { useState } from "react";
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Calendar, DollarSign, CreditCard } from "lucide-react";
+import { Calendar, DollarSign, CreditCard, Download } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import PropertySelector from "./PropertySelector";
 import { useCurrentUser } from "@/hooks/dashboard/useDashboard";
 
@@ -12,7 +13,40 @@ interface PaymentHistoryWithPropertyFilterProps {
 
 export default function PaymentHistoryWithPropertyFilter({ className }: PaymentHistoryWithPropertyFilterProps) {
   const [selectedPropertyId, setSelectedPropertyId] = useState<string>("all");
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const currentUser = useCurrentUser();
+  
+  // Download receipt handler
+  const handleDownloadReceipt = async (paymentId: string) => {
+    try {
+      setDownloadingId(paymentId);
+      const response = await fetch(`/api/payments/${paymentId}/receipt`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to generate receipt');
+      }
+      
+      // Get the blob and create a download link
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `receipt-${paymentId.substring(0, 8)}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      
+      // Small delay before cleanup to ensure download starts
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }, 100);
+    } catch (error) {
+      console.error('Error downloading receipt:', error);
+      alert('Failed to download receipt. Please try again.');
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   // Fetch landlord's properties
   const propertiesQuery = useQuery({
@@ -186,6 +220,7 @@ export default function PaymentHistoryWithPropertyFilter({ className }: PaymentH
                     <th className="text-left py-3 px-4 font-semibold text-neutral-900">Amount</th>
                     <th className="text-left py-3 px-4 font-semibold text-neutral-900">Status</th>
                     <th className="text-left py-3 px-4 font-semibold text-neutral-900">Method</th>
+                    <th className="text-center py-3 px-4 font-semibold text-neutral-900">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -228,6 +263,24 @@ export default function PaymentHistoryWithPropertyFilter({ className }: PaymentH
                       </td>
                       <td className="py-3 px-4 text-neutral-700 capitalize">
                         {payment.paymentMethod || 'N/A'}
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        {payment.status === 'completed' && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDownloadReceipt(payment._id)}
+                            disabled={downloadingId === payment._id}
+                            className="h-8 w-8 p-0"
+                            title="Download Receipt"
+                          >
+                            {downloadingId === payment._id ? (
+                              <span className="animate-spin">⏳</span>
+                            ) : (
+                              <Download className="h-4 w-4" />
+                            )}
+                          </Button>
+                        )}
                       </td>
                     </tr>
                   ))}

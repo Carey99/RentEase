@@ -71,29 +71,69 @@ export class RentCycleScheduler {
         return;
       }
       
-      console.log(`  🔄 New month detected! Resetting all currentMonthPaid flags...`);
+      console.log(`  🔄 New month detected! Checking which tenants need currentMonthPaid reset...`);
       
-      // Update all tenants: reset currentMonthPaid to false
-      const result = await TenantModel.updateMany(
-        {}, // All tenants
-        {
-          $set: {
-            'rentCycle.currentMonthPaid': false,
-            // Don't update paidForMonth/paidForYear - keep history
-          }
+      // Get all tenants to check their status
+      const allTenants = await TenantModel.find({}).lean();
+      console.log(`  📊 Total tenants: ${allTenants.length}`);
+      
+      // Only reset currentMonthPaid to false for tenants who:
+      // Haven't paid for the current month (paidForMonth !== currentMonth OR paidForYear !== currentYear)
+      const tenantsToReset = allTenants.filter(t => {
+        const paidForMonth = t.rentCycle?.paidForMonth;
+        const paidForYear = t.rentCycle?.paidForYear;
+        
+        // Reset if:
+        // 1. No payment record at all
+        // 2. Paid for a different month
+        // 3. Paid for a different year
+        const shouldReset = !paidForMonth || !paidForYear || 
+                           paidForMonth !== currentMonth || 
+                           paidForYear !== currentYear;
+        
+        if (!shouldReset) {
+          console.log(`  ✅ ${t.fullName}: Already paid for ${currentMonth}/${currentYear}, keeping currentMonthPaid=true`);
         }
+        
+        return shouldReset;
+      });
+      
+      console.log(`  🔄 Resetting ${tenantsToReset.length} tenants who haven't paid for ${currentMonth}/${currentYear}`);
+      
+      // Update only the tenants that need resetting
+      const tenantIdsToReset = tenantsToReset.map(t => t._id);
+      
+      const result = await TenantModel.updateMany(
+        { _id: { $in: tenantIdsToReset } },
+        { $set: { 'rentCycle.currentMonthPaid': false } }
       );
       
-      console.log(`  ✅ Reset currentMonthPaid for ${result.modifiedCount} tenants`);
+      // ALSO: Set currentMonthPaid=true for tenants who HAVE paid for current month
+      const tenantsPaid = allTenants.filter(t => {
+        const paidForMonth = t.rentCycle?.paidForMonth;
+        const paidForYear = t.rentCycle?.paidForYear;
+        return paidForMonth === currentMonth && paidForYear === currentYear;
+      });
+      
+      if (tenantsPaid.length > 0) {
+        const tenantIdsPaid = tenantsPaid.map(t => t._id);
+        await TenantModel.updateMany(
+          { _id: { $in: tenantIdsPaid } },
+          { $set: { 'rentCycle.currentMonthPaid': true } }
+        );
+        console.log(`  ✅ Set currentMonthPaid=true for ${tenantsPaid.length} tenants who paid for ${currentMonth}/${currentYear}`);
+      }
+      
+      console.log(`  ✅ Reset currentMonthPaid for ${result.modifiedCount} tenants who haven't paid`);
       console.log(`  📊 Current month: ${currentMonth}/${currentYear}`);
       
       // Update last processed month
       this.lastProcessedMonth = currentMonth;
       
-      // Log details for debugging
-      const allTenants = await TenantModel.find({}).select('fullName rentCycle').lean();
+      // Log details for debugging (requery to get updated states)
+      const updatedTenants = await TenantModel.find({}).select('fullName rentCycle').lean();
       console.log('  📋 Tenant rent cycle states after reset:');
-      allTenants.forEach(tenant => {
+      updatedTenants.forEach(tenant => {
         console.log(`    - ${tenant.fullName}: currentMonthPaid=${tenant.rentCycle?.currentMonthPaid}, paidFor=${tenant.rentCycle?.paidForMonth}/${tenant.rentCycle?.paidForYear}`);
       });
       

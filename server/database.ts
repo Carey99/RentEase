@@ -86,10 +86,19 @@ const landlordSchema = new mongoose.Schema({
   paymentMethod: { type: String, enum: ['daraja', 'statement_upload', 'manual'], default: 'manual' },
   // Daraja M-Pesa configuration (per landlord)
   darajaConfig: {
+    // Landlord's own Daraja credentials
+    consumerKey: { type: String }, // Landlord's Daraja Consumer Key
+    consumerSecret: { type: String }, // Landlord's Daraja Consumer Secret
+    passkey: { type: String }, // Landlord's Lipa Na M-Pesa Online Passkey
+    environment: { type: String, enum: ['sandbox', 'production'], default: 'production' }, // Their environment
+    
+    // Business details
     businessShortCode: { type: String }, // Landlord's paybill or till number
     businessType: { type: String, enum: ['paybill', 'till'] }, // Type of M-Pesa account
     businessName: { type: String }, // Name for receipts/statements
     accountNumber: { type: String }, // Optional: for paybill account reference
+    
+    // Status tracking
     isConfigured: { type: Boolean, default: false },
     isActive: { type: Boolean, default: false },
     configuredAt: { type: Date },

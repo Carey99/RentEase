@@ -9,11 +9,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CheckCircle2, XCircle, AlertCircle, Calendar, Zap } from "lucide-react";
+import { CheckCircle2, XCircle, AlertCircle, Calendar, Zap, Download, Loader2, ChevronDown, ChevronRight, User } from "lucide-react";
 import { isTransactionRecord, expectedForBill, paidForBill } from "@/lib/payment-utils";
 import { cn } from "@/lib/utils";
 import { formatPaymentHistoryMonth } from "@/lib/rent-cycle-utils";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 interface UtilityCharge {
   type: string;
@@ -34,6 +40,16 @@ interface PaymentHistoryItem {
   notes?: string;
   utilityCharges?: UtilityCharge[];
   totalUtilityCost?: number;
+  tenant?: {
+    _id: string;
+    id: string;
+    name: string;
+  };
+  property?: {
+    _id: string;
+    id: string;
+    name: string;
+  };
 }
 
 interface MonthlyPaymentBreakdownProps {
@@ -51,6 +67,8 @@ export default function MonthlyPaymentBreakdown({
 }: MonthlyPaymentBreakdownProps) {
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState<string>(currentYear.toString());
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [expandedTenants, setExpandedTenants] = useState<Set<string>>(new Set());
 
   // Fetch payment history
   const { data: payments = [], isLoading } = useQuery<PaymentHistoryItem[]>({
@@ -83,26 +101,114 @@ export default function MonthlyPaymentBreakdown({
     return payments.filter((p) => p.forYear === parseInt(selectedYear));
   }, [payments, selectedYear]);
 
-  // Group payments by month
-  const monthlyBreakdown = useMemo(() => {
-    const breakdown: Record<number, PaymentHistoryItem[]> = {};
+  // Group payments by tenant, then by month (only bill records, not transactions)
+  const tenantPaymentGroups = useMemo(() => {
+    const groups: Record<string, {
+      tenantId: string;
+      tenantName: string;
+      propertyName: string;
+      payments: Record<number, PaymentHistoryItem[]>;
+    }> = {};
     
-    yearPayments.forEach((payment) => {
-      if (!breakdown[payment.forMonth]) {
-        breakdown[payment.forMonth] = [];
+    // Filter to only bill records
+    const billRecords = yearPayments.filter(p => !isTransactionRecord(p));
+    
+    billRecords.forEach((payment) => {
+      const tenantId = payment.tenant?.id || payment.tenant?._id || 'unknown';
+      const tenantName = payment.tenant?.name || 'Unknown Tenant';
+      const propertyName = payment.property?.name || 'Unknown Property';
+      
+      if (!groups[tenantId]) {
+        groups[tenantId] = {
+          tenantId,
+          tenantName,
+          propertyName,
+          payments: {}
+        };
       }
-      breakdown[payment.forMonth].push(payment);
+      
+      if (!groups[tenantId].payments[payment.forMonth]) {
+        groups[tenantId].payments[payment.forMonth] = [];
+      }
+      
+      groups[tenantId].payments[payment.forMonth].push(payment);
     });
 
-    return breakdown;
+    return groups;
   }, [yearPayments]);
 
-  // Get only months that have payments, sorted
-  const billedMonths = useMemo(() => {
-    return Object.keys(monthlyBreakdown)
-      .map(Number)
-      .sort((a, b) => b - a); // Most recent first
-  }, [monthlyBreakdown]);
+  // Calculate totals per tenant
+  const tenantTotals = useMemo(() => {
+    const totals: Record<string, { expected: number; paid: number; balance: number }> = {};
+    
+    Object.entries(tenantPaymentGroups).forEach(([tenantId, group]) => {
+      let expected = 0;
+      let paid = 0;
+      
+      Object.values(group.payments).forEach(monthPayments => {
+        monthPayments.forEach(payment => {
+          expected += expectedForBill(payment);
+          paid += paidForBill(payment);
+        });
+      });
+      
+      totals[tenantId] = {
+        expected,
+        paid,
+        balance: expected - paid
+      };
+    });
+    
+    return totals;
+  }, [tenantPaymentGroups]);
+
+  const toggleTenant = (tenantId: string) => {
+    setExpandedTenants(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(tenantId)) {
+        newSet.delete(tenantId);
+      } else {
+        newSet.add(tenantId);
+      }
+      return newSet;
+    });
+  };
+
+  // Download receipt handler
+  const handleDownloadReceipt = async (paymentId: string) => {
+    setDownloadingId(paymentId);
+    try {
+      const response = await fetch(`/api/payments/${paymentId}/receipt`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to download receipt');
+      }
+
+      // Get the blob from response
+      const blob = await response.blob();
+      
+      // Create a temporary URL for the blob
+      const url = window.URL.createObjectURL(blob);
+      
+      // Create a temporary anchor element and trigger download
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `receipt-${paymentId.substring(0, 8)}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      
+      // Small delay before cleanup to ensure download starts
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }, 100);
+    } catch (error) {
+      console.error('Error downloading receipt:', error);
+      alert('Failed to download receipt. Please try again.');
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   // Calculate totals for the year
   const yearTotals = useMemo(() => {
@@ -212,84 +318,148 @@ export default function MonthlyPaymentBreakdown({
       </CardHeader>
 
       <CardContent>
-        {billedMonths.length === 0 ? (
+        {Object.keys(tenantPaymentGroups).length === 0 ? (
           <div className="text-center py-8 text-neutral-500">
             <p>No payments for {selectedYear}</p>
           </div>
         ) : (
           <div className="space-y-4">
-            {/* Year Summary */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="flex justify-between items-center">
-                <div>
-                  <p className="text-sm text-neutral-600">Total Paid in {selectedYear}</p>
-                  <p className="text-2xl font-bold text-blue-900">
-                    KSH {yearTotals.totalPaid.toLocaleString()}
-                  </p>
-                </div>
-                {yearTotals.totalExpected > 0 && (
-                  <div className="text-right">
-                    <p className="text-sm text-neutral-600">Expected</p>
-                    <p className="text-lg font-semibold text-neutral-700">
-                      KSH {yearTotals.totalExpected.toLocaleString()}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Monthly Breakdown */}
+            {/* Grouped by Tenant */}
             <div className="space-y-3">
-              {billedMonths.map((month) => {
-                const monthPayments = monthlyBreakdown[month];
-                // Sum amounts based on actual paid amounts and expected using helpers
-                const nonTransactionPayments = monthPayments.filter(p => !isTransactionRecord(p));
-                const monthTotal = nonTransactionPayments.reduce((sum, p) => sum + paidForBill(p), 0);
-                // Calculate expected for this month (rent + utilities from all bills for this month)
-                const monthExpected = nonTransactionPayments.reduce((sum, p) => sum + expectedForBill(p), 0);
-                const isPaid = monthTotal >= monthExpected && monthExpected > 0;
+              {Object.entries(tenantPaymentGroups).map(([tenantId, group]) => {
+                const totals = tenantTotals[tenantId];
+                const isExpanded = expandedTenants.has(tenantId);
+                const monthCount = Object.keys(group.payments).length;
+                
+                // Get sorted months for this tenant (most recent first)
+                const tenantMonths = Object.keys(group.payments)
+                  .map(Number)
+                  .sort((a, b) => b - a);
                 
                 return (
-                  <div
-                    key={month}
-                    className="border rounded-lg p-4 hover:shadow-md transition-shadow"
+                  <Collapsible
+                    key={tenantId}
+                    open={isExpanded}
+                    onOpenChange={() => toggleTenant(tenantId)}
                   >
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        {getPaymentStatusIcon(monthPayments[0].status)}
-                        <h4 className="font-semibold">
-                          {formatPaymentHistoryMonth(month, parseInt(selectedYear))}
-                        </h4>
-                      </div>
-                      {getPaymentStatusBadge(monthPayments[0].status)}
-                    </div>
-
-                    {monthPayments.map((payment) => (
-                      <div
-                        key={payment._id}
-                        className="space-y-3 py-2 border-t first:border-t-0"
-                      >
-                        <div className="grid grid-cols-3 gap-4">
+                    <div className="border rounded-lg bg-white overflow-hidden">
+                      {/* Tenant Header - Clickable */}
+                      <CollapsibleTrigger asChild>
+                        <div className="p-4 hover:bg-neutral-50 cursor-pointer transition-colors">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3 flex-1">
+                              {isExpanded ? (
+                                <ChevronDown className="h-5 w-5 text-neutral-500" />
+                              ) : (
+                                <ChevronRight className="h-5 w-5 text-neutral-500" />
+                              )}
+                              <User className="h-5 w-5 text-blue-600" />
+                              <div>
+                                <h4 className="font-semibold text-neutral-900">{group.tenantName}</h4>
+                                <p className="text-sm text-neutral-500">{group.propertyName} · {monthCount} {monthCount === 1 ? 'bill' : 'bills'}</p>
+                              </div>
+                            </div>
+                            
+                            {/* Tenant Summary */}
+                            <div className="flex items-center gap-4">
+                              <div className="text-right">
+                                <p className="text-xs text-neutral-500">Total Paid</p>
+                                <p className="font-semibold text-green-600">KSH {totals.paid.toLocaleString()}</p>
+                              </div>
+                              {totals.balance !== 0 && (
+                                <div className="text-right">
+                                  <p className="text-xs text-neutral-500">Balance</p>
+                                  <p className={`font-semibold ${totals.balance > 0 ? 'text-orange-600' : 'text-blue-600'}`}>
+                                    KSH {Math.abs(totals.balance).toLocaleString()}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </CollapsibleTrigger>
+                      
+                      {/* Collapsible Content - Monthly Bills */}
+                      <CollapsibleContent>
+                        <div className="border-t bg-neutral-50 p-4 space-y-3">
+                          {tenantMonths.map((month) => {
+                            const monthPayments = group.payments[month];
+                            const billRecord = monthPayments[0]; // Should only be one bill per month
+                            const expectedAmount = expectedForBill(billRecord);
+                            const paidAmount = paidForBill(billRecord);
+                            const balanceAmount = expectedAmount - paidAmount;
+                      
+                            return (
+                              <div
+                                key={month}
+                                className="bg-white border rounded-lg p-3 space-y-3"
+                              >
+                                {/* Month Header */}
+                                <div className="flex items-center justify-between pb-2 border-b">
+                                  <div className="flex items-center gap-2">
+                                    {getPaymentStatusIcon(billRecord.status)}
+                                    <h5 className="font-medium text-neutral-900">
+                                      {formatPaymentHistoryMonth(month, parseInt(selectedYear))}
+                                    </h5>
+                                  </div>
+                                  {getPaymentStatusBadge(billRecord.status)}
+                                </div>
+                                
+                                {/* Bill Summary Grid */}
+                                <div className="grid grid-cols-4 gap-4 bg-neutral-50 rounded-lg p-3">
                           <div>
-                            <p className="text-sm text-neutral-600">Payment Date</p>
-                            <p className="font-medium">
-                              {new Date(payment.paymentDate).toLocaleDateString()}
+                            <p className="text-xs text-neutral-500 mb-1">Expected</p>
+                            <p className="font-semibold text-neutral-900">
+                              KSH {expectedAmount.toLocaleString()}
                             </p>
                           </div>
                           <div>
-                            <p className="text-sm text-neutral-600">Amount</p>
-                            <p className="font-medium">KSH {payment.amount.toLocaleString()}</p>
+                            <p className="text-xs text-neutral-500 mb-1">Paid</p>
+                            <p className="font-semibold text-green-600">
+                              KSH {paidAmount.toLocaleString()}
+                            </p>
                           </div>
                           <div>
-                            <p className="text-sm text-neutral-600">Method</p>
-                            <p className="font-medium text-sm">
-                              {payment.paymentMethod || "Not specified"}
+                            <p className="text-xs text-neutral-500 mb-1">Balance</p>
+                            <p className={`font-semibold ${balanceAmount > 0 ? 'text-orange-600' : 'text-green-600'}`}>
+                              KSH {Math.abs(balanceAmount).toLocaleString()}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-neutral-500 mb-1">Method</p>
+                            <p className="font-medium text-sm text-neutral-700">
+                              {billRecord.paymentMethod || "Cash"}
                             </p>
                           </div>
                         </div>
 
+                        {/* Download Receipt Button - Only for completed payments */}
+                        {billRecord.status === "completed" && (
+                          <div className="flex justify-end">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleDownloadReceipt(billRecord._id)}
+                              disabled={downloadingId === billRecord._id}
+                              className="gap-2"
+                            >
+                              {downloadingId === billRecord._id ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                  Downloading...
+                                </>
+                              ) : (
+                                <>
+                                  <Download className="h-4 w-4" />
+                                  Download Receipt
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        )}
+
                         {/* Utility Charges Breakdown */}
-                        {payment.utilityCharges && payment.utilityCharges.length > 0 && (
+                        {billRecord.utilityCharges && billRecord.utilityCharges.length > 0 && (
                           <div className="bg-amber-50 border border-amber-200 rounded-md p-3 space-y-2">
                             <div className="flex items-center gap-2 mb-2">
                               <Zap className="h-4 w-4 text-amber-600" />
@@ -298,65 +468,31 @@ export default function MonthlyPaymentBreakdown({
                             
                             <div className="space-y-1">
                               <div className="text-sm text-neutral-700">
-                                <span className="font-medium">Rent:</span> KSH {payment.monthlyRent.toLocaleString()}
+                                <span className="font-medium">Rent:</span> KSH {billRecord.monthlyRent.toLocaleString()}
                               </div>
                               
-                              {payment.utilityCharges.map((utility, idx) => (
+                              {billRecord.utilityCharges.map((utility, idx) => (
                                 <div key={idx} className="text-sm text-neutral-700">
                                   <span className="font-medium">{utility.type}:</span>{" "}
                                   {utility.unitsUsed} units × KSH {utility.pricePerUnit.toLocaleString()} = KSH {utility.total.toLocaleString()}
                                 </div>
                               ))}
                               
-                              {payment.totalUtilityCost && payment.totalUtilityCost > 0 && (
+                              {billRecord.totalUtilityCost && billRecord.totalUtilityCost > 0 && (
                                 <div className="pt-2 border-t border-amber-300 text-sm font-semibold text-amber-900">
-                                  Total Utilities: KSH {payment.totalUtilityCost.toLocaleString()}
+                                  Total Utilities: KSH {billRecord.totalUtilityCost.toLocaleString()}
                                 </div>
                               )}
                             </div>
                           </div>
                         )}
-                        
-                        {payment.notes && (
-                          <div className="text-sm text-neutral-600 italic">
-                            {payment.notes}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-
-                    {/* Month Summary - Show Expected vs Paid */}
-                    <div className="mt-3 pt-3 border-t bg-neutral-50 -mx-4 -mb-4 px-4 py-3 rounded-b-lg">
-                      <div className="space-y-1">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-neutral-600">Expected (Rent + Utilities):</span>
-                          <span className="font-medium">KSH {monthExpected.toLocaleString()}</span>
+                              </div>
+                            );
+                          })}
                         </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-neutral-600">Paid:</span>
-                          <span className={`font-semibold ${isPaid ? 'text-green-600' : 'text-orange-600'}`}>
-                            KSH {monthTotal.toLocaleString()}
-                          </span>
-                        </div>
-                        {!isPaid && monthTotal === 0 && (
-                          <div className="flex justify-between text-sm pt-1 border-t">
-                            <span className="font-medium text-orange-600">Outstanding:</span>
-                            <span className="font-bold text-orange-600">
-                              KSH {monthExpected.toLocaleString()}
-                            </span>
-                          </div>
-                        )}
-                        {monthTotal > 0 && monthTotal < monthExpected && (
-                          <div className="flex justify-between text-sm pt-1 border-t">
-                            <span className="font-medium text-orange-600">Balance Due:</span>
-                            <span className="font-bold text-orange-600">
-                              KSH {(monthExpected - monthTotal).toLocaleString()}
-                            </span>
-                          </div>
-                        )}
-                      </div>
+                      </CollapsibleContent>
                     </div>
-                  </div>
+                  </Collapsible>
                 );
               })}
             </div>
