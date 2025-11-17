@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
@@ -20,7 +20,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Loader2, DollarSign } from "lucide-react";
+import { CalendarIcon, Loader2, DollarSign, Search } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -57,11 +57,25 @@ export default function RecordCashPayment({
 }: RecordCashPaymentProps) {
   const queryClient = useQueryClient();
   const [selectedTenant, setSelectedTenant] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [amount, setAmount] = useState<string>("");
   const [paymentDate, setPaymentDate] = useState<Date>(new Date());
   const [forMonth, setForMonth] = useState<string>(String(new Date().getMonth() + 1));
   const [forYear, setForYear] = useState<string>(String(new Date().getFullYear()));
   const [notes, setNotes] = useState<string>("");
+
+  // Filter tenants based on search query
+  const filteredTenants = useMemo(() => {
+    if (!searchQuery.trim()) return tenants;
+    
+    const query = searchQuery.toLowerCase();
+    return tenants.filter(
+      (t) =>
+        t.name.toLowerCase().includes(query) ||
+        t.propertyName?.toLowerCase().includes(query) ||
+        t.unitNumber?.toLowerCase().includes(query)
+    );
+  }, [tenants, searchQuery]);
 
   const recordPaymentMutation = useMutation({
     mutationFn: async (data: CashPaymentData) => {
@@ -90,6 +104,7 @@ export default function RecordCashPayment({
       
       // Reset form
       setSelectedTenant("");
+      setSearchQuery("");
       setAmount("");
       setPaymentDate(new Date());
       setForMonth(String(new Date().getMonth() + 1));
@@ -159,26 +174,58 @@ export default function RecordCashPayment({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Tenant Selection */}
+          {/* Tenant Selection with Search */}
           <div className="space-y-2">
             <Label htmlFor="tenant">Tenant *</Label>
+            
+            {/* Search Input */}
+            <div className="relative">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Search tenant by name, property, or unit..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+
+            {/* Tenant Dropdown */}
             <Select value={selectedTenant} onValueChange={setSelectedTenant}>
-              <SelectTrigger id="tenant">
-                <SelectValue placeholder="Select tenant" />
-              </SelectTrigger>
-              <SelectContent>
-                {tenants.map((tenant) => (
-                  <SelectItem key={tenant.id} value={tenant.id}>
-                    <div className="flex flex-col">
+              <SelectTrigger>
+                <SelectValue placeholder="Select tenant">
+                  {selectedTenant && tenant ? (
+                    <div className="flex items-center justify-between w-full">
                       <span className="font-medium">{tenant.name}</span>
                       <span className="text-xs text-muted-foreground">
                         {tenant.propertyName} - {tenant.unitNumber}
                       </span>
                     </div>
-                  </SelectItem>
-                ))}
+                  ) : (
+                    "Select tenant"
+                  )}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent className="max-h-[300px]">
+                {filteredTenants.length === 0 ? (
+                  <div className="py-6 text-center text-sm text-muted-foreground">
+                    No tenant found.
+                  </div>
+                ) : (
+                  filteredTenants.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{t.name}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {t.propertyName} - {t.unitNumber}
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
+
             {tenant && suggestedAmount > 0 && (
               <p className="text-xs text-muted-foreground">
                 Rent amount: KSH {suggestedAmount.toLocaleString()}
