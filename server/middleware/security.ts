@@ -150,17 +150,29 @@ export const requestSizeLimiter = (req: Request, res: Response, next: NextFuncti
  * Logs and blocks suspicious patterns
  */
 export const detectSuspiciousActivity = (req: Request, res: Response, next: NextFunction) => {
+  // Skip security checks for:
+  // 1. Static files (js, ts, tsx, jsx, css, etc.)
+  // 2. Vite dev server files (/@fs/, /@vite/, /node_modules/)
+  // 3. API routes starting with /api/
+  const isStaticFile = /\.(tsx?|jsx?|css|json|png|jpg|jpeg|gif|svg|ico|woff2?|ttf|eot)(\?.*)?$/i.test(req.url);
+  const isViteDevFile = /^\/@(fs|vite|id)|\/node_modules\//i.test(req.url);
+  const isApiRoute = req.url.startsWith('/api/');
+  
+  if (isStaticFile || isViteDevFile || isApiRoute) {
+    return next();
+  }
+
   const suspiciousPatterns = [
     /(\.\.|\/etc\/|\/proc\/|\/sys\/)/i, // Path traversal
-    /(union|select|insert|update|delete|drop|create|alter|exec|script)/i, // SQL injection keywords
     /(<script|javascript:|onerror=|onclick=)/i, // XSS patterns
   ];
 
-  const suspicious = suspiciousPatterns.some(pattern => {
-    return pattern.test(req.url) || 
-           pattern.test(JSON.stringify(req.query)) || 
-           pattern.test(JSON.stringify(req.body));
-  });
+  // Only check body and query params for SQL injection, not the URL path
+  // This prevents false positives from library names like "react-select"
+  const bodyAndQuery = JSON.stringify({ body: req.body, query: req.query });
+  const hasSqlInjection = /(union\s+select|insert\s+into|update\s+set|delete\s+from|drop\s+table|create\s+table|alter\s+table|exec\s*\()/i.test(bodyAndQuery);
+
+  const suspicious = suspiciousPatterns.some(pattern => pattern.test(req.url)) || hasSqlInjection;
 
   if (suspicious) {
     console.log(`🚨 SUSPICIOUS ACTIVITY DETECTED from IP: ${req.ip}`);

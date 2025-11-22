@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Settings, User, Lock, Bell, Building, HelpCircle, Smartphone } from "lucide-react";
+import { Settings, User, Lock, Bell, Building, HelpCircle, Smartphone, Mail } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useCurrentUser } from "@/hooks/dashboard/useDashboard";
 import { Check, X, AlertCircle } from "lucide-react";
+import EmailSettings from "@/components/dashboard/landlord/EmailSettings";
 
 // Password strength checker
 function getPasswordStrength(password: string): { score: number; label: string; color: string } {
@@ -302,9 +303,10 @@ export default function SettingsTab() {
       </div>
 
       <Tabs defaultValue="profile">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
+          <TabsTrigger value="email">Email</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
         </TabsList>
 
@@ -402,6 +404,10 @@ export default function SettingsTab() {
               </Button>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="email" className="mt-6">
+          <EmailSettings landlordId={currentUser?.id || ""} />
         </TabsContent>
 
         <TabsContent value="security" className="mt-6">
