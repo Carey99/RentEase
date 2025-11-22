@@ -14,6 +14,7 @@ import { DarajaConfigController } from "./controllers/darajaConfigController";
 import { handleSTKCallback, handleSTKTimeout } from "./controllers/darajaCallbackController";
 import { ReceiptController } from "./controllers/receiptController";
 import { CashPaymentController } from "./controllers/cashPaymentController";
+import { authLimiter, paymentLimiter, uploadLimiter } from "./middleware/security";
 import { 
   getRecentActivities, 
   markActivityAsRead, 
@@ -36,10 +37,10 @@ import {
 } from "./controllers/mpesaStatementController";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Authentication routes
-  app.post("/api/auth/register", AuthController.register);
-  app.post("/api/auth/login", AuthController.login);
-  app.post("/api/auth/signin", AuthController.signin);
+  // Authentication routes (with strict rate limiting)
+  app.post("/api/auth/register", authLimiter, AuthController.register);
+  app.post("/api/auth/login", authLimiter, AuthController.login);
+  app.post("/api/auth/signin", authLimiter, AuthController.signin);
   app.post("/api/auth/logout", AuthController.logout);
   app.get("/api/auth/session", AuthController.getSession);
   app.get("/api/users/:id", AuthController.getUserById);
@@ -64,8 +65,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/tenants/:tenantId", TenantController.updateTenant);
   app.delete("/api/tenants/:tenantId", TenantController.deleteTenant);
   app.put("/api/tenants/:tenantId/password", TenantController.changePassword);
-  app.post("/api/tenants/:tenantId/payment", TenantController.recordPayment); // Landlord creates bill
-  app.post("/api/tenants/:tenantId/make-payment", TenantController.makePayment); // Tenant pays bill
+  app.post("/api/tenants/:tenantId/payment", paymentLimiter, TenantController.recordPayment); // Landlord creates bill
+  app.post("/api/tenants/:tenantId/make-payment", paymentLimiter, TenantController.makePayment); // Tenant pays bill
 
   // Tenant property relationships
   app.post("/api/tenant-properties", TenantController.createTenantProperty);
@@ -90,11 +91,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/payment-history/tenant/:tenantId/recorded-months/:year", PaymentController.getRecordedMonths);
   app.delete("/api/payment-history/:paymentId", PaymentController.deletePaymentHistory);
 
-  // Cash payment routes
-  app.post("/api/payments/cash", CashPaymentController.recordCashPayment);
+  // Cash payment routes (with payment rate limiting)
+  app.post("/api/payments/cash", paymentLimiter, CashPaymentController.recordCashPayment);
 
-  // Daraja payment routes (STK Push)
-  app.post("/api/payments/initiate", PaymentController.initiatePayment);
+  // Daraja payment routes (STK Push with payment rate limiting)
+  app.post("/api/payments/initiate", paymentLimiter, PaymentController.initiatePayment);
   app.get("/api/payments/:paymentIntentId/status", PaymentController.getPaymentStatus);
   
   // Receipt download route
@@ -116,8 +117,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/tenant-activities/:activityId/read", markTenantActivityAsRead);
   app.put("/api/tenant-activities/tenant/:tenantId/read-all", markAllTenantActivitiesAsRead);
 
-  // M-Pesa statement upload routes
-  app.post("/api/mpesa/upload-statement", uploadMiddleware, uploadMpesaStatement);
+  // M-Pesa statement upload routes (with upload rate limiting)
+  app.post("/api/mpesa/upload-statement", uploadLimiter, uploadMiddleware, uploadMpesaStatement);
   app.get("/api/mpesa/statements", getLandlordStatements);
   app.get("/api/mpesa/statements/:statementId", getStatementDetails);
   app.post("/api/mpesa/matches/:matchId/approve", approveMatch);

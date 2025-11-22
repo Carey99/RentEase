@@ -1,5 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
 import cors from "cors";
+import helmet from "helmet";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { connectToDatabase } from "./database";
@@ -8,6 +9,14 @@ import { rentCycleScheduler } from "./schedulers/rentCycleScheduler";
 import { billNotificationScheduler } from "./schedulers/billNotificationScheduler";
 import { activityNotificationService } from "./websocket";
 import { sessionConfig, validateSession } from "./middleware/auth";
+import {
+  apiLimiter,
+  sanitizeInput,
+  preventParameterPollution,
+  requestSizeLimiter,
+  detectSuspiciousActivity,
+  setSecurityHeaders,
+} from "./middleware/security";
 import dotenv from "dotenv";
 
 // Only load .env file in development (Render injects env vars directly in production)
@@ -17,6 +26,18 @@ if (process.env.NODE_ENV !== 'production') {
 
 const app = express();
 
+// Trust proxy - required for rate limiting behind reverse proxies (Render, Nginx, etc.)
+app.set('trust proxy', 1);
+
+// Helmet - sets various HTTP headers for security
+app.use(helmet({
+  contentSecurityPolicy: false, // We'll set custom CSP
+  crossOriginEmbedderPolicy: false, // Required for some external resources
+}));
+
+// Custom security headers
+app.use(setSecurityHeaders);
+
 // CORS configuration for production and development
 const corsOptions = {
   origin: process.env.FRONTEND_URL || 'http://localhost:5173',
@@ -25,12 +46,28 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+// Request size limiter - must be before body parsers
+app.use(requestSizeLimiter);
+
+// Body parsers with size limits
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: false, limit: '10mb' }));
+
+// MongoDB injection sanitization
+app.use(sanitizeInput);
+
+// HTTP Parameter Pollution protection
+app.use(preventParameterPollution);
+
+// Detect suspicious activity
+app.use(detectSuspiciousActivity);
 
 // Session middleware - MUST be before routes
 app.use(sessionConfig);
 app.use(validateSession);
+
+// Apply general API rate limiting to all API routes
+app.use('/api', apiLimiter);
 
 // Health check endpoint for Render and monitoring services
 app.get('/health', (req, res) => {
