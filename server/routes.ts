@@ -26,6 +26,14 @@ import {
   markAllTenantActivitiesAsRead,
   getTenantUnreadCount
 } from "./controllers/tenantActivityController";
+import {
+  uploadMpesaStatement,
+  getStatementDetails,
+  getLandlordStatements,
+  approveMatch,
+  rejectMatch,
+  uploadMiddleware
+} from "./controllers/mpesaStatementController";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication routes
@@ -107,6 +115,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/tenant-activities/tenant/:tenantId/unread-count", getTenantUnreadCount);
   app.put("/api/tenant-activities/:activityId/read", markTenantActivityAsRead);
   app.put("/api/tenant-activities/tenant/:tenantId/read-all", markAllTenantActivitiesAsRead);
+
+  // M-Pesa statement upload routes
+  app.post("/api/mpesa/upload-statement", uploadMiddleware, uploadMpesaStatement);
+  app.get("/api/mpesa/statements", getLandlordStatements);
+  app.get("/api/mpesa/statements/:statementId", getStatementDetails);
+  app.post("/api/mpesa/matches/:matchId/approve", approveMatch);
+  app.post("/api/mpesa/matches/:matchId/reject", rejectMatch);
 
   const httpServer = createServer(app);
   return httpServer;
