@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Home, BarChart3, Building, Users, FileText, Settings, LogOut, CreditCard, AlertTriangle, Receipt } from "lucide-react";
+import { Home, BarChart3, Building, Users, FileText, Settings, LogOut, CreditCard, AlertTriangle } from "lucide-react";
 import { NotificationBell } from "./NotificationBell";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -18,7 +18,6 @@ export default function Sidebar({ role, userName, activeTab = 'dashboard', onTab
     { id: 'properties', label: 'Properties', icon: Building },
     { id: 'tenants', label: 'Tenants', icon: Users },
     { id: 'payments', label: 'Payments', icon: CreditCard },
-    { id: 'mpesa-statements', label: 'M-Pesa Statements', icon: Receipt },
     { id: 'debt-tracking', label: 'Debt Tracking', icon: AlertTriangle },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
