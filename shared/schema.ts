@@ -392,5 +392,84 @@ export const insertWebhookLogSchema = webhookLogSchema.omit({
 export type WebhookLog = z.infer<typeof webhookLogSchema>;
 export type InsertWebhookLog = z.infer<typeof insertWebhookLogSchema>;
 
+// M-Pesa Statement Upload Schema
+export const mpesaStatementUploadSchema = z.object({
+  _id: z.string().optional(),
+  landlordId: z.string(),
+  fileName: z.string(),
+  uploadDate: z.date().optional(),
+  statementPeriod: z.object({
+    start: z.date().optional().nullable(),
+    end: z.date().optional().nullable(),
+  }).optional(),
+  totalTransactions: z.number().default(0),
+  parsedTransactions: z.number().default(0),
+  matchedTransactions: z.number().default(0),
+  status: z.enum(['pending_review', 'approved', 'rejected']).default('pending_review'),
+  processedBy: z.string().optional().nullable(),
+  processedAt: z.date().optional().nullable(),
+  createdAt: z.date().optional(),
+  updatedAt: z.date().optional(),
+});
+
+// M-Pesa Transaction Match Schema
+export const mpesaTransactionMatchSchema = z.object({
+  _id: z.string().optional(),
+  statementId: z.string(),
+  landlordId: z.string(),
+  transaction: z.object({
+    receiptNo: z.string(),
+    completionTime: z.string(),
+    date: z.date(),
+    details: z.string(),
+    senderPhone: z.string(),
+    senderPhoneLast3: z.string(),
+    senderName: z.string(),
+    amount: z.number(),
+    balance: z.number(),
+  }),
+  matchedTenant: z.object({
+    tenantId: z.string(),
+    tenantName: z.string(),
+    tenantPhone: z.string(),
+    propertyName: z.string().optional(),
+    unitNumber: z.string().optional(),
+    phoneScore: z.number(),
+    nameScore: z.number(),
+    amountScore: z.number(),
+    overallScore: z.number(),
+    confidence: z.enum(['high', 'medium', 'low', 'none']),
+    matchType: z.enum(['perfect', 'good', 'partial', 'weak', 'none']),
+  }).optional().nullable(),
+  alternativeMatches: z.array(z.object({
+    tenantId: z.string(),
+    tenantName: z.string(),
+    overallScore: z.number(),
+  })).optional(),
+  status: z.enum(['pending', 'approved', 'rejected', 'manual']).default('pending'),
+  reviewNotes: z.string().optional(),
+  approvedBy: z.string().optional().nullable(),
+  approvedAt: z.date().optional().nullable(),
+  recordedPaymentId: z.string().optional().nullable(),
+  createdAt: z.date().optional(),
+  updatedAt: z.date().optional(),
+});
+
+export const insertMpesaStatementUploadSchema = mpesaStatementUploadSchema.omit({
+  _id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertMpesaTransactionMatchSchema = mpesaTransactionMatchSchema.omit({
+  _id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type MpesaStatementUpload = z.infer<typeof mpesaStatementUploadSchema>;
+export type MpesaTransactionMatch = z.infer<typeof mpesaTransactionMatchSchema>;
+export type InsertMpesaStatementUpload = z.infer<typeof insertMpesaStatementUploadSchema>;
+export type InsertMpesaTransactionMatch = z.infer<typeof insertMpesaTransactionMatchSchema>;
 
 

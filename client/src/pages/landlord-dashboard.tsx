@@ -12,6 +12,7 @@ import { SettingsTab } from "@/components/dashboard/landlord/settings";
 import AddPropertyDialog from "@/components/dashboard/landlord/properties/AddPropertyDialog";
 import RecordCashPayment from "@/components/dashboard/landlord/RecordCashPayment";
 import DebtTrackingTab from "@/components/dashboard/landlord/DebtTrackingTab";
+import MpesaStatementsTab from "@/components/dashboard/landlord/tabs/MpesaStatementsTab";
 import { useDashboard, useCurrentUser } from "@/hooks/dashboard/useDashboard";
 import type { Property } from "@/types/dashboard";
 import { Button } from "@/components/ui/button";
@@ -197,6 +198,9 @@ export default function LandlordDashboard() {
       
       case 'settings':
         return <SettingsTab />;
+      
+      case 'mpesa-statements':
+        return <MpesaStatementsTab />;
       
       default:
         return (

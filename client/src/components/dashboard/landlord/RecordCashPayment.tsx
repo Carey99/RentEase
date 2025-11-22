@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
@@ -20,7 +20,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Loader2, DollarSign, Search } from "lucide-react";
+import { CalendarIcon, Loader2, DollarSign, Search, Check, ChevronDown } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -58,15 +58,18 @@ export default function RecordCashPayment({
   const queryClient = useQueryClient();
   const [selectedTenant, setSelectedTenant] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [showDropdown, setShowDropdown] = useState<boolean>(false);
   const [amount, setAmount] = useState<string>("");
   const [paymentDate, setPaymentDate] = useState<Date>(new Date());
   const [forMonth, setForMonth] = useState<string>(String(new Date().getMonth() + 1));
   const [forYear, setForYear] = useState<string>(String(new Date().getFullYear()));
   const [notes, setNotes] = useState<string>("");
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  // Filter tenants based on search query
+  // Filter tenants based on search query - only show when user is typing
   const filteredTenants = useMemo(() => {
-    if (!searchQuery.trim()) return tenants;
+    if (!searchQuery.trim()) return [];
     
     const query = searchQuery.toLowerCase();
     return tenants.filter(
@@ -76,6 +79,20 @@ export default function RecordCashPayment({
         t.unitNumber?.toLowerCase().includes(query)
     );
   }, [tenants, searchQuery]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowDropdown(false);
+      }
+    }
+
+    if (showDropdown) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [showDropdown]);
 
   const recordPaymentMutation = useMutation({
     mutationFn: async (data: CashPaymentData) => {
@@ -105,6 +122,7 @@ export default function RecordCashPayment({
       // Reset form
       setSelectedTenant("");
       setSearchQuery("");
+      setShowDropdown(false);
       setAmount("");
       setPaymentDate(new Date());
       setForMonth(String(new Date().getMonth() + 1));
@@ -114,6 +132,12 @@ export default function RecordCashPayment({
       onOpenChange(false);
     },
   });
+
+  const handleSelectTenant = (tenant: Tenant) => {
+    setSelectedTenant(tenant.id);
+    setSearchQuery(tenant.name);
+    setShowDropdown(false);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -175,56 +199,70 @@ export default function RecordCashPayment({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Tenant Selection with Search */}
-          <div className="space-y-2">
+          <div className="space-y-2" ref={dropdownRef}>
             <Label htmlFor="tenant">Tenant *</Label>
             
-            {/* Search Input */}
+            {/* Searchable Combobox */}
             <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="text"
-                placeholder="Search tenant by name, property, or unit..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
-              />
-            </div>
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground z-10" />
+                <Input
+                  ref={inputRef}
+                  type="text"
+                  placeholder="Search tenant by name, property, or unit..."
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setShowDropdown(true);
+                  }}
+                  onFocus={() => setShowDropdown(true)}
+                  className="pl-9 pr-10"
+                />
+                <ChevronDown 
+                  className="absolute right-3 top-3 h-4 w-4 text-muted-foreground cursor-pointer" 
+                  onClick={() => setShowDropdown(!showDropdown)}
+                />
+              </div>
 
-            {/* Tenant Dropdown */}
-            <Select value={selectedTenant} onValueChange={setSelectedTenant}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select tenant">
-                  {selectedTenant && tenant ? (
-                    <div className="flex items-center justify-between w-full">
-                      <span className="font-medium">{tenant.name}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {tenant.propertyName} - {tenant.unitNumber}
-                      </span>
-                    </div>
-                  ) : (
-                    "Select tenant"
-                  )}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent className="max-h-[300px]">
-                {filteredTenants.length === 0 ? (
-                  <div className="py-6 text-center text-sm text-muted-foreground">
-                    No tenant found.
-                  </div>
-                ) : (
-                  filteredTenants.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>
-                      <div className="flex flex-col">
-                        <span className="font-medium">{t.name}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {t.propertyName} - {t.unitNumber}
-                        </span>
+              {/* Dropdown Results - Only show when there are filtered results */}
+              {showDropdown && filteredTenants.length > 0 && (
+                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-[300px] overflow-auto">
+                  <div className="py-1">
+                    {filteredTenants.map((t) => (
+                      <div
+                        key={t.id}
+                        onClick={() => handleSelectTenant(t)}
+                        className={cn(
+                          "px-3 py-2 cursor-pointer hover:bg-gray-100 transition-colors",
+                          selectedTenant === t.id && "bg-blue-50"
+                        )}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="font-medium text-sm">{t.name}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {t.propertyName} - {t.unitNumber}
+                            </div>
+                          </div>
+                          {selectedTenant === t.id && (
+                            <Check className="h-4 w-4 text-blue-600" />
+                          )}
+                        </div>
                       </div>
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* No results message - only show when user has typed something */}
+              {showDropdown && searchQuery.trim() && filteredTenants.length === 0 && (
+                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg">
+                  <div className="py-6 text-center text-sm text-muted-foreground">
+                    No tenant found matching "{searchQuery}"
+                  </div>
+                </div>
+              )}
+            </div>
 
             {tenant && suggestedAmount > 0 && (
               <p className="text-xs text-muted-foreground">

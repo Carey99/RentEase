@@ -1,5 +1,6 @@
 import { storage } from './storage';
 import { PaymentHistory } from './database';
+import { addTenantPhones } from './migrations/add-tenant-phones';
 
 // Seed data for testing authentication
 export async function seedDatabase() {
@@ -148,6 +149,13 @@ export async function seedDatabase() {
           console.log(`✅ Migration completed: Updated ${result.modifiedCount} payment history records with status field`);
         } catch (error) {
           console.error('❌ Migration failed:', error);
+        }
+
+        // Run migration to add phone numbers to tenants
+        try {
+          await addTenantPhones();
+        } catch (error) {
+          console.error('❌ Phone migration failed:', error);
         }
 
         console.log('🎉 Database seeding completed successfully!');
