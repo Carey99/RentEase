@@ -8,7 +8,6 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useCurrentUser } from "@/hooks/dashboard/useDashboard";
-import { MpesaSetupWizard } from "../payment-gateway";
 import { Check, X, AlertCircle } from "lucide-react";
 
 // Password strength checker
@@ -303,9 +302,8 @@ export default function SettingsTab() {
       </div>
 
       <Tabs defaultValue="profile">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="profile">Profile</TabsTrigger>
-          <TabsTrigger value="payment-gateway">Payment Gateway</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
         </TabsList>
@@ -363,10 +361,6 @@ export default function SettingsTab() {
               </Button>
             </CardContent>
           </Card>
-        </TabsContent>
-
-        <TabsContent value="payment-gateway" className="mt-6">
-          {currentUser?.id && <MpesaSetupWizard landlordId={currentUser.id} />}
         </TabsContent>
 
         <TabsContent value="notifications" className="mt-6">

@@ -5,18 +5,13 @@ import Sidebar from "@/components/dashboard/sidebar";
 import DashboardTab from "@/components/dashboard/landlord/tabs/DashboardTab";
 import PropertiesTab from "@/components/dashboard/landlord/tabs/PropertiesTab";
 import TenantsWithPropertyFilter from "@/components/dashboard/landlord/TenantsWithPropertyFilter";
-import PaymentHistoryWithPropertyFilter from "@/components/dashboard/landlord/PaymentHistoryWithPropertyFilter";
-import PaymentOverview from "@/components/dashboard/landlord/payments/PaymentOverview";
-import MonthlyPaymentBreakdown from "@/components/dashboard/shared/MonthlyPaymentBreakdown";
 import { SettingsTab } from "@/components/dashboard/landlord/settings";
 import AddPropertyDialog from "@/components/dashboard/landlord/properties/AddPropertyDialog";
 import RecordCashPayment from "@/components/dashboard/landlord/RecordCashPayment";
 import DebtTrackingTab from "@/components/dashboard/landlord/DebtTrackingTab";
-import MpesaStatementsTab from "@/components/dashboard/landlord/tabs/MpesaStatementsTab";
+import { PaymentsTab } from "@/components/dashboard/landlord/tabs/PaymentsTab";
 import { useDashboard, useCurrentUser } from "@/hooks/dashboard/useDashboard";
 import type { Property } from "@/types/dashboard";
-import { Button } from "@/components/ui/button";
-import { DollarSign } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function LandlordDashboard() {
@@ -174,33 +169,14 @@ export default function LandlordDashboard() {
         return <TenantsWithPropertyFilter />;
       
       case 'payments':
-        return currentUser ? (
-          <div className="space-y-6">
-            <div className="flex justify-end mb-4">
-              <Button 
-                onClick={() => setShowCashPaymentDialog(true)} 
-                className="gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-md"
-              >
-                <DollarSign className="h-4 w-4" />
-                Record Cash Payment
-              </Button>
-            </div>
-            <PaymentOverview landlordId={currentUser.id} />
-            <MonthlyPaymentBreakdown 
-              landlordId={currentUser.id}
-              title="All Payments Collected"
-            />
-          </div>
-        ) : null;
+      case 'mpesa-statements': // Redirect old route to unified payments tab
+        return currentUser ? <PaymentsTab landlordId={currentUser.id} /> : null;
       
       case 'debt-tracking':
         return <DebtTrackingTab tenants={debtTrackingData} />;
       
       case 'settings':
         return <SettingsTab />;
-      
-      case 'mpesa-statements':
-        return <MpesaStatementsTab />;
       
       default:
         return (

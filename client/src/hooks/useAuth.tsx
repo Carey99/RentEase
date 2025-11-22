@@ -188,6 +188,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("session-expired" as any, handleUnauthorized);
   }, []);
 
+  /**
+   * Global fetch interceptor to handle 401 responses
+   */
+  useEffect(() => {
+    const originalFetch = window.fetch;
+    
+    window.fetch = async (...args) => {
+      const response = await originalFetch(...args);
+      
+      // Check for 401 Unauthorized
+      if (response.status === 401) {
+        // Trigger session expired event
+        const event = new CustomEvent("session-expired", {
+          detail: { sessionExpired: true }
+        });
+        window.dispatchEvent(event);
+      }
+      
+      return response;
+    };
+    
+    // Cleanup: restore original fetch
+    return () => {
+      window.fetch = originalFetch;
+    };
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
