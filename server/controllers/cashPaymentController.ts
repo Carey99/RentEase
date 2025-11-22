@@ -1,9 +1,11 @@
 import { Request, Response } from 'express';
-import { PaymentHistory, Tenant, Property } from '../database';
+import { PaymentHistory, Tenant, Property, Landlord } from '../database';
 import { Types } from 'mongoose';
 import { broadcastToUser } from '../websocket';
 import { logActivity, createActivityLog } from './activityController';
 import { logTenantActivity, createTenantActivityLog } from './tenantActivityController';
+import { sendPaymentReceivedEmail } from '../services/emailService';
+import { format } from 'date-fns';
 
 export class CashPaymentController {
   /**
@@ -287,6 +289,33 @@ export class CashPaymentController {
 
       console.log(`📡 WebSocket broadcasts sent to landlord (${landlordId}) and tenant (${tenantId})`);
       console.log(`🔔 Notifications logged for both landlord and tenant`);
+
+      // ============================================
+      // 📧 EMAIL NOTIFICATION
+      // ============================================
+      const landlord = await Landlord.findById(landlordId);
+      if (landlord?.emailSettings?.enabled) {
+        try {
+          await sendPaymentReceivedEmail({
+            tenantName: tenant.fullName,
+            tenantEmail: tenant.email,
+            landlordName: landlord.fullName,
+            amount,
+            paymentDate: format(new Date(paymentDate), 'MMMM dd, yyyy'),
+            paymentMethod: 'Cash',
+            receiptNumber: paymentTransaction._id?.toString() || 'N/A',
+            propertyName: tenant.apartmentInfo.propertyName || 'Property',
+            unitNumber: tenant.apartmentInfo.unitNumber || 'N/A',
+            forPeriod: `${new Date(forYear, forMonth - 1).toLocaleString('default', { month: 'long' })} ${forYear}`,
+            landlordId: landlordId,
+            tenantId: tenantId
+          });
+          console.log(`✅ Payment confirmation email sent to ${tenant.email}`);
+        } catch (emailError) {
+          console.error('⚠️ Failed to send payment confirmation email:', emailError);
+          // Don't fail the request if email fails
+        }
+      }
 
       return res.status(201).json({
         message: 'Cash payment recorded successfully',

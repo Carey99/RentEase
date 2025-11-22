@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
-import { PaymentIntent, PaymentHistory, CallbackLog, Tenant, Property, ActivityLog, TenantActivityLog } from '../database';
+import { PaymentIntent, PaymentHistory, CallbackLog, Tenant, Property, ActivityLog, TenantActivityLog, Landlord } from '../database';
 import { RESULT_CODES } from '../utils/darajaService';
+import { sendPaymentReceivedEmail } from '../services/emailService';
+import { format } from 'date-fns';
 
 /**
  * Handle M-Pesa STK Push callback
@@ -210,6 +212,37 @@ export async function handleSTKCallback(req: Request, res: Response) {
           });
           
           console.log('✅ Activity logs created');
+
+          // ============================================
+          // 📧 EMAIL NOTIFICATION
+          // ============================================
+          const landlord = await Landlord.findById(paymentIntent.landlordId);
+          const tenant = await Tenant.findById(paymentIntent.tenantId);
+          
+          if (landlord?.emailSettings?.enabled && tenant) {
+            try {
+              await sendPaymentReceivedEmail({
+                tenantName: tenant.fullName,
+                tenantEmail: tenant.email,
+                landlordName: landlord.fullName,
+                amount: paymentIntent.amount,
+                paymentDate: format(transactionDate, 'MMMM dd, yyyy'),
+                paymentMethod: 'M-Pesa',
+                receiptNumber: mpesaReceiptNumber,
+                propertyName: tenant.apartmentInfo?.propertyName || 'Property',
+                unitNumber: tenant.apartmentInfo?.unitNumber || 'N/A',
+                forPeriod: paymentHistory.forMonth && paymentHistory.forYear
+                  ? `${new Date(paymentHistory.forYear, paymentHistory.forMonth - 1).toLocaleString('default', { month: 'long' })} ${paymentHistory.forYear}`
+                  : 'N/A',
+                landlordId: paymentIntent.landlordId.toString(),
+                tenantId: paymentIntent.tenantId.toString()
+              });
+              console.log(`✅ Payment confirmation email sent to ${tenant.email}`);
+            } catch (emailError) {
+              console.error('⚠️ Failed to send payment confirmation email:', emailError);
+              // Don't fail the callback if email fails
+            }
+          }
         }
       } catch (error: any) {
         console.error('⚠️  Error creating/updating payment history:', error.message);

@@ -8,6 +8,8 @@ import { storage } from "../storage";
 import { insertTenantPropertySchema } from "@shared/schema";
 import { ZodError } from "zod";
 import { logActivity, createActivityLog } from "./activityController";
+import { sendWelcomeEmail } from "../services/emailService";
+import { format } from "date-fns";
 
 export class TenantController {
   /**
@@ -113,10 +115,44 @@ export class TenantController {
         return res.status(400).json({ error: "Tenant ID is required" });
       }
 
+      // Check if this is a new tenant completing onboarding (apartmentInfo being added)
+      const existingTenant = await storage.getTenant(tenantId);
+      const isCompletingOnboarding = !existingTenant?.apartmentInfo && updates.apartmentInfo;
+
       const updatedTenant = await storage.updateTenant(tenantId, updates);
 
       if (!updatedTenant) {
         return res.status(404).json({ error: "Tenant not found" });
+      }
+
+      // Send welcome email if tenant just completed onboarding
+      if (isCompletingOnboarding && updatedTenant.apartmentInfo?.landlordId) {
+        const landlord = await storage.getLandlord(updatedTenant.apartmentInfo.landlordId);
+        
+        if (landlord?.emailSettings?.enabled) {
+          try {
+            await sendWelcomeEmail({
+              tenantName: updatedTenant.fullName,
+              tenantEmail: updatedTenant.email,
+              landlordName: landlord.fullName,
+              landlordEmail: landlord.email,
+              landlordPhone: landlord.phone ?? undefined,
+              propertyName: updatedTenant.apartmentInfo.propertyName || 'Property',
+              unitNumber: updatedTenant.apartmentInfo.unitNumber || 'N/A',
+              rentAmount: Number(updatedTenant.apartmentInfo.rentAmount) || 0,
+              moveInDate: updatedTenant.apartmentInfo.moveInDate 
+                ? format(new Date(updatedTenant.apartmentInfo.moveInDate), 'MMMM dd, yyyy')
+                : format(new Date(), 'MMMM dd, yyyy'),
+              customMessage: landlord.emailSettings?.templates?.welcome?.customMessage,
+              landlordId: landlord.id,
+              tenantId: updatedTenant.id
+            });
+            console.log(`✅ Welcome email sent to ${updatedTenant.email}`);
+          } catch (emailError) {
+            console.error('⚠️ Failed to send welcome email:', emailError);
+            // Don't fail the request if email fails
+          }
+        }
       }
 
       res.json({

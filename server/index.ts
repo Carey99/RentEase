@@ -7,6 +7,7 @@ import { connectToDatabase } from "./database";
 import { seedDatabase } from "./seed";
 import { rentCycleScheduler } from "./schedulers/rentCycleScheduler";
 import { billNotificationScheduler } from "./schedulers/billNotificationScheduler";
+import { startEmailReminderScheduler } from "./schedulers/emailReminderScheduler";
 import { activityNotificationService } from "./websocket";
 import { sessionConfig, validateSession } from "./middleware/auth";
 import {
@@ -122,6 +123,9 @@ app.use((req, res, next) => {
 
     // Start bill notification scheduler for overdue bills and final notices
     billNotificationScheduler.start();
+
+    // Start email reminder scheduler for automatic rent reminders
+    startEmailReminderScheduler();
 
     const server = await registerRoutes(app);
 

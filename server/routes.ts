@@ -35,6 +35,14 @@ import {
   rejectMatch,
   uploadMiddleware
 } from "./controllers/mpesaStatementController";
+import {
+  sendManualReminder,
+  sendBulkReminders,
+  getEmailSettings,
+  updateEmailSettings,
+  getEmailHistory,
+  sendTestEmailController
+} from "./controllers/emailController";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication routes (with strict rate limiting)
@@ -123,6 +131,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/mpesa/statements/:statementId", getStatementDetails);
   app.post("/api/mpesa/matches/:matchId/approve", approveMatch);
   app.post("/api/mpesa/matches/:matchId/reject", rejectMatch);
+
+  // Email notification routes
+  app.post("/api/emails/send-reminder/:tenantId", sendManualReminder);
+  app.post("/api/emails/send-bulk-reminders", sendBulkReminders);
+  app.get("/api/emails/settings/:landlordId", getEmailSettings);
+  app.put("/api/emails/settings/:landlordId", updateEmailSettings);
+  app.get("/api/emails/history/:landlordId", getEmailHistory);
+  app.post("/api/emails/test/:landlordId", sendTestEmailController);
 
   const httpServer = createServer(app);
   return httpServer;
