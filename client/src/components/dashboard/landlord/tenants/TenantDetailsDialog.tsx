@@ -32,7 +32,9 @@ import {
   CheckCircle,
   Edit,
   Save,
-  X
+  X,
+  Bell,
+  Loader2
 } from "lucide-react";
 import type { Tenant } from "@/types/dashboard";
 
@@ -48,6 +50,7 @@ export default function TenantDetailsDialog({ open, onOpenChange, tenant, onTena
   const [activeTab, setActiveTab] = useState("overview");
   const [isEditMode, setIsEditMode] = useState(false);
   const [editFormData, setEditFormData] = useState<Partial<Tenant>>({});
+  const [sendingReminder, setSendingReminder] = useState(false);
   const { toast } = useToast();
 
   // Fetch actual payment history for this tenant
@@ -138,6 +141,34 @@ export default function TenantDetailsDialog({ open, onOpenChange, tenant, onTena
   const handleCancelEdit = () => {
     setEditFormData({});
     setIsEditMode(false);
+  };
+
+  // Send rent reminder email to tenant
+  const handleSendReminder = async () => {
+    setSendingReminder(true);
+    try {
+      const response = await fetch(`/api/emails/send-reminder/${tenant.id}`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to send reminder');
+      }
+
+      toast({
+        title: "Reminder Sent",
+        description: `Rent reminder email sent to ${tenant.name}`,
+      });
+    } catch (error) {
+      toast({
+        title: "Failed to Send Reminder",
+        description: error instanceof Error ? error.message : "An error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setSendingReminder(false);
+    }
   };
 
   // Helper function to get user initials for avatar
@@ -588,6 +619,18 @@ export default function TenantDetailsDialog({ open, onOpenChange, tenant, onTena
                 <Button variant="outline" onClick={handleEditMode}>
                   <Edit className="mr-2 h-4 w-4" />
                   Edit Details
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={handleSendReminder}
+                  disabled={sendingReminder}
+                >
+                  {sendingReminder ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Bell className="mr-2 h-4 w-4" />
+                  )}
+                  {sendingReminder ? "Sending..." : "Send Reminder"}
                 </Button>
                 <Button>
                   <Mail className="mr-2 h-4 w-4" />

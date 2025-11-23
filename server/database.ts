@@ -113,6 +113,28 @@ const landlordSchema = new mongoose.Schema({
     timezone: { type: String, default: 'Africa/Nairobi' },
     language: { type: String, default: 'en' }
   },
+  // Email notification settings
+  emailSettings: {
+    enabled: { type: Boolean, default: true },
+    autoRemindersEnabled: { type: Boolean, default: false },
+    reminderDaysBefore: { type: Number, default: 3, min: 1, max: 7 },
+    fromName: { type: String, default: 'RentEase' },
+    // Customizable email templates
+    templates: {
+      rentReminder: {
+        subject: { type: String, default: 'Rent Payment Reminder' },
+        customMessage: { type: String, default: '' }
+      },
+      paymentReceived: {
+        subject: { type: String, default: 'Payment Received - Thank You!' },
+        customMessage: { type: String, default: '' }
+      },
+      welcome: {
+        subject: { type: String, default: 'Welcome to Your New Home!' },
+        customMessage: { type: String, default: '' }
+      }
+    }
+  },
 }, {
   timestamps: true,
   collection: 'landlords'
@@ -183,7 +205,7 @@ const paymentHistorySchema = new mongoose.Schema({
   paymentDate: { type: Date, required: true },
   forMonth: { type: Number, required: true, min: 1, max: 12 }, // Month this payment is for
   forYear: { type: Number, required: true, min: 2020 }, // Year this payment is for
-  monthlyRent: { type: Number, required: true, min: 0 }, // Expected rent amount
+  monthlyRent: { type: Number, required: true, min: 0 }, // BASE RENT ONLY - MUST NOT include utilities (stored separately in totalUtilityCost)
   paymentMethod: { type: String, default: 'Not specified' },
   status: { type: String, enum: ['pending', 'partial', 'completed', 'overpaid', 'failed'], default: 'completed' },
   notes: String,
@@ -421,6 +443,40 @@ callbackLogSchema.index({ processed: 1, createdAt: -1 });
 callbackLogSchema.index({ resultCode: 1, createdAt: -1 });
 callbackLogSchema.index({ mpesaReceiptNumber: 1 });
 
+// Email Notification Log Schema
+const notificationLogSchema = new mongoose.Schema({
+  landlordId: { type: mongoose.Schema.Types.ObjectId, ref: 'Landlord', required: true, index: true },
+  tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
+  
+  // Email details
+  type: { type: String, enum: ['welcome', 'payment_received', 'rent_reminder', 'receipt', 'manual', 'overdue'], required: true, index: true },
+  recipientEmail: { type: String, required: true },
+  subject: { type: String, required: true },
+  
+  // Status tracking
+  status: { type: String, enum: ['sent', 'failed', 'pending'], default: 'pending', index: true },
+  resendEmailId: { type: String }, // Resend's email ID for tracking
+  sentAt: { type: Date },
+  failureReason: { type: String },
+  
+  // Additional metadata
+  metadata: {
+    paymentAmount: { type: Number },
+    propertyName: { type: String },
+    unitNumber: { type: String },
+    dueDate: { type: Date },
+    customMessage: { type: String }
+  }
+}, {
+  timestamps: true,
+  collection: 'notification_logs'
+});
+
+// Indexes for efficient querying
+notificationLogSchema.index({ landlordId: 1, createdAt: -1 });
+notificationLogSchema.index({ tenantId: 1, createdAt: -1 });
+notificationLogSchema.index({ type: 1, status: 1, createdAt: -1 });
+
 export const Landlord = mongoose.model('Landlord', landlordSchema);
 export const Tenant = mongoose.model('Tenant', tenantSchema);
 export const Property = mongoose.model('Property', propertySchema);
@@ -429,3 +485,4 @@ export const ActivityLog = mongoose.model('ActivityLog', activityLogSchema);
 export const TenantActivityLog = mongoose.model('TenantActivityLog', tenantActivityLogSchema);
 export const PaymentIntent = mongoose.model('PaymentIntent', paymentIntentSchema);
 export const CallbackLog = mongoose.model('CallbackLog', callbackLogSchema);
+export const NotificationLog = mongoose.model('NotificationLog', notificationLogSchema);

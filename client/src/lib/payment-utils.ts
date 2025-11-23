@@ -8,7 +8,9 @@ export function isTransactionRecord(p: PaymentRecord): boolean {
 }
 
 export function expectedForBill(bill: PaymentRecord, defaultMonthlyRent = 0): number {
-  const monthlyRent = Number(bill?.monthlyRent ?? defaultMonthlyRent ?? 0) || 0;
+  // Use defaultMonthlyRent (base rent from tenant props) instead of bill.monthlyRent
+  // because bill.monthlyRent might incorrectly include utilities in legacy data
+  const monthlyRent = defaultMonthlyRent || Number(bill?.monthlyRent ?? 0) || 0;
   const utilities = Number(bill?.totalUtilityCost ?? 0) || 0;
   return monthlyRent + utilities;
 }

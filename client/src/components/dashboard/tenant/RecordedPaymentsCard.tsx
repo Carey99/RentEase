@@ -63,13 +63,16 @@ export default function RecordedPaymentsCard({ payments, expectedRent }: Recorde
   // Filter out transaction records to get all bills
   const allBills = payments.filter(p => !isTransactionRecord(p));
   
-  // Calculate CONSOLIDATED expected amount (current month + historical debts)
-  const totalExpected = expectedForCurrentMonth(allBills, currentMonth, currentYear, expectedRent);
+  // Base rent should EXCLUDE utilities (use expectedRent from props, NOT monthlyRent from bill)
+  const baseRentOnly = expectedRent || 0;
+  const totalUtilitiesInBill = currentBill ? Number(currentBill.totalUtilityCost || 0) : 0;
   
   // Current month's base charges (rent + utilities only, no historical debt)
-  const currentMonthBase = currentBill ? expectedForBill(currentBill, expectedRent) : expectedRent;
-  const totalUtilitiesInBill = currentBill ? Number(currentBill.totalUtilityCost || 0) : 0;
-  const expectedBill = currentBill ? (currentBill.monthlyRent || expectedRent) : (expectedRent || 0);
+  // Use baseRentOnly + utilities to avoid double-counting if bill.monthlyRent includes utilities
+  const currentMonthBase = baseRentOnly + totalUtilitiesInBill;
+  
+  // Calculate CONSOLIDATED expected amount (current month + historical debts)
+  const totalExpected = expectedForCurrentMonth(allBills, currentMonth, currentYear, expectedRent);
   
   // Calculate historical debt separately for display
   const historicalDebt = totalExpected - currentMonthBase;
@@ -134,7 +137,7 @@ export default function RecordedPaymentsCard({ payments, expectedRent }: Recorde
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-neutral-600">Base Rent:</span>
-                  <span className="font-medium">KSH {expectedBill.toLocaleString()}</span>
+                  <span className="font-medium">KSH {baseRentOnly.toLocaleString()}</span>
                 </div>
                 {totalUtilitiesInBill > 0 && (
                   <div className="flex justify-between text-sm">
