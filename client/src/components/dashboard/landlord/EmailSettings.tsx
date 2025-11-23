@@ -13,7 +13,7 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Mail, Send, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Loader2, Mail, CheckCircle2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import EmailHistory from './EmailHistory';
 
@@ -46,7 +46,6 @@ export default function EmailSettings({ landlordId }: EmailSettingsProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [testingEmail, setTestingEmail] = useState(false);
   const [settings, setSettings] = useState<EmailSettings>({
     enabled: true,
     autoRemindersEnabled: false,
@@ -129,35 +128,6 @@ export default function EmailSettings({ landlordId }: EmailSettingsProps) {
     }
   };
 
-  const sendTestEmail = async () => {
-    setTestingEmail(true);
-    try {
-      const response = await fetch(`/api/emails/test/${landlordId}`, {
-        method: 'POST',
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to send test email');
-      }
-
-      const data = await response.json();
-      toast({
-        title: 'Test Email Sent',
-        description: 'Check your inbox for the test email',
-      });
-    } catch (error: any) {
-      console.error('Error sending test email:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to send test email',
-        variant: 'destructive',
-      });
-    } finally {
-      setTestingEmail(false);
-    }
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -187,35 +157,16 @@ export default function EmailSettings({ landlordId }: EmailSettingsProps) {
                     Configure automatic email notifications for your tenants
                   </CardDescription>
                 </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={sendTestEmail}
-                    disabled={testingEmail || !settings.enabled}
-                  >
-                    {testingEmail ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Sending...
-                      </>
-                    ) : (
-                      <>
-                        <Send className="mr-2 h-4 w-4" />
-                        Send Test Email
-                      </>
-                    )}
-                  </Button>
-                  <Button onClick={saveSettings} disabled={saving}>
-                    {saving ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      'Save Settings'
-                    )}
-                  </Button>
-                </div>
+                <Button onClick={saveSettings} disabled={saving}>
+                  {saving ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    'Save Settings'
+                  )}
+                </Button>
               </div>
             </CardHeader>
             <CardContent className="space-y-6">

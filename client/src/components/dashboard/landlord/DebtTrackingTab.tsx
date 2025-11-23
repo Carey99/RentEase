@@ -1,9 +1,11 @@
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertCircle, CheckCircle, DollarSign, TrendingUp, AlertTriangle } from "lucide-react";
+import { AlertCircle, CheckCircle, DollarSign, TrendingUp, AlertTriangle, Mail, Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import { isTransactionRecord, expectedForBill, paidForBill, balanceForBill, sumOutstanding, expectedForCurrentMonth, balanceForCurrentMonth } from "@/lib/payment-utils";
 
 interface PaymentRecord {
@@ -45,10 +47,12 @@ export default function DebtTrackingTab({ tenants }: DebtTrackingTabProps) {
   const now = new Date();
   const currentMonth = now.getMonth() + 1;
   const currentYear = now.getFullYear();
+  const { toast } = useToast();
 
   // State for selected month filter
   const [selectedMonth, setSelectedMonth] = useState<number>(currentMonth);
   const [selectedYear, setSelectedYear] = useState<number>(currentYear);
+  const [sendingReminder, setSendingReminder] = useState<string | null>(null);
 
   // Filter tenants who have at least one payment record (bill created)
   const tenantsWithPaymentHistory = tenants.filter(tenant => tenant.payments.length > 0);
@@ -220,6 +224,34 @@ export default function DebtTrackingTab({ tenants }: DebtTrackingTabProps) {
     }
   };
 
+  const handleSendReminder = async (tenantId: string, tenantName: string) => {
+    setSendingReminder(tenantId);
+    try {
+      const response = await fetch(`/api/emails/send-reminder/${tenantId}`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to send reminder');
+      }
+
+      toast({
+        title: "Reminder Sent",
+        description: `Payment reminder sent to ${tenantName}`,
+      });
+    } catch (error) {
+      toast({
+        title: "Failed to Send Reminder",
+        description: error instanceof Error ? error.message : "An error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setSendingReminder(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
@@ -342,12 +374,13 @@ export default function DebtTrackingTab({ tenants }: DebtTrackingTabProps) {
                   <TableHead className="text-right">Last Paid</TableHead>
                   <TableHead className="text-right">Total Owed</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="text-center">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {sortedTenants.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-12">
+                    <TableCell colSpan={10} className="text-center py-12">
                       <div className="flex flex-col items-center gap-3">
                         <AlertTriangle className="h-12 w-12 text-neutral-300" />
                         <div className="text-neutral-500">
@@ -433,6 +466,27 @@ export default function DebtTrackingTab({ tenants }: DebtTrackingTabProps) {
                       </TableCell>
                       <TableCell>
                         {getStatusBadge(tenant.selectedMonth.status)}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleSendReminder(tenant.tenantId, tenant.tenantName)}
+                          disabled={sendingReminder === tenant.tenantId}
+                          className="h-8"
+                        >
+                          {sendingReminder === tenant.tenantId ? (
+                            <>
+                              <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                              Sending...
+                            </>
+                          ) : (
+                            <>
+                              <Mail className="mr-1 h-3 w-3" />
+                              Send Reminder
+                            </>
+                          )}
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))

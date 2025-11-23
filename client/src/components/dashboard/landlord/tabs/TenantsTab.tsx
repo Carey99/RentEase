@@ -9,6 +9,7 @@ import {
   AddTenantDialog,
   TenantDetailsDialog
 } from "@/components/dashboard/landlord/tenants";
+import BulkReminderButton from "@/components/dashboard/landlord/tenants/BulkReminderButton";
 import type { Tenant } from "@/types/dashboard";
 
 export default function TenantsTab() {
@@ -89,13 +90,16 @@ export default function TenantsTab() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-semibold text-neutral-900">Tenants</h2>
-        <Button 
-          className="bg-primary hover:bg-secondary"
-          onClick={() => setShowAddTenantDialog(true)}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Add Tenant
-        </Button>
+        <div className="flex gap-2">
+          <BulkReminderButton tenants={filteredTenants} />
+          <Button 
+            className="bg-primary hover:bg-secondary"
+            onClick={() => setShowAddTenantDialog(true)}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add Tenant
+          </Button>
+        </div>
       </div>
 
       {/* Search and Filter Bar */}

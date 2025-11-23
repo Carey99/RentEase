@@ -220,6 +220,9 @@ export async function sendRentReminderEmail(params: {
   landlordEmail: string;
   landlordPhone?: string;
   amountDue: number;
+  baseRent?: number;
+  utilitiesCharges?: number;
+  historicalDebt?: number;
   dueDate: string;
   daysRemaining: number;
   propertyName: string;
@@ -238,6 +241,9 @@ export async function sendRentReminderEmail(params: {
         landlordEmail: params.landlordEmail,
         landlordPhone: params.landlordPhone,
         amountDue: params.amountDue,
+        baseRent: params.baseRent,
+        utilitiesCharges: params.utilitiesCharges,
+        historicalDebt: params.historicalDebt,
         dueDate: params.dueDate,
         daysRemaining: params.daysRemaining,
         propertyName: params.propertyName,

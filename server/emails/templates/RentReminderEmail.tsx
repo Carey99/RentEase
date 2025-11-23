@@ -18,6 +18,9 @@ interface RentReminderEmailProps {
   landlordEmail: string;
   landlordPhone?: string;
   amountDue: number;
+  baseRent?: number;
+  utilitiesCharges?: number;
+  historicalDebt?: number;
   dueDate: string;
   daysRemaining: number;
   propertyName: string;
@@ -33,6 +36,9 @@ export default function RentReminderEmail({
   landlordEmail,
   landlordPhone,
   amountDue,
+  baseRent,
+  utilitiesCharges,
+  historicalDebt,
   dueDate,
   daysRemaining,
   propertyName,
@@ -43,6 +49,7 @@ export default function RentReminderEmail({
 }: RentReminderEmailProps) {
   const isUrgent = daysRemaining <= 1;
   const isDue = daysRemaining === 0;
+  const hasBreakdown = baseRent || utilitiesCharges || historicalDebt;
 
   return (
     <Html>
@@ -79,10 +86,37 @@ export default function RentReminderEmail({
             <Heading style={h2}>Payment Information</Heading>
             <table style={table}>
               <tbody>
-                <tr>
-                  <td style={labelCell}>Amount Due:</td>
-                  <td style={amountCell}><strong>KES {amountDue.toLocaleString()}</strong></td>
-                </tr>
+                {hasBreakdown ? (
+                  <>
+                    {baseRent && baseRent > 0 && (
+                      <tr>
+                        <td style={labelCell}>Monthly Rent:</td>
+                        <td style={valueCell}>KES {baseRent.toLocaleString()}</td>
+                      </tr>
+                    )}
+                    {utilitiesCharges && utilitiesCharges > 0 && (
+                      <tr>
+                        <td style={labelCell}>Utilities:</td>
+                        <td style={valueCell}>KES {utilitiesCharges.toLocaleString()}</td>
+                      </tr>
+                    )}
+                    {historicalDebt && historicalDebt > 0 && (
+                      <tr>
+                        <td style={labelCell}>Previous Outstanding:</td>
+                        <td style={valueCell}>KES {historicalDebt.toLocaleString()}</td>
+                      </tr>
+                    )}
+                    <tr style={{ borderTop: '2px solid #e5e7eb' }}>
+                      <td style={labelCell}><strong>Total Amount Due:</strong></td>
+                      <td style={amountCell}><strong>KES {amountDue.toLocaleString()}</strong></td>
+                    </tr>
+                  </>
+                ) : (
+                  <tr>
+                    <td style={labelCell}>Amount Due:</td>
+                    <td style={amountCell}><strong>KES {amountDue.toLocaleString()}</strong></td>
+                  </tr>
+                )}
                 <tr>
                   <td style={labelCell}>Due Date:</td>
                   <td style={valueCell}>{dueDate}</td>

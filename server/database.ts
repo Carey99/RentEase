@@ -205,7 +205,7 @@ const paymentHistorySchema = new mongoose.Schema({
   paymentDate: { type: Date, required: true },
   forMonth: { type: Number, required: true, min: 1, max: 12 }, // Month this payment is for
   forYear: { type: Number, required: true, min: 2020 }, // Year this payment is for
-  monthlyRent: { type: Number, required: true, min: 0 }, // Expected rent amount
+  monthlyRent: { type: Number, required: true, min: 0 }, // BASE RENT ONLY - MUST NOT include utilities (stored separately in totalUtilityCost)
   paymentMethod: { type: String, default: 'Not specified' },
   status: { type: String, enum: ['pending', 'partial', 'completed', 'overpaid', 'failed'], default: 'completed' },
   notes: String,

@@ -4,7 +4,7 @@
  */
 
 import type { Request, Response } from 'express';
-import { Landlord, Tenant, NotificationLog } from '../database';
+import { Landlord, Tenant, NotificationLog, PaymentHistory } from '../database';
 import {
   sendWelcomeEmail,
   sendPaymentReceivedEmail,
@@ -51,6 +51,49 @@ export async function sendManualReminder(req: Request, res: Response) {
     const today = new Date();
     const daysRemaining = Math.ceil((nextDueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
+    // Fetch payment history for detailed breakdown
+    const currentMonth = today.getMonth() + 1;
+    const currentYear = today.getFullYear();
+    
+    const paymentRecords = await PaymentHistory.find({
+      tenantId: tenant._id,
+    }).sort({ forYear: -1, forMonth: -1 }).lean();
+
+    // Filter out transaction records (only bills)
+    const allBills = paymentRecords.filter(p => !(p as any).notes?.includes('Payment transaction'));
+    
+    // Get current month's bill
+    const currentMonthBill = allBills.find(
+      p => p.forMonth === currentMonth && p.forYear === currentYear
+    );
+
+    // Calculate breakdown
+    const baseRent = Number(tenant.apartmentInfo?.rentAmount) || 0;
+    const utilitiesCharges = currentMonthBill?.totalUtilityCost || 0;
+
+    // Calculate historical debt (previous unpaid balances)
+    let historicalDebt = 0;
+    const previousBills = allBills.filter(b => {
+      return (b.forYear < currentYear) || (b.forYear === currentYear && b.forMonth < currentMonth);
+    });
+    
+    for (const bill of previousBills) {
+      const expectedAmount = Number(bill.monthlyRent || 0) + Number(bill.totalUtilityCost || 0);
+      const paidAmount = Number(bill.amount || 0);
+      const balance = expectedAmount - paidAmount;
+      
+      if (balance > 0) {
+        historicalDebt += balance;
+      }
+    }
+
+    // Total amount due: ONLY sum if there's a current month bill
+    // Otherwise, just show the historical debt
+    let totalAmountDue = historicalDebt;
+    if (currentMonthBill) {
+      totalAmountDue = baseRent + utilitiesCharges + historicalDebt;
+    }
+
     // Send reminder email
     const result = await sendRentReminderEmail({
       tenantId: tenant._id.toString(),
@@ -60,7 +103,10 @@ export async function sendManualReminder(req: Request, res: Response) {
       landlordName: landlord.fullName,
       landlordEmail: landlord.email,
       landlordPhone: landlord.phone ?? undefined,
-      amountDue: Number(tenant.apartmentInfo?.rentAmount) || 0,
+      amountDue: totalAmountDue,
+      baseRent: baseRent,
+      utilitiesCharges: utilitiesCharges,
+      historicalDebt: historicalDebt,
       dueDate: format(nextDueDate, 'MMMM dd, yyyy'),
       daysRemaining: Math.max(0, daysRemaining),
       propertyName: tenant.apartmentInfo?.propertyName || 'Property',
@@ -124,28 +170,72 @@ export async function sendBulkReminders(req: Request, res: Response) {
     }
 
     // Send reminders to all tenants
+    const today = new Date();
+    const currentMonth = today.getMonth() + 1;
+    const currentYear = today.getFullYear();
+    
     const results = await Promise.allSettled(
       tenants.map(async (tenant) => {
         const nextDueDate = tenant.rentCycle?.nextDueDate || new Date();
-        const today = new Date();
         const daysRemaining = Math.ceil((nextDueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+        // Fetch payment history for breakdown
+        const paymentRecords = await PaymentHistory.find({
+          tenantId: tenant._id,
+        }).sort({ forYear: -1, forMonth: -1 }).lean();
+
+        // Filter out transaction records (only bills)
+        const allBills = paymentRecords.filter(p => !(p as any).notes?.includes('Payment transaction'));
+        
+        // Get current month's bill
+        const currentMonthBill = allBills.find(
+          p => p.forMonth === currentMonth && p.forYear === currentYear
+        );
+
+        const baseRent = Number(tenant.apartmentInfo?.rentAmount) || 0;
+        const utilitiesCharges = currentMonthBill?.totalUtilityCost || 0;
+
+        // Calculate historical debt
+        let historicalDebt = 0;
+        const previousBills = allBills.filter(b => {
+          return (b.forYear < currentYear) || (b.forYear === currentYear && b.forMonth < currentMonth);
+        });
+        
+        for (const bill of previousBills) {
+          const expectedAmount = Number(bill.monthlyRent || 0) + Number(bill.totalUtilityCost || 0);
+          const paidAmount = Number(bill.amount || 0);
+          const balance = expectedAmount - paidAmount;
+          
+          if (balance > 0) {
+            historicalDebt += balance;
+          }
+        }
+
+        // Total amount due
+        let totalAmountDue = historicalDebt;
+        if (currentMonthBill) {
+          totalAmountDue = baseRent + utilitiesCharges + historicalDebt;
+        }
 
         return sendRentReminderEmail({
           tenantId: tenant._id.toString(),
           tenantName: tenant.fullName,
           tenantEmail: tenant.email,
           landlordId: landlord._id.toString(),
-        landlordName: landlord.fullName,
-        landlordEmail: landlord.email,
-        landlordPhone: landlord.phone ?? undefined,
-        amountDue: Number(tenant.apartmentInfo?.rentAmount) || 0,
-        dueDate: format(nextDueDate, 'MMMM dd, yyyy'),
-        daysRemaining: Math.max(0, daysRemaining),
-        propertyName: tenant.apartmentInfo?.propertyName || 'Property',
-        unitNumber: tenant.apartmentInfo?.unitNumber || 'N/A',
-        customMessage: customMessage || landlord.emailSettings?.templates?.rentReminder?.customMessage,
-        mpesaPaybill: landlord.darajaConfig?.businessShortCode ?? undefined,
-        mpesaAccountNumber: landlord.darajaConfig?.accountNumber ?? undefined,
+          landlordName: landlord.fullName,
+          landlordEmail: landlord.email,
+          landlordPhone: landlord.phone ?? undefined,
+          amountDue: totalAmountDue,
+          baseRent: baseRent,
+          utilitiesCharges: utilitiesCharges,
+          historicalDebt: historicalDebt,
+          dueDate: format(nextDueDate, 'MMMM dd, yyyy'),
+          daysRemaining: Math.max(0, daysRemaining),
+          propertyName: tenant.apartmentInfo?.propertyName || 'Property',
+          unitNumber: tenant.apartmentInfo?.unitNumber || 'N/A',
+          customMessage: customMessage || landlord.emailSettings?.templates?.rentReminder?.customMessage,
+          mpesaPaybill: landlord.darajaConfig?.businessShortCode ?? undefined,
+          mpesaAccountNumber: landlord.darajaConfig?.accountNumber ?? undefined,
         });
       })
     );
@@ -300,6 +390,7 @@ export async function getEmailHistory(req: Request, res: Response) {
 export async function sendTestEmailController(req: Request, res: Response) {
   try {
     const { landlordId } = req.params;
+    const { testEmail } = req.body;
     const sessionLandlordId = req.session?.userId;
 
     if (!sessionLandlordId || sessionLandlordId !== landlordId) {
@@ -311,17 +402,20 @@ export async function sendTestEmailController(req: Request, res: Response) {
       return res.status(404).json({ error: 'Landlord not found' });
     }
 
-    console.log(`📧 Sending test email to ${landlord.email}`);
+    // Always use verified email for test (Resend free tier restriction)
+    const recipientEmail = process.env.TEST_EMAIL || 'edwinakidah1@gmail.com';
+    
+    console.log(`📧 Sending test email to ${recipientEmail} (verified address)`);
 
     const result = await sendTestEmail({
-      recipientEmail: landlord.email,
+      recipientEmail,
       landlordName: landlord.fullName,
     });
 
     if (result.success) {
       res.json({
         success: true,
-        message: `Test email sent to ${landlord.email}`,
+        message: `Test email sent to ${recipientEmail}`,
         emailId: result.emailId,
       });
     } else {

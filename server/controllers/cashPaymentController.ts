@@ -114,12 +114,12 @@ export class CashPaymentController {
           paymentDate: new Date(paymentDate),
           forMonth,
           forYear,
-          monthlyRent,
+          monthlyRent, // MUST be base rent ONLY, NOT including utilities
           paymentMethod: 'Cash',
           status: 'pending',
           notes: `Bill for ${forMonth}/${forYear} - Rent: KSH ${monthlyRent}, Utilities: KSH ${totalUtilityCost}`,
           utilityCharges,
-          totalUtilityCost,
+          totalUtilityCost, // Utilities stored separately
         });
       }
 
