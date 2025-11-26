@@ -20,9 +20,10 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Loader2, DollarSign, Search, Check, ChevronDown } from "lucide-react";
+import { CalendarIcon, Loader2, DollarSign, Search, Check, ChevronDown, Home, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { Card, CardContent } from "@/components/ui/card";
 
 interface Tenant {
   id: string;
@@ -186,66 +187,67 @@ export default function RecordCashPayment({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <DollarSign className="h-5 w-5 text-green-600" />
-            Record Cash Payment
-          </DialogTitle>
-          <DialogDescription>
-            Manually record a cash payment received from a tenant
-          </DialogDescription>
+          <DialogTitle className="text-2xl">Record Payment</DialogTitle>
+          <DialogDescription>Manually record a cash payment received from a tenant</DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Tenant Selection with Search */}
-          <div className="space-y-2" ref={dropdownRef}>
-            <Label htmlFor="tenant">Tenant *</Label>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Tenant Selection Section */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Home className="h-4 w-4 text-gray-500" />
+              <h3 className="font-semibold text-sm text-gray-900 dark:text-white">Tenant Information</h3>
+            </div>
             
-            {/* Searchable Combobox */}
-            <div className="relative">
+            <div className="space-y-2" ref={dropdownRef}>
+              <Label htmlFor="tenant" className="text-sm font-medium">Select Tenant *</Label>
+              
               <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground z-10" />
-                <Input
-                  ref={inputRef}
-                  type="text"
-                  placeholder="Search tenant by name, property, or unit..."
-                  value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    setShowDropdown(true);
-                  }}
-                  onFocus={() => setShowDropdown(true)}
-                  className="pl-9 pr-10"
-                />
-                <ChevronDown 
-                  className="absolute right-3 top-3 h-4 w-4 text-muted-foreground cursor-pointer" 
-                  onClick={() => setShowDropdown(!showDropdown)}
-                />
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400 z-10" />
+                  <Input
+                    ref={inputRef}
+                    type="text"
+                    placeholder="Search tenant name, property, or unit..."
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setShowDropdown(true);
+                    }}
+                    onFocus={() => setShowDropdown(true)}
+                    className="pl-9 pr-10 text-sm"
+                  />
+                  <ChevronDown 
+                    className="absolute right-3 top-3 h-4 w-4 text-gray-400 cursor-pointer hover:text-gray-600 transition-colors" 
+                    onClick={() => setShowDropdown(!showDropdown)}
+                  />
+                </div>
               </div>
 
-              {/* Dropdown Results - Only show when there are filtered results */}
+              {/* Dropdown Results */}
               {showDropdown && filteredTenants.length > 0 && (
-                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-[300px] overflow-auto">
+                <div className="absolute z-50 w-full mt-1 bg-white dark:bg-slate-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-[250px] overflow-auto">
                   <div className="py-1">
                     {filteredTenants.map((t) => (
                       <div
                         key={t.id}
                         onClick={() => handleSelectTenant(t)}
                         className={cn(
-                          "px-3 py-2 cursor-pointer hover:bg-gray-100 transition-colors",
-                          selectedTenant === t.id && "bg-blue-50"
+                          "px-4 py-3 cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-slate-800",
+                          selectedTenant === t.id && "bg-blue-50 dark:bg-blue-950"
                         )}
                       >
                         <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <div className="font-medium text-sm">{t.name}</div>
-                            <div className="text-xs text-muted-foreground">
-                              {t.propertyName} - {t.unitNumber}
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-sm text-gray-900 dark:text-white">{t.name}</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                              {t.propertyName} • Unit {t.unitNumber}
                             </div>
                           </div>
                           {selectedTenant === t.id && (
-                            <Check className="h-4 w-4 text-blue-600" />
+                            <Check className="h-4 w-4 text-blue-600 flex-shrink-0 ml-2" />
                           )}
                         </div>
                       </div>
@@ -254,149 +256,192 @@ export default function RecordCashPayment({
                 </div>
               )}
               
-              {/* No results message - only show when user has typed something */}
+              {/* No results message */}
               {showDropdown && searchQuery.trim() && filteredTenants.length === 0 && (
-                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg">
-                  <div className="py-6 text-center text-sm text-muted-foreground">
-                    No tenant found matching "{searchQuery}"
+                <div className="absolute z-50 w-full mt-1 bg-white dark:bg-slate-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg">
+                  <div className="py-6 text-center text-sm text-gray-500">
+                    No tenant found
                   </div>
                 </div>
               )}
-            </div>
 
-            {tenant && suggestedAmount > 0 && (
-              <p className="text-xs text-muted-foreground">
-                Rent amount: KSH {suggestedAmount.toLocaleString()}
-              </p>
-            )}
-          </div>
-
-          {/* Payment Period */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="month">Payment For Month *</Label>
-              <Select value={forMonth} onValueChange={setForMonth}>
-                <SelectTrigger id="month">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {months.map((month) => (
-                    <SelectItem key={month.value} value={month.value}>
-                      {month.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="year">Year *</Label>
-              <Select value={forYear} onValueChange={setForYear}>
-                <SelectTrigger id="year">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {years.map((year) => (
-                    <SelectItem key={year} value={String(year)}>
-                      {year}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {/* Selected Tenant Info Card */}
+              {tenant && (
+                <Card className="border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-900/30">
+                  <CardContent className="pt-4">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Selected Tenant</p>
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white mt-1">{tenant.name}</p>
+                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{tenant.propertyName} • {tenant.unitNumber}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Monthly Rent</p>
+                        <p className="text-lg font-bold text-gray-900 dark:text-white mt-1">KSH {suggestedAmount.toLocaleString()}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </div>
 
-          {/* Amount */}
-          <div className="space-y-2">
-            <Label htmlFor="amount">Amount (KSH) *</Label>
-            <div className="relative">
-              <Input
-                id="amount"
-                type="number"
-                step="0.01"
-                placeholder="0.00"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                className="pl-8"
-              />
-              <DollarSign className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            </div>
-            {tenant && suggestedAmount > 0 && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setAmount(String(suggestedAmount))}
-                className="text-xs"
-              >
-                Use rent amount (KSH {suggestedAmount.toLocaleString()})
-              </Button>
-            )}
-          </div>
+          {/* Payment Details Section */}
+          {tenant && (
+            <>
+              <div className="space-y-3">
+                <h3 className="font-semibold text-sm text-gray-900 dark:text-white">Payment Details</h3>
+                
+                {/* Payment For - Month & Year */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="month" className="text-sm font-medium">Payment For Month *</Label>
+                    <Select value={forMonth} onValueChange={setForMonth}>
+                      <SelectTrigger id="month" className="text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {months.map((month) => (
+                          <SelectItem key={month.value} value={month.value}>
+                            {month.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-          {/* Payment Date */}
-          <div className="space-y-2">
-            <Label>Payment Date *</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !paymentDate && "text-muted-foreground"
+                  <div className="space-y-2">
+                    <Label htmlFor="year" className="text-sm font-medium">Year *</Label>
+                    <Select value={forYear} onValueChange={setForYear}>
+                      <SelectTrigger id="year" className="text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {years.map((year) => (
+                          <SelectItem key={year} value={String(year)}>
+                            {year}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Amount Input */}
+                <div className="space-y-2">
+                  <Label htmlFor="amount" className="text-sm font-medium">Payment Amount (KSH) *</Label>
+                  <div className="relative">
+                    <DollarSign className="absolute left-3 top-3.5 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="amount"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      className="pl-9 text-lg font-semibold"
+                    />
+                  </div>
+                  {suggestedAmount > 0 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setAmount(String(suggestedAmount))}
+                      className="w-full text-xs"
+                    >
+                      Use Monthly Rent (KSH {suggestedAmount.toLocaleString()})
+                    </Button>
                   )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {paymentDate ? format(paymentDate, "PPP") : "Pick a date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar
-                  mode="single"
-                  selected={paymentDate}
-                  onSelect={(date) => date && setPaymentDate(date)}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
+                </div>
 
-          {/* Notes */}
-          <div className="space-y-2">
-            <Label htmlFor="notes">Notes (Optional)</Label>
-            <Textarea
-              id="notes"
-              placeholder="Add any additional notes about this payment..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={3}
-            />
-          </div>
+                {/* Payment Date */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Payment Date *</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal text-sm",
+                          !paymentDate && "text-gray-500"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {paymentDate ? format(paymentDate, "PPP") : "Select date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={paymentDate}
+                        onSelect={(date) => date && setPaymentDate(date)}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
 
-          {/* Error Message */}
-          {recordPaymentMutation.isError && (
-            <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md text-sm">
-              {recordPaymentMutation.error instanceof Error
-                ? recordPaymentMutation.error.message
-                : "Failed to record payment"}
-            </div>
+              {/* Amount Summary */}
+              {amount && parseFloat(amount) > 0 && (
+                <Card className="border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/20">
+                  <CardContent className="pt-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">Total Amount</span>
+                      <span className="text-2xl font-bold text-green-600 dark:text-green-400">KSH {parseFloat(amount).toLocaleString()}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Notes Section */}
+              <div className="space-y-3">
+                <h3 className="font-semibold text-sm text-gray-900 dark:text-white">Additional Information</h3>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="notes" className="text-sm font-medium">Notes (Optional)</Label>
+                  <Textarea
+                    id="notes"
+                    placeholder="Add any additional notes or reference details..."
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    className="text-sm resize-none"
+                    rows={3}
+                  />
+                </div>
+              </div>
+
+              {/* Error Message */}
+              {recordPaymentMutation.isError && (
+                <div className="flex gap-3 p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg">
+                  <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-800 dark:text-red-200">
+                    {recordPaymentMutation.error instanceof Error
+                      ? recordPaymentMutation.error.message
+                      : "Failed to record payment"}
+                  </p>
+                </div>
+              )}
+            </>
           )}
 
           {/* Actions */}
-          <div className="flex gap-3 pt-4">
+          <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
             <Button
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
-              className="flex-1"
               disabled={recordPaymentMutation.isPending}
+              className="flex-1"
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              className="flex-1"
-              disabled={recordPaymentMutation.isPending}
+              disabled={recordPaymentMutation.isPending || !tenant}
+              className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
             >
               {recordPaymentMutation.isPending ? (
                 <>

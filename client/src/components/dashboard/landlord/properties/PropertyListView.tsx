@@ -9,6 +9,31 @@ interface PropertyListViewProps {
   setShowAddPropertyDialog: (show: boolean) => void;
 }
 
+// Curated pool of high-quality property images
+const PROPERTY_IMAGES = [
+  "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800&h=400&fit=crop", // Modern apartment interior
+  "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&h=400&fit=crop", // Luxury apartment building
+  "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&h=400&fit=crop", // Bright apartment living room
+  "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&h=400&fit=crop", // Modern apartment complex
+  "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&h=400&fit=crop", // Beautiful home exterior
+  "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&h=400&fit=crop", // Contemporary house
+  "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&h=400&fit=crop", // Modern apartments
+  "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&h=400&fit=crop", // Residential building
+  "https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?w=800&h=400&fit=crop", // House with garden
+  "https://images.unsplash.com/photo-1582407947304-fd86f028f716?w=800&h=400&fit=crop", // Apartment building facade
+];
+
+// Simple hash function to consistently map property ID to an image
+function getPropertyImage(propertyId: string): string {
+  let hash = 0;
+  for (let i = 0; i < propertyId.length; i++) {
+    hash = ((hash << 5) - hash) + propertyId.charCodeAt(i);
+    hash = hash & hash; // Convert to 32-bit integer
+  }
+  const index = Math.abs(hash) % PROPERTY_IMAGES.length;
+  return PROPERTY_IMAGES[index];
+}
+
 export default function PropertyListView({ 
   properties, 
   setSelectedProperty, 
@@ -23,7 +48,7 @@ export default function PropertyListView({
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-semibold text-neutral-900">Your Properties</h2>
         <Button 
-          className="bg-primary hover:bg-secondary" 
+          className="bg-primary hover:bg-primary/90" 
           data-testid="button-add-property" 
           onClick={() => setShowAddPropertyDialog(true)}
         >
@@ -33,52 +58,59 @@ export default function PropertyListView({
       </div>
 
       {properties.length === 0 ? (
-        <Card>
-          <CardContent className="p-12 text-center">
-            <Building className="h-12 w-12 mx-auto text-neutral-400 mb-4" />
-            <h3 className="text-lg font-medium text-neutral-900 mb-2">No properties yet</h3>
-            <p className="text-neutral-600 mb-6">Get started by adding your first rental property.</p>
-            <Button 
-              className="bg-primary hover:bg-secondary" 
-              data-testid="button-add-first-property" 
-              onClick={() => setShowAddPropertyDialog(true)}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Add Your First Property
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="bg-white rounded-xl border border-neutral-200/60 p-12 text-center">
+          <Building className="h-12 w-12 mx-auto text-neutral-300 mb-4" />
+          <h3 className="text-lg font-medium text-neutral-900 mb-2">No properties yet</h3>
+          <p className="text-neutral-600 mb-6">Get started by adding your first rental property.</p>
+          <Button 
+            className="bg-primary hover:bg-primary/90" 
+            data-testid="button-add-first-property" 
+            onClick={() => setShowAddPropertyDialog(true)}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add Your First Property
+          </Button>
+        </div>
       ) : (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-2 gap-5">
           {properties.map((property: any) => (
-            <Card key={property.id} className="overflow-hidden">
-              <img 
-                src="https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=800&h=400" 
-                alt={`${property.name} exterior`}
-                className="w-full h-48 object-cover"
-              />
-              <CardContent className="p-6">
-                <h3 className="text-lg font-semibold text-neutral-900 mb-2">{property.name}</h3>
-                <p className="text-neutral-600 text-sm mb-4">
-                  {property.propertyTypes?.length || 0} unit type(s) available
-                </p>
-                
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <span className="w-3 h-3 bg-green-500 rounded-full"></span>
-                    <span className="text-sm text-neutral-600">Active</span>
+            <div 
+              key={property.id} 
+              className="group bg-white rounded-2xl border border-neutral-200/60 overflow-hidden hover:border-neutral-300 transition-all cursor-pointer"
+              onClick={() => handleViewProperty(property)}
+            >
+              <div className="relative overflow-hidden">
+                <img 
+                  src={getPropertyImage(property.id)} 
+                  alt={`${property.name}`}
+                  className="w-full h-44 object-cover group-hover:scale-105 transition-transform duration-300"
+                />
+              </div>
+              <div className="p-5">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex-1">
+                    <h3 className="text-base font-semibold text-neutral-900 mb-1">{property.name}</h3>
+                    <p className="text-xs text-neutral-500">
+                      {property.propertyTypes?.length || 0} unit type(s) available
+                    </p>
                   </div>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="text-primary hover:text-secondary"
-                    onClick={() => handleViewProperty(property)}
-                  >
-                    Manage
-                  </Button>
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-green-50 rounded-full">
+                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
+                    <span className="text-xs font-medium text-green-700">Active</span>
+                  </div>
                 </div>
-              </CardContent>
-            </Card>
+                
+                <button 
+                  className="text-sm text-primary hover:text-primary/80 font-medium transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleViewProperty(property);
+                  }}
+                >
+                  Manage →
+                </button>
+              </div>
+            </div>
           ))}
         </div>
       )}

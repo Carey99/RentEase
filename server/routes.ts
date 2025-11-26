@@ -33,6 +33,7 @@ import {
   getLandlordStatements,
   approveMatch,
   rejectMatch,
+  deleteStatement,
   uploadMiddleware
 } from "./controllers/mpesaStatementController";
 import {
@@ -43,6 +44,7 @@ import {
   getEmailHistory,
   sendTestEmailController
 } from "./controllers/emailController";
+import { triggerManualReminderCheck } from "./schedulers/emailReminderScheduler";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication routes (with strict rate limiting)
@@ -129,6 +131,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/mpesa/upload-statement", uploadLimiter, uploadMiddleware, uploadMpesaStatement);
   app.get("/api/mpesa/statements", getLandlordStatements);
   app.get("/api/mpesa/statements/:statementId", getStatementDetails);
+  app.delete("/api/mpesa/statements/:statementId", deleteStatement);
   app.post("/api/mpesa/matches/:matchId/approve", approveMatch);
   app.post("/api/mpesa/matches/:matchId/reject", rejectMatch);
 
@@ -139,6 +142,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/emails/settings/:landlordId", updateEmailSettings);
   app.get("/api/emails/history/:landlordId", getEmailHistory);
   app.post("/api/emails/test/:landlordId", sendTestEmailController);
+  
+  // Test endpoint for manual scheduler trigger (development/testing)
+  app.post("/api/emails/trigger-scheduler", async (req, res) => {
+    try {
+      console.log('🧪 Manual scheduler trigger requested');
+      await triggerManualReminderCheck();
+      res.json({ 
+        success: true, 
+        message: 'Scheduler triggered successfully. Check server logs for details.' 
+      });
+    } catch (error: any) {
+      console.error('❌ Error triggering scheduler:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  // Endpoint to check scheduler configuration
+  app.get("/api/emails/scheduler-status", async (req, res) => {
+    try {
+      const { Landlord, Tenant } = await import("./database");
+      
+      // Get landlords with auto-reminders enabled
+      const landlords = await Landlord.find({
+        'emailSettings.enabled': true,
+        'emailSettings.autoRemindersEnabled': true
+      }).select('fullName email emailSettings').lean();
+
+      const landlordDetails = await Promise.all(landlords.map(async (landlord) => {
+        const tenantCount = await Tenant.countDocuments({
+          'apartmentInfo.landlordId': landlord._id
+        });
+        
+        return {
+          landlordId: landlord._id,
+          landlordName: landlord.fullName,
+          landlordEmail: landlord.email,
+          reminderDaysBefore: landlord.emailSettings?.reminderDaysBefore || 3,
+          tenantCount: tenantCount
+        };
+      }));
+
+      res.json({
+        success: true,
+        schedulerActive: true,
+        scheduleCron: '0 8 * * *',
+        scheduleTime: 'Daily at 8:00 AM EAT',
+        currentTime: new Date().toISOString(),
+        landlordsWithAutoReminders: landlordDetails.length,
+        details: landlordDetails
+      });
+    } catch (error: any) {
+      console.error('❌ Error getting scheduler status:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;

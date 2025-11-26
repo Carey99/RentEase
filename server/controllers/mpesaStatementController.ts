@@ -567,3 +567,49 @@ export async function rejectMatch(req: Request, res: Response) {
     res.status(500).json({ error: 'Failed to reject match' });
   }
 }
+
+/**
+ * Delete a statement and all its associated matches
+ * DELETE /api/mpesa/statements/:statementId
+ */
+export async function deleteStatement(req: Request, res: Response) {
+  try {
+    const { statementId } = req.params;
+    const landlordId = req.session?.userId;
+
+    if (!landlordId || req.session?.userRole !== 'landlord') {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // Verify statement exists and belongs to this landlord
+    const statement = await MpesaStatementUpload.findOne({ _id: statementId, landlordId });
+
+    if (!statement) {
+      return res.status(404).json({ error: 'Statement not found' });
+    }
+
+    // Delete all matches associated with this statement
+    const deleteResult = await MpesaTransactionMatch.deleteMany({
+      statementId,
+      landlordId,
+    });
+
+    console.log(`🗑️  Deleted ${deleteResult.deletedCount} matches for statement ${statementId}`);
+
+    // Delete the statement itself
+    await MpesaStatementUpload.deleteOne({ _id: statementId });
+
+    console.log(`✅ Statement ${statementId} deleted successfully`);
+
+    res.status(200).json({ 
+      success: true,
+      message: 'Statement and all associated matches deleted',
+      statementId,
+      matchesDeleted: deleteResult.deletedCount,
+    });
+
+  } catch (error: any) {
+    console.error('Error deleting statement:', error);
+    res.status(500).json({ error: 'Failed to delete statement', details: error.message });
+  }
+}

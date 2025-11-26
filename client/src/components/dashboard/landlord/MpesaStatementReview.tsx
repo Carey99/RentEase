@@ -23,6 +23,7 @@ import {
   ChevronDown,
   ChevronUp,
   Loader2,
+  Trash2,
 } from 'lucide-react';
 
 interface Transaction {
@@ -271,7 +272,10 @@ function TransactionMatchCard({ match, onApprove, onReject }: {
   );
 }
 
-export default function MpesaStatementReview({ statementId }: { statementId: string }) {
+export default function MpesaStatementReview({ statementId, onStatementDeleted }: { 
+  statementId: string;
+  onStatementDeleted?: () => void;
+}) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -303,6 +307,32 @@ export default function MpesaStatementReview({ statementId }: { statementId: str
     },
     onError: (error: Error) => {
       toast({ title: 'Failed to approve', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const deleteStatementMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch(`/api/mpesa/statements/${statementId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Failed to delete statement');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/mpesa/statements'] });
+      toast({
+        title: 'Statement Deleted',
+        description: 'The M-Pesa statement has been permanently deleted.',
+      });
+      onStatementDeleted?.();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Delete Failed',
+        description: error.message,
+        variant: 'destructive',
+      });
     },
   });
 
@@ -352,13 +382,34 @@ export default function MpesaStatementReview({ statementId }: { statementId: str
     <div className="space-y-6">
       {/* Statement Header */}
       <Card>
-        <CardHeader>
-          <CardTitle>{data.statement.fileName}</CardTitle>
-          <CardDescription>
-            Uploaded {new Date(data.statement.uploadDate).toLocaleDateString()} •{' '}
-            {data.statement.totalTransactions} transactions •{' '}
-            {data.statement.matchedTransactions} matched
-          </CardDescription>
+        <CardHeader className="flex flex-row items-start justify-between">
+          <div>
+            <CardTitle>{data.statement.fileName}</CardTitle>
+            <CardDescription>
+              Uploaded {new Date(data.statement.uploadDate).toLocaleDateString()} •{' '}
+              {data.statement.totalTransactions} transactions •{' '}
+              {data.statement.matchedTransactions} matched
+            </CardDescription>
+          </div>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => deleteStatementMutation.mutate()}
+            disabled={deleteStatementMutation.isPending}
+            className="text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-700 dark:hover:text-red-300"
+          >
+            {deleteStatementMutation.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Deleting...
+              </>
+            ) : (
+              <>
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
+              </>
+            )}
+          </Button>
         </CardHeader>
       </Card>
 

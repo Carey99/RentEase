@@ -32,6 +32,7 @@ interface TenantFormData {
   fullName: string;
   email: string;
   phone: string;
+  password: string;
   propertyId: string;
   unitType: string;
   unitNumber: string;
@@ -48,11 +49,13 @@ export default function AddTenantDialog({ open, onOpenChange }: AddTenantDialogP
     fullName: "",
     email: "",
     phone: "",
+    password: "",
     propertyId: "",
     unitType: "",
     unitNumber: "",
     rentAmount: "",
   });
+  const [passwordError, setPasswordError] = useState<string>("");
 
   // Create tenant registration mutation
   const registerTenantMutation = useMutation({
@@ -96,7 +99,7 @@ export default function AddTenantDialog({ open, onOpenChange }: AddTenantDialogP
         fullName: formData.fullName,
         email: formData.email,
         phone: formData.phone,
-        password: 'temporary123', // Default password - tenant should change this
+        password: formData.password,
         role: 'tenant',
       });
 
@@ -117,6 +120,7 @@ export default function AddTenantDialog({ open, onOpenChange }: AddTenantDialogP
         fullName: "",
         email: "",
         phone: "",
+        password: "",
         propertyId: "",
         unitType: "",
         unitNumber: "",
@@ -181,7 +185,13 @@ export default function AddTenantDialog({ open, onOpenChange }: AddTenantDialogP
     if (!formData.fullName || !formData.email || !formData.phone || !formData.propertyId || !formData.unitType) {
       return;
     }
-
+    // Password validation
+    const password = formData.password;
+    if (!password || password.length < 8 || !/^[a-zA-Z0-9]+$/.test(password)) {
+      setPasswordError("Password must be at least 8 alphanumeric characters.");
+      return;
+    }
+    setPasswordError("");
     // Use the mutation instead of manual fetch calls
     addTenantMutation.mutate(formData);
   };
@@ -200,7 +210,6 @@ export default function AddTenantDialog({ open, onOpenChange }: AddTenantDialogP
           {/* Tenant Information */}
           <div className="space-y-4">
             <h3 className="text-lg font-medium">Tenant Information</h3>
-            
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="fullName">Full Name *</Label>
@@ -224,16 +233,32 @@ export default function AddTenantDialog({ open, onOpenChange }: AddTenantDialogP
                 />
               </div>
             </div>
-
-            <div>
-              <Label htmlFor="phone">WhatsApp Number *</Label>
-              <Input
-                id="phone"
-                value={formData.phone}
-                onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                placeholder="+254 700 000 000"
-                required
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="phone">WhatsApp Number *</Label>
+                <Input
+                  id="phone"
+                  value={formData.phone}
+                  onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                  placeholder="+254 700 000 000"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="password">Password *</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                  placeholder="Set tenant password"
+                  minLength={8}
+                  required
+                />
+                {passwordError && (
+                  <p className="text-xs text-red-600 mt-1">{passwordError}</p>
+                )}
+              </div>
             </div>
           </div>
 

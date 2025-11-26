@@ -1,7 +1,7 @@
-import { Button } from "@/components/ui/button";
-import { Home, BarChart3, Building, Users, FileText, Settings, LogOut, CreditCard, AlertTriangle } from "lucide-react";
+import { Home, LayoutDashboard, Building2, Users, Wallet, AlertCircle, Settings, Power } from "lucide-react";
 import { NotificationBell } from "./NotificationBell";
 import { useAuth } from "@/hooks/useAuth";
+import { cn } from "@/lib/utils";
 
 interface SidebarProps {
   role: 'landlord' | 'tenant';
@@ -14,18 +14,18 @@ export default function Sidebar({ role, userName, activeTab = 'dashboard', onTab
   const { logout } = useAuth();
 
   const landlordNavItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
-    { id: 'properties', label: 'Properties', icon: Building },
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'properties', label: 'Properties', icon: Building2 },
     { id: 'tenants', label: 'Tenants', icon: Users },
-    { id: 'payments', label: 'Payments', icon: CreditCard },
-    { id: 'debt-tracking', label: 'Debt Tracking', icon: AlertTriangle },
+    { id: 'payments', label: 'Payments', icon: Wallet },
+    { id: 'debt-tracking', label: 'Debt Tracking', icon: AlertCircle },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
   const tenantNavItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'apartment', label: 'My Apartment', icon: Home },
-    { id: 'payments', label: 'Payment History', icon: CreditCard },
+    { id: 'payments', label: 'Payment History', icon: Wallet },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
@@ -36,55 +36,66 @@ export default function Sidebar({ role, userName, activeTab = 'dashboard', onTab
   };
 
   return (
-    <div className="w-64 bg-white shadow-lg border-r border-neutral-200 min-h-screen">
-      <div className="p-6 border-b border-neutral-200">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Home className="text-primary text-xl" />
-            <span className="text-xl font-bold text-neutral-900">RentEase</span>
+    <aside className="w-64 bg-white border-r border-neutral-100 h-screen sticky top-0 flex flex-col">
+      {/* Header */}
+      <div className="p-6 border-b border-neutral-100">
+        <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+              <Home className="w-5 h-5 text-white" />
+            </div>
+            <span className="text-xl font-semibold text-neutral-900 tracking-tight">RentEase</span>
           </div>
           {role === 'landlord' && <NotificationBell />}
         </div>
-        <p className="text-sm text-neutral-600 mt-1">
+        <p className="text-xs text-neutral-500 font-medium">
           {role === 'landlord' ? 'Landlord Portal' : 'Tenant Portal'}
         </p>
       </div>
 
-      <nav className="mt-6">
-        <div className="px-3 space-y-1">
+      {/* Navigation */}
+      <nav className="flex-1 px-3 py-4">
+        <div className="space-y-1">
+          <p className="px-3 text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">
+            MAIN MENU
+          </p>
           {navItems.map((item) => {
             const Icon = item.icon;
+            const isActive = activeTab === item.id;
             return (
-              <Button
+              <button
                 key={item.id}
-                variant="ghost"
-                className={`w-full justify-start ${
-                  activeTab === item.id 
-                    ? 'text-primary bg-blue-50 font-medium' 
-                    : 'text-neutral-600 hover:text-primary hover:bg-blue-50'
-                }`}
                 onClick={() => onTabChange?.(item.id)}
                 data-testid={`nav-${item.id}`}
+                className={cn(
+                  "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+                  isActive
+                    ? "bg-primary text-white shadow-sm"
+                    : "text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900"
+                )}
               >
-                <Icon className="mr-3 h-4 w-4" />
-                {item.label}
-              </Button>
+                <Icon className={cn(
+                  "w-5 h-5 flex-shrink-0",
+                  isActive ? "text-white" : "text-neutral-500"
+                )} />
+                <span className="truncate">{item.label}</span>
+              </button>
             );
           })}
         </div>
-
-        <div className="border-t border-neutral-200 mt-6 pt-6 px-3">
-          <Button
-            onClick={handleLogout}
-            variant="ghost"
-            className="w-full justify-start text-red-600 hover:bg-red-50"
-            data-testid="button-logout"
-          >
-            <LogOut className="mr-3 h-4 w-4" />
-            Logout
-          </Button>
-        </div>
       </nav>
-    </div>
+
+      {/* Logout Button */}
+      <div className="p-3 border-t border-neutral-100">
+        <button
+          onClick={handleLogout}
+          data-testid="button-logout"
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-all duration-200"
+        >
+          <Power className="w-5 h-5 flex-shrink-0" />
+          <span>Logout</span>
+        </button>
+      </div>
+    </aside>
   );
 }

@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { Upload, FileText, Loader2, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
+import { PinInput } from '@/components/ui/pin-input';
 
 interface UploadResult {
   statementId: string;
@@ -49,6 +50,7 @@ export default function MpesaStatementUpload({ onUploadSuccess }: { onUploadSucc
   const [uploading, setUploading] = useState(false);
   const [result, setResult] = useState<UploadResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pinError, setPinError] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -71,21 +73,25 @@ export default function MpesaStatementUpload({ onUploadSuccess }: { onUploadSucc
     }
   };
 
-  const handleUpload = async () => {
+  const handleUpload = async (pwd: string = password) => {
     if (!file) {
       setError('Please select a file');
       return;
     }
 
+    if (!pwd || pwd.length !== 6) {
+      setError('Password must be 6 digits');
+      return;
+    }
+
     setUploading(true);
     setError(null);
+    setPinError(false);
 
     try {
       const formData = new FormData();
       formData.append('statement', file);
-      if (password) {
-        formData.append('password', password);
-      }
+      formData.append('password', pwd);
 
       const response = await fetch('/api/mpesa/upload-statement', {
         method: 'POST',
@@ -114,15 +120,32 @@ export default function MpesaStatementUpload({ onUploadSuccess }: { onUploadSucc
       }
 
     } catch (err: any) {
-      setError(err.message);
-      toast({
-        title: 'Upload Failed',
-        description: err.message,
-        variant: 'destructive',
-      });
+      const errorMsg = err.message;
+      setError(errorMsg);
+      
+      // If it's a password error, show PIN error animation
+      if (errorMsg.toLowerCase().includes('password') || errorMsg.toLowerCase().includes('incorrect')) {
+        setPinError(true);
+        setPassword('');
+        toast({
+          title: 'Incorrect Password',
+          description: 'The password you entered is incorrect. Please try again.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Upload Failed',
+          description: errorMsg,
+          variant: 'destructive',
+        });
+      }
     } finally {
       setUploading(false);
     }
+  };
+
+  const handlePinComplete = (pin: string) => {
+    handleUpload(pin);
   };
 
   const resetUpload = () => {
@@ -130,6 +153,7 @@ export default function MpesaStatementUpload({ onUploadSuccess }: { onUploadSucc
     setPassword('');
     setResult(null);
     setError(null);
+    setPinError(false);
   };
 
   return (
@@ -140,68 +164,65 @@ export default function MpesaStatementUpload({ onUploadSuccess }: { onUploadSucc
           Upload your M-Pesa statement PDF to automatically match transactions to tenants
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-6">
         {!result ? (
           <>
             <div className="space-y-2">
-              <Label htmlFor="statement-file">M-Pesa Statement PDF</Label>
+              <Label htmlFor="statement-file" className="text-sm font-medium">M-Pesa Statement PDF</Label>
               <Input
                 id="statement-file"
                 type="file"
                 accept="application/pdf"
                 onChange={handleFileChange}
                 disabled={uploading}
+                className="cursor-pointer"
               />
               {file && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
                   <FileText className="h-4 w-4" />
                   <span>{file.name} ({(file.size / 1024).toFixed(2)} KB)</span>
                 </div>
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="pdf-password">
-                Password <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="pdf-password"
-                type="password"
-                placeholder="Enter 6-digit M-Pesa statement password"
+            <div className="space-y-4">
+              <div>
+                <Label className="text-sm font-medium">
+                  Statement Password <span className="text-red-500">*</span>
+                </Label>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 mb-4">
+                  Enter the 6-digit password from your M-Pesa statement
+                </p>
+              </div>
+
+              <PinInput
+                length={6}
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={uploading}
-                required
+                onChange={setPassword}
+                onComplete={handlePinComplete}
+                disabled={uploading || !file}
+                error={pinError}
               />
-              <p className="text-xs text-muted-foreground">
-                M-Pesa statements are always password-protected. Enter the 6-digit password from Safaricom.
-              </p>
-            </div>
 
-            {error && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
-            <Button
-              onClick={handleUpload}
-              disabled={!file || uploading}
-              className="w-full"
-            >
-              {uploading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <Upload className="mr-2 h-4 w-4" />
-                  Upload & Process
-                </>
+              {error && !pinError && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
               )}
-            </Button>
+
+              {!file && (
+                <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                  Select a PDF file first
+                </p>
+              )}
+
+              {file && password.length < 6 && (
+                <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                  {password.length}/6 digits entered
+                </p>
+              )}
+            </div>
           </>
         ) : (
           <div className="space-y-4">

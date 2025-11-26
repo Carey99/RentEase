@@ -35,59 +35,79 @@ export default function WelcomeEmail({
   moveInDate,
   customMessage,
 }: WelcomeEmailProps) {
+  const firstName = tenantName.split(' ')[0];
+  
   return (
     <Html>
       <Head />
-      <Preview>Welcome to {propertyName}! 🏠</Preview>
+      <Preview>Welcome to {propertyName}</Preview>
       <Body style={main}>
         <Container style={container}>
-          <Heading style={h1}>Welcome to Your New Home!</Heading>
-          
-          <Text style={text}>
-            Dear {tenantName},
-          </Text>
+          {/* Logo/Brand */}
+          <Section style={logoSection}>
+            <Heading style={logo}>RENTEASE</Heading>
+          </Section>
 
-          <Text style={text}>
-            Welcome to <strong>{propertyName}</strong>! We're thrilled to have you as our tenant 
-            and hope you'll feel right at home.
+          {/* Main Heading */}
+          <Heading style={h1}>
+            We're glad you<br />are here.
+          </Heading>
+          
+          {/* Main Message */}
+          <Text style={message}>
+            Welcome to {propertyName}, {firstName}. Your rental account has been set up successfully.
           </Text>
 
           {customMessage && (
-            <Section style={customMessageBox}>
-              <Text style={customMessageText}>{customMessage}</Text>
-            </Section>
+            <Text style={customNote}>
+              {customMessage}
+            </Text>
           )}
 
-          <Section style={infoBox}>
-            <Heading style={h2}>Your Tenancy Details</Heading>
-            <Text style={infoText}>
-              <strong>Property:</strong> {propertyName}<br />
-              <strong>Unit Number:</strong> {unitNumber}<br />
-              <strong>Monthly Rent:</strong> KES {rentAmount.toLocaleString()}<br />
-              {moveInDate && <><strong>Move-in Date:</strong> {moveInDate}<br /></>}
-              <strong>Payment Due:</strong> 1st of each month
+          {/* Property Details Box */}
+          <Section style={detailsBox}>
+            <table style={detailsTable}>
+              <tr>
+                <td style={detailLabel}>Property</td>
+                <td style={detailValue}>{propertyName}</td>
+              </tr>
+              <tr>
+                <td style={detailLabel}>Unit Number</td>
+                <td style={detailValue}>{unitNumber}</td>
+              </tr>
+              <tr>
+                <td style={detailLabel}>Monthly Rent</td>
+                <td style={detailValue}>KES {(rentAmount || 0).toLocaleString()}</td>
+              </tr>
+              {moveInDate && (
+                <tr>
+                  <td style={detailLabel}>Move-in Date</td>
+                  <td style={detailValue}>{moveInDate}</td>
+                </tr>
+              )}
+            </table>
+          </Section>
+
+          {/* Contact Section */}
+          <Section style={contactSection}>
+            <Text style={contactLabel}>Property Manager</Text>
+            <Text style={contactName}>{landlordName}</Text>
+            <Text style={contactDetails}>
+              <Link href={`mailto:${landlordEmail}`} style={link}>{landlordEmail}</Link>
+              {landlordPhone && (
+                <>
+                  <br />
+                  <Link href={`tel:${landlordPhone}`} style={link}>{landlordPhone}</Link>
+                </>
+              )}
             </Text>
           </Section>
 
-          <Section style={infoBox}>
-            <Heading style={h2}>Your Landlord</Heading>
-            <Text style={infoText}>
-              <strong>Name:</strong> {landlordName}<br />
-              <strong>Email:</strong> <Link href={`mailto:${landlordEmail}`}>{landlordEmail}</Link><br />
-              {landlordPhone && <><strong>Phone:</strong> {landlordPhone}<br /></>}
-            </Text>
-          </Section>
+          <Hr style={divider} />
 
-          <Text style={text}>
-            If you have any questions or need assistance, please don't hesitate to reach out 
-            to your landlord.
-          </Text>
-
-          <Hr style={hr} />
-
+          {/* Footer */}
           <Text style={footer}>
-            This email was sent by RentEase Property Management System<br />
-            Managed by {landlordName}
+            RentEase Property Management
           </Text>
         </Container>
       </Body>
@@ -95,80 +115,136 @@ export default function WelcomeEmail({
   );
 }
 
+// Styles
 const main = {
-  backgroundColor: '#f6f9fc',
-  fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Ubuntu,sans-serif',
+  backgroundColor: '#f5f5f5',
+  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+  padding: '40px 20px',
 };
 
 const container = {
   backgroundColor: '#ffffff',
   margin: '0 auto',
-  padding: '40px 20px',
-  maxWidth: '600px',
-  borderRadius: '8px',
+  padding: '60px 40px',
+  maxWidth: '580px',
+};
+
+const logoSection = {
+  textAlign: 'center' as const,
+  marginBottom: '48px',
+};
+
+const logo = {
+  color: '#666666',
+  fontSize: '14px',
+  fontWeight: '400',
+  letterSpacing: '2px',
+  margin: '0',
+  textTransform: 'uppercase' as const,
 };
 
 const h1 = {
-  color: '#1f2937',
-  fontSize: '28px',
-  fontWeight: 'bold',
-  marginBottom: '24px',
+  color: '#1a1a1a',
+  fontSize: '36px',
+  fontWeight: '400',
+  lineHeight: '1.3',
   textAlign: 'center' as const,
+  margin: '0 0 32px 0',
 };
 
-const h2 = {
-  color: '#374151',
-  fontSize: '20px',
-  fontWeight: 'bold',
-  marginBottom: '12px',
-};
-
-const text = {
-  color: '#4b5563',
+const message = {
+  color: '#666666',
   fontSize: '16px',
-  lineHeight: '24px',
-  marginBottom: '16px',
+  lineHeight: '1.6',
+  textAlign: 'center' as const,
+  margin: '0 0 32px 0',
 };
 
-const infoBox = {
-  backgroundColor: '#f9fafb',
-  padding: '20px',
-  borderRadius: '8px',
-  marginBottom: '20px',
-  border: '1px solid #e5e7eb',
-};
-
-const infoText = {
-  color: '#4b5563',
+const customNote = {
+  color: '#666666',
   fontSize: '15px',
-  lineHeight: '22px',
-  margin: '0',
-};
-
-const customMessageBox = {
-  backgroundColor: '#eff6ff',
-  padding: '16px',
-  borderRadius: '8px',
-  marginBottom: '20px',
-  borderLeft: '4px solid #3b82f6',
-};
-
-const customMessageText = {
-  color: '#1e40af',
-  fontSize: '15px',
-  lineHeight: '22px',
-  margin: '0',
+  lineHeight: '1.6',
+  textAlign: 'center' as const,
+  margin: '0 0 40px 0',
   fontStyle: 'italic' as const,
+  padding: '0 20px',
 };
 
-const hr = {
-  borderColor: '#e5e7eb',
-  margin: '24px 0',
+const detailsBox = {
+  backgroundColor: '#fafafa',
+  padding: '32px',
+  marginBottom: '40px',
+};
+
+const detailsTable = {
+  width: '100%',
+  borderCollapse: 'collapse' as const,
+};
+
+const detailLabel = {
+  color: '#999999',
+  fontSize: '13px',
+  fontWeight: '400',
+  paddingBottom: '16px',
+  paddingTop: '16px',
+  textAlign: 'left' as const,
+  verticalAlign: 'top' as const,
+  width: '40%',
+};
+
+const detailValue = {
+  color: '#1a1a1a',
+  fontSize: '15px',
+  fontWeight: '500',
+  paddingBottom: '16px',
+  paddingTop: '16px',
+  textAlign: 'right' as const,
+  verticalAlign: 'top' as const,
+};
+
+const contactSection = {
+  textAlign: 'center' as const,
+  marginBottom: '40px',
+};
+
+const contactLabel = {
+  color: '#999999',
+  fontSize: '12px',
+  fontWeight: '400',
+  textTransform: 'uppercase' as const,
+  letterSpacing: '1px',
+  margin: '0 0 8px 0',
+};
+
+const contactName = {
+  color: '#1a1a1a',
+  fontSize: '18px',
+  fontWeight: '500',
+  margin: '0 0 12px 0',
+};
+
+const contactDetails = {
+  color: '#666666',
+  fontSize: '14px',
+  lineHeight: '1.6',
+  margin: '0',
+};
+
+const link = {
+  color: '#4a90e2',
+  textDecoration: 'none',
+};
+
+const divider = {
+  borderColor: '#e5e5e5',
+  borderStyle: 'solid',
+  borderWidth: '1px 0 0 0',
+  margin: '40px 0',
 };
 
 const footer = {
-  color: '#9ca3af',
-  fontSize: '14px',
-  lineHeight: '20px',
+  color: '#999999',
+  fontSize: '12px',
   textAlign: 'center' as const,
+  margin: '0',
 };

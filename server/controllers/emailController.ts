@@ -46,10 +46,10 @@ export async function sendManualReminder(req: Request, res: Response) {
       return res.status(404).json({ error: 'Landlord not found' });
     }
 
-    // Calculate days remaining
+    // Use the tenant's actual rent cycle data (already calculated correctly)
     const nextDueDate = tenant.rentCycle?.nextDueDate || new Date();
+    const daysRemaining = tenant.rentCycle?.daysRemaining ?? 0;
     const today = new Date();
-    const daysRemaining = Math.ceil((nextDueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
     // Fetch payment history for detailed breakdown
     const currentMonth = today.getMonth() + 1;
@@ -94,7 +94,7 @@ export async function sendManualReminder(req: Request, res: Response) {
       totalAmountDue = baseRent + utilitiesCharges + historicalDebt;
     }
 
-    // Send reminder email
+    // Send reminder email with tenant's actual days remaining (can be negative for overdue)
     const result = await sendRentReminderEmail({
       tenantId: tenant._id.toString(),
       tenantName: tenant.fullName,
@@ -104,16 +104,11 @@ export async function sendManualReminder(req: Request, res: Response) {
       landlordEmail: landlord.email,
       landlordPhone: landlord.phone ?? undefined,
       amountDue: totalAmountDue,
-      baseRent: baseRent,
-      utilitiesCharges: utilitiesCharges,
-      historicalDebt: historicalDebt,
       dueDate: format(nextDueDate, 'MMMM dd, yyyy'),
-      daysRemaining: Math.max(0, daysRemaining),
+      daysRemaining: daysRemaining, // Use actual value, can be negative for overdue
       propertyName: tenant.apartmentInfo?.propertyName || 'Property',
       unitNumber: tenant.apartmentInfo?.unitNumber || 'N/A',
       customMessage: customMessage || landlord.emailSettings?.templates?.rentReminder?.customMessage,
-      mpesaPaybill: landlord.darajaConfig?.businessShortCode ?? undefined,
-      mpesaAccountNumber: landlord.darajaConfig?.accountNumber ?? undefined,
     });
 
     if (result.success) {
@@ -153,31 +148,42 @@ export async function sendBulkReminders(req: Request, res: Response) {
 
     console.log(`📧 Bulk reminder request for ${tenantIds.length} tenants from landlord ${landlordId}`);
 
-    // Get landlord details
+    // Get landlord details - this landlord's info will be used in all emails
     const landlord = await Landlord.findById(landlordId).lean();
     if (!landlord) {
       return res.status(404).json({ error: 'Landlord not found' });
     }
 
-    // Get all tenants
+    // Get all tenants - ONLY tenants that belong to this landlord
     const tenants = await Tenant.find({
       _id: { $in: tenantIds },
       'apartmentInfo.landlordId': landlordId,
     }).lean();
 
     if (tenants.length === 0) {
-      return res.status(404).json({ error: 'No valid tenants found' });
+      return res.status(404).json({ error: 'No valid tenants found for this landlord' });
     }
 
-    // Send reminders to all tenants
+    console.log(`✅ Found ${tenants.length} valid tenant(s) belonging to landlord ${landlord.fullName}`);
+
+    // Send reminders to all tenants using their actual rent cycle data
     const today = new Date();
     const currentMonth = today.getMonth() + 1;
     const currentYear = today.getFullYear();
     
     const results = await Promise.allSettled(
       tenants.map(async (tenant) => {
+        // Verify tenant's landlordId matches (double-check for security)
+        if (tenant.apartmentInfo?.landlordId?.toString() !== landlordId) {
+          console.warn(`⚠️  Skipping tenant ${tenant._id} - landlord mismatch`);
+          return { success: false, error: 'Landlord mismatch' };
+        }
+
+        console.log(`  📤 Sending reminder to ${tenant.fullName} from landlord ${landlord.fullName}`);
+
+        // Use tenant's actual rent cycle data (already correctly calculated)
         const nextDueDate = tenant.rentCycle?.nextDueDate || new Date();
-        const daysRemaining = Math.ceil((nextDueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        const daysRemaining = tenant.rentCycle?.daysRemaining ?? 0;
 
         // Fetch payment history for breakdown
         const paymentRecords = await PaymentHistory.find({
@@ -226,16 +232,11 @@ export async function sendBulkReminders(req: Request, res: Response) {
           landlordEmail: landlord.email,
           landlordPhone: landlord.phone ?? undefined,
           amountDue: totalAmountDue,
-          baseRent: baseRent,
-          utilitiesCharges: utilitiesCharges,
-          historicalDebt: historicalDebt,
           dueDate: format(nextDueDate, 'MMMM dd, yyyy'),
-          daysRemaining: Math.max(0, daysRemaining),
+          daysRemaining: daysRemaining, // Use actual value, can be negative for overdue
           propertyName: tenant.apartmentInfo?.propertyName || 'Property',
           unitNumber: tenant.apartmentInfo?.unitNumber || 'N/A',
           customMessage: customMessage || landlord.emailSettings?.templates?.rentReminder?.customMessage,
-          mpesaPaybill: landlord.darajaConfig?.businessShortCode ?? undefined,
-          mpesaAccountNumber: landlord.darajaConfig?.accountNumber ?? undefined,
         });
       })
     );

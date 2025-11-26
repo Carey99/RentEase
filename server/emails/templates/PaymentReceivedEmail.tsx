@@ -9,7 +9,6 @@ import {
   Text,
   Heading,
   Hr,
-  Button,
 } from '@react-email/components';
 
 interface PaymentReceivedEmailProps {
@@ -41,84 +40,76 @@ export default function PaymentReceivedEmail({
   receiptUrl,
   customMessage,
 }: PaymentReceivedEmailProps) {
+  const firstName = tenantName.split(' ')[0];
+  
   return (
     <Html>
       <Head />
-      <Preview>Payment Received - KES {amount.toLocaleString()} ✅</Preview>
+      <Preview>Payment Received - KES {(amount || 0).toLocaleString()}</Preview>
       <Body style={main}>
         <Container style={container}>
-          <Section style={successBanner}>
-            <Heading style={h1}>Payment Received! ✅</Heading>
+          {/* Logo/Brand */}
+          <Section style={logoSection}>
+            <Heading style={logo}>RENTEASE</Heading>
           </Section>
-          
-          <Text style={text}>
-            Dear {tenantName},
-          </Text>
 
-          <Text style={text}>
-            Thank you! Your rent payment has been successfully received and recorded.
+          {/* Success Message */}
+          <Heading style={h1}>
+            Payment received,<br />{firstName}.
+          </Heading>
+          
+          <Text style={message}>
+            Thank you for your payment. Your rent has been successfully received and recorded.
           </Text>
 
           {customMessage && (
-            <Section style={customMessageBox}>
-              <Text style={customMessageText}>{customMessage}</Text>
-            </Section>
+            <Text style={customNote}>
+              {customMessage}
+            </Text>
           )}
 
-          <Section style={paymentBox}>
-            <Heading style={h2}>Payment Details</Heading>
-            <table style={table}>
-              <tbody>
-                <tr>
-                  <td style={labelCell}>Amount Paid:</td>
-                  <td style={valueCell}><strong>KES {amount.toLocaleString()}</strong></td>
-                </tr>
-                <tr>
-                  <td style={labelCell}>Payment Date:</td>
-                  <td style={valueCell}>{paymentDate}</td>
-                </tr>
-                <tr>
-                  <td style={labelCell}>Payment Method:</td>
-                  <td style={valueCell}>{paymentMethod}</td>
-                </tr>
-                <tr>
-                  <td style={labelCell}>Receipt Number:</td>
-                  <td style={valueCell}>{receiptNumber}</td>
-                </tr>
-                <tr>
-                  <td style={labelCell}>For Period:</td>
-                  <td style={valueCell}>{forMonth} {forYear}</td>
-                </tr>
-              </tbody>
+          {/* Payment Summary */}
+          <Section style={summaryBox}>
+            <Text style={summaryAmount}>KES {(amount || 0).toLocaleString()}</Text>
+            <Text style={summaryPeriod}>{forMonth} {forYear}</Text>
+          </Section>
+
+          {/* Payment Details */}
+          <Section style={detailsBox}>
+            <table style={detailsTable}>
+              <tr>
+                <td style={detailLabel}>Receipt Number</td>
+                <td style={detailValue}>{receiptNumber}</td>
+              </tr>
+              <tr>
+                <td style={detailLabel}>Payment Date</td>
+                <td style={detailValue}>{paymentDate}</td>
+              </tr>
+              <tr>
+                <td style={detailLabel}>Payment Method</td>
+                <td style={detailValue}>{paymentMethod}</td>
+              </tr>
+              <tr>
+                <td style={detailLabel}>Property</td>
+                <td style={detailValue}>{propertyName}</td>
+              </tr>
+              <tr>
+                <td style={detailLabel}>Unit</td>
+                <td style={detailValue}>{unitNumber}</td>
+              </tr>
             </table>
           </Section>
 
-          <Section style={propertyBox}>
-            <Heading style={h3}>Property Information</Heading>
-            <Text style={infoText}>
-              <strong>Property:</strong> {propertyName}<br />
-              <strong>Unit:</strong> {unitNumber}
-            </Text>
-          </Section>
-
-          {receiptUrl && (
-            <Section style={buttonContainer}>
-              <Button style={button} href={receiptUrl}>
-                Download Receipt (PDF)
-              </Button>
-            </Section>
-          )}
-
-          <Text style={text}>
-            Your payment history is always available in your tenant dashboard.
+          <Text style={attachmentNote}>
+            A detailed receipt has been attached to this email.
           </Text>
 
-          <Hr style={hr} />
+          <Hr style={divider} />
 
+          {/* Footer */}
           <Text style={footer}>
-            Thank you for being a valued tenant!<br />
             {landlordName}<br />
-            <em>via RentEase Property Management</em>
+            RentEase Property Management
           </Text>
         </Container>
       </Body>
@@ -126,141 +117,135 @@ export default function PaymentReceivedEmail({
   );
 }
 
+// Styles
 const main = {
-  backgroundColor: '#f6f9fc',
-  fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Ubuntu,sans-serif',
+  backgroundColor: '#f5f5f5',
+  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+  padding: '40px 20px',
 };
 
 const container = {
   backgroundColor: '#ffffff',
   margin: '0 auto',
-  padding: '40px 20px',
-  maxWidth: '600px',
-  borderRadius: '8px',
+  padding: '60px 40px',
+  maxWidth: '580px',
 };
 
-const successBanner = {
-  backgroundColor: '#10b981',
-  padding: '20px',
-  borderRadius: '8px 8px 0 0',
-  marginTop: '-40px',
-  marginLeft: '-20px',
-  marginRight: '-20px',
-  marginBottom: '24px',
+const logoSection = {
+  textAlign: 'center' as const,
+  marginBottom: '48px',
+};
+
+const logo = {
+  color: '#666666',
+  fontSize: '14px',
+  fontWeight: '400',
+  letterSpacing: '2px',
+  margin: '0',
+  textTransform: 'uppercase' as const,
 };
 
 const h1 = {
-  color: '#ffffff',
-  fontSize: '28px',
-  fontWeight: 'bold',
-  marginBottom: '0',
+  color: '#1a1a1a',
+  fontSize: '36px',
+  fontWeight: '400',
+  lineHeight: '1.3',
+  textAlign: 'center' as const,
+  margin: '0 0 32px 0',
+};
+
+const message = {
+  color: '#666666',
+  fontSize: '16px',
+  lineHeight: '1.6',
+  textAlign: 'center' as const,
+  margin: '0 0 32px 0',
+};
+
+const customNote = {
+  color: '#666666',
+  fontSize: '15px',
+  lineHeight: '1.6',
+  textAlign: 'center' as const,
+  margin: '0 0 32px 0',
+  fontStyle: 'italic' as const,
+  padding: '0 20px',
+};
+
+const summaryBox = {
+  backgroundColor: '#f0fdf4',
+  padding: '32px',
+  marginBottom: '32px',
   textAlign: 'center' as const,
 };
 
-const h2 = {
-  color: '#374151',
-  fontSize: '20px',
-  fontWeight: 'bold',
-  marginBottom: '16px',
+const summaryAmount = {
+  color: '#1a1a1a',
+  fontSize: '42px',
+  fontWeight: '500',
+  margin: '0 0 8px 0',
+  lineHeight: '1',
 };
 
-const h3 = {
-  color: '#374151',
-  fontSize: '18px',
-  fontWeight: 'bold',
-  marginBottom: '12px',
+const summaryPeriod = {
+  color: '#666666',
+  fontSize: '14px',
+  fontWeight: '400',
+  margin: '0',
+  textTransform: 'uppercase' as const,
+  letterSpacing: '1px',
 };
 
-const text = {
-  color: '#4b5563',
-  fontSize: '16px',
-  lineHeight: '24px',
-  marginBottom: '16px',
+const detailsBox = {
+  backgroundColor: '#fafafa',
+  padding: '32px',
+  marginBottom: '32px',
 };
 
-const paymentBox = {
-  backgroundColor: '#f9fafb',
-  padding: '24px',
-  borderRadius: '8px',
-  marginBottom: '20px',
-  border: '2px solid #10b981',
-};
-
-const propertyBox = {
-  backgroundColor: '#f9fafb',
-  padding: '20px',
-  borderRadius: '8px',
-  marginBottom: '20px',
-  border: '1px solid #e5e7eb',
-};
-
-const table = {
+const detailsTable = {
   width: '100%',
   borderCollapse: 'collapse' as const,
 };
 
-const labelCell = {
-  color: '#6b7280',
-  fontSize: '15px',
-  padding: '8px 0',
-  width: '40%',
+const detailLabel = {
+  color: '#999999',
+  fontSize: '13px',
+  fontWeight: '400',
+  paddingBottom: '16px',
+  paddingTop: '16px',
+  textAlign: 'left' as const,
+  verticalAlign: 'top' as const,
+  width: '45%',
 };
 
-const valueCell = {
-  color: '#1f2937',
+const detailValue = {
+  color: '#1a1a1a',
   fontSize: '15px',
-  padding: '8px 0',
+  fontWeight: '500',
+  paddingBottom: '16px',
+  paddingTop: '16px',
   textAlign: 'right' as const,
+  verticalAlign: 'top' as const,
 };
 
-const infoText = {
-  color: '#4b5563',
-  fontSize: '15px',
-  lineHeight: '22px',
-  margin: '0',
-};
-
-const customMessageBox = {
-  backgroundColor: '#eff6ff',
-  padding: '16px',
-  borderRadius: '8px',
-  marginBottom: '20px',
-  borderLeft: '4px solid #3b82f6',
-};
-
-const customMessageText = {
-  color: '#1e40af',
-  fontSize: '15px',
-  lineHeight: '22px',
-  margin: '0',
-  fontStyle: 'italic' as const,
-};
-
-const buttonContainer = {
+const attachmentNote = {
+  color: '#666666',
+  fontSize: '14px',
   textAlign: 'center' as const,
-  margin: '24px 0',
+  margin: '0 0 32px 0',
 };
 
-const button = {
-  backgroundColor: '#3b82f6',
-  borderRadius: '6px',
-  color: '#ffffff',
-  fontSize: '16px',
-  fontWeight: 'bold',
-  textDecoration: 'none',
-  textAlign: 'center' as const,
-  display: 'inline-block',
-  padding: '12px 32px',
-};
-
-const hr = {
-  borderColor: '#e5e7eb',
-  margin: '24px 0',
+const divider = {
+  borderColor: '#e5e5e5',
+  borderStyle: 'solid',
+  borderWidth: '1px 0 0 0',
+  margin: '40px 0',
 };
 
 const footer = {
-  color: '#9ca3af',
-  fontSize: '14px',
-  lineHeight: '20px',
+  color: '#999999',
+  fontSize: '12px',
+  lineHeight: '1.6',
   textAlign: 'center' as const,
+  margin: '0',
 };

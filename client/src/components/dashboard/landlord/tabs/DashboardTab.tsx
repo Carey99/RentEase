@@ -1,13 +1,15 @@
-import { Building, Users, DollarSign, UserPlus, UserMinus, CheckCircle, AlertCircle, Zap, Bell, FileText } from "lucide-react";
+import { Building, Users, DollarSign, UserPlus, UserMinus, CheckCircle, AlertCircle, Zap, Bell, FileText, ChevronDown, ChevronRight, Eye, Home } from "lucide-react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import StatsCard from "@/components/dashboard/stats-card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { useCurrentUser } from "@/hooks/dashboard/useDashboard";
 import { useActivityNotifications } from "@/hooks/use-activity-notifications";
 import type { Property } from "@/types/dashboard";
 import { formatDistanceToNow } from "date-fns";
-import { calculateTotalDebt, calculateMonthlyRevenueFromBills } from "@/lib/payment-calculations";
 import { paidForBill, isTransactionRecord } from "@/lib/payment-utils";
+import { cn } from "@/lib/utils";
 
 interface DashboardTabProps {
   properties: Property[];
@@ -15,6 +17,7 @@ interface DashboardTabProps {
 
 export default function DashboardTab({ properties }: DashboardTabProps) {
   const currentUser = useCurrentUser();
+  const [expandedProperty, setExpandedProperty] = useState<string | null>(null);
 
   // Enable real-time activity notifications via WebSocket
   const { isConnected } = useActivityNotifications(
@@ -76,52 +79,68 @@ export default function DashboardTab({ properties }: DashboardTabProps) {
 
   return (
     <div>
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-        <StatsCard
-          title="Total Properties"
-          value={properties.length || 0}
-          icon={<Building className="h-6 w-6" />}
-          data-testid="stat-properties"
-        />
-        <StatsCard
-          title="Active Tenants"
-          value={stats.activeTenants}
-          icon={<Users className="h-6 w-6" />}
-          color="accent"
-          data-testid="stat-tenants"
-        />
-        <StatsCard
-          title="Monthly Revenue"
-          value={`KSH ${stats.monthlyRevenue.toLocaleString()}`}
-          icon={<DollarSign className="h-6 w-6" />}
-          color="green"
-          data-testid="stat-revenue"
-        />
+      {/* Top Stats Bar */}
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="bg-white rounded-xl p-5 border border-neutral-200/60">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-blue-50 rounded-lg">
+              <Building className="h-5 w-5 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-xs text-neutral-500">Total Properties</p>
+              <p className="text-2xl font-bold text-neutral-900">{properties.length || 0}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl p-5 border border-neutral-200/60">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-green-50 rounded-lg">
+              <Users className="h-5 w-5 text-green-600" />
+            </div>
+            <div>
+              <p className="text-xs text-neutral-500">Active Tenants</p>
+              <p className="text-2xl font-bold text-neutral-900">{stats.activeTenants}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl p-5 border border-neutral-200/60">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-purple-50 rounded-lg">
+              <DollarSign className="h-5 w-5 text-purple-600" />
+            </div>
+            <div>
+              <p className="text-xs text-neutral-500">Monthly Revenue</p>
+              <p className="text-2xl font-bold text-neutral-900">KSH {stats.monthlyRevenue.toLocaleString()}</p>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Recent Activity */}
-      <div className="grid lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle>Recent Activity</CardTitle>
-            <div className="flex items-center gap-2">
-              <div className={`h-2 w-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-gray-300'}`} />
-              <span className="text-xs text-muted-foreground">
-                {isConnected ? 'Live' : 'Offline'}
-              </span>
+      {/* Main Content Grid */}
+      <div className="grid lg:grid-cols-3 gap-6">
+        {/* Left Column - Recent Activity (2/3 width) */}
+        <div className="lg:col-span-2">
+          <div className="bg-white rounded-xl border border-neutral-200/60">
+            <div className="p-5 flex items-center justify-between">
+              <h2 className="font-semibold text-neutral-900">Recent Activity</h2>
+              <div className="flex items-center gap-2">
+                <div className={`h-2 w-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-gray-300'}`} />
+                <span className="text-xs text-neutral-500">
+                  {isConnected ? 'Live' : 'Offline'}
+                </span>
+              </div>
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
+            
+            <div className="p-4">
               {recentActivities.length === 0 ? (
-                <p className="text-neutral-500 text-center py-4">
+                <p className="text-neutral-500 text-center py-8">
                   No recent activity yet. Activity will appear here as you manage your properties and tenants.
                 </p>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {recentActivities.map((activity: any) => {
-                    // Map icon names to components
                     const iconMap: Record<string, any> = {
                       'user-plus': UserPlus,
                       'user-minus': UserMinus,
@@ -137,7 +156,6 @@ export default function DashboardTab({ properties }: DashboardTabProps) {
 
                     const IconComponent = iconMap[activity.icon] || Bell;
 
-                    // Priority color mapping
                     const priorityColors: Record<string, string> = {
                       low: 'bg-neutral-100 text-neutral-600',
                       medium: 'bg-blue-100 text-blue-600',
@@ -148,7 +166,7 @@ export default function DashboardTab({ properties }: DashboardTabProps) {
                     const colorClass = priorityColors[activity.priority] || 'bg-neutral-100 text-neutral-600';
 
                     return (
-                      <div key={activity._id} className="flex items-start space-x-3 p-3 rounded-lg hover:bg-neutral-50 transition-colors">
+                      <div key={activity._id} className="flex items-start gap-3 py-3 hover:bg-neutral-50/50 transition-colors">
                         <div className={`p-2 rounded-full ${colorClass} flex-shrink-0`}>
                           <IconComponent className="h-4 w-4" />
                         </div>
@@ -169,19 +187,25 @@ export default function DashboardTab({ properties }: DashboardTabProps) {
                   })}
                 </div>
               )}
+              
+              {recentActivities.length > 0 && (
+                <button className="w-full mt-4 text-sm text-primary hover:text-primary/80 font-medium">
+                  View All Activity
+                </button>
+              )}
             </div>
-          </CardContent>
-        </Card>
+          </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Building className="h-5 w-5 text-blue-600" />
-              Property Overview
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
+          {/* Property Overview Section Below Activity */}
+          <div className="bg-white rounded-xl border border-neutral-200/60 mt-6">
+            <div className="p-5">
+              <h2 className="font-semibold text-neutral-900 flex items-center gap-2">
+                <Home className="h-5 w-5 text-blue-600" />
+                Property Overview
+              </h2>
+            </div>
+            
+            <div className="p-4">
               {properties.length === 0 ? (
                 <div className="text-center py-8">
                   <Building className="h-12 w-12 text-neutral-300 mx-auto mb-3" />
@@ -189,107 +213,172 @@ export default function DashboardTab({ properties }: DashboardTabProps) {
                   <p className="text-sm text-neutral-400">Add your first property to get started!</p>
                 </div>
               ) : (
-                properties.map((property: any) => {
-                  // Calculate total units from property types
-                  const totalUnits = property.propertyTypes?.reduce((sum: number, pt: any) => sum + (pt.units || 0), 0) || 0;
-                  
-                  // Calculate occupied units from real tenant data
-                  // The API returns tenants with propertyId at root level (not nested in apartmentInfo)
-                  const occupiedUnits = allTenants.filter((tenant: any) => {
-                    return tenant.propertyId === property.id;
-                  }).length;
-                  
-                  const occupancyRate = totalUnits > 0 ? Math.round((occupiedUnits / totalUnits) * 100) : 0;
-                  const vacantUnits = totalUnits - occupiedUnits;
+                <div className="grid md:grid-cols-2 gap-4">
+                  {properties.map((property: any) => {
+                    const totalUnits = property.propertyTypes?.reduce((sum: number, pt: any) => sum + (pt.units || 0), 0) || 0;
+                    const occupiedUnits = allTenants.filter((tenant: any) => tenant.propertyId === property.id).length;
+                    const occupancyRate = totalUnits > 0 ? Math.round((occupiedUnits / totalUnits) * 100) : 0;
 
-                  // Calculate monthly revenue for this property from real payment data
-                  const now = new Date();
-                  const currentMonth = now.getMonth() + 1;
-                  const currentYear = now.getFullYear();
-                  
-                  const propertyRevenue = paymentHistory
-                    .filter((p: any) => 
-                      p.propertyId === property.id &&
-                      p.forMonth === currentMonth &&
-                      p.forYear === currentYear &&
-                      !isTransactionRecord(p)
-                    )
-                    .reduce((sum: number, p: any) => sum + paidForBill(p), 0);
-
-                  // Get property types for display
-                  const propertyTypesList = property.propertyTypes?.map((pt: any) => pt.type).join(', ') || 'N/A';
-
-                  return (
-                    <div 
-                      key={property.id} 
-                      className="p-4 border border-neutral-200 rounded-lg hover:border-blue-300 hover:shadow-md transition-all duration-200 group"
-                    >
-                      {/* Property Header */}
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-neutral-900 group-hover:text-blue-600 transition-colors">
-                            {property.name}
-                          </h4>
-                          <p className="text-sm text-neutral-500 flex items-center gap-1 mt-1">
-                            <Building className="h-3 w-3" />
-                            {propertyTypesList}
-                          </p>
+                    return (
+                      <div key={property.id} className="p-4 bg-neutral-50/50 rounded-lg hover:bg-neutral-100/50 transition-colors">
+                        <h3 className="font-semibold text-neutral-900 mb-1">{property.name}</h3>
+                        <div className="flex items-center gap-3 text-sm text-neutral-600 mb-3">
+                          <span>{totalUnits} Total</span>
+                          <span>•</span>
+                          <span className="text-green-600">{occupiedUnits} Occupied</span>
+                          <span>•</span>
+                          <span className="text-orange-600">{totalUnits - occupiedUnits} Vacant</span>
                         </div>
-                        <div className="flex items-center gap-1 px-2 py-1 bg-green-50 text-green-700 rounded-full text-xs font-medium">
-                          <CheckCircle className="h-3 w-3" />
-                          Active
-                        </div>
-                      </div>
-
-                      {/* Property Stats Grid */}
-                      <div className="grid grid-cols-3 gap-3 mb-3">
-                        <div className="bg-blue-50 rounded-lg p-2 text-center">
-                          <div className="text-xs text-blue-600 mb-1">Total Units</div>
-                          <div className="text-lg font-bold text-blue-700">{totalUnits}</div>
-                        </div>
-                        <div className="bg-green-50 rounded-lg p-2 text-center">
-                          <div className="text-xs text-green-600 mb-1">Occupied</div>
-                          <div className="text-lg font-bold text-green-700">{occupiedUnits}</div>
-                        </div>
-                        <div className="bg-orange-50 rounded-lg p-2 text-center">
-                          <div className="text-xs text-orange-600 mb-1">Vacant</div>
-                          <div className="text-lg font-bold text-orange-700">{vacantUnits}</div>
-                        </div>
-                      </div>
-
-                      {/* Occupancy Bar */}
-                      <div className="mb-3">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs text-neutral-600">Occupancy Rate</span>
-                          <span className="text-xs font-semibold text-neutral-900">{occupancyRate}%</span>
-                        </div>
-                        <div className="w-full bg-neutral-200 rounded-full h-2 overflow-hidden">
+                        <div className="w-full bg-neutral-200 rounded-full h-2">
                           <div 
-                            className={`h-2 rounded-full transition-all duration-500 ${
-                              occupancyRate >= 80 ? 'bg-green-500' :
-                              occupancyRate >= 50 ? 'bg-blue-500' :
-                              occupancyRate >= 25 ? 'bg-orange-500' :
-                              'bg-red-500'
-                            }`}
+                            className={cn(
+                              "h-2 rounded-full transition-all",
+                              occupancyRate >= 80 ? "bg-green-500" :
+                              occupancyRate >= 50 ? "bg-blue-500" :
+                              "bg-orange-500"
+                            )}
                             style={{ width: `${occupancyRate}%` }}
                           />
                         </div>
                       </div>
-
-                      {/* Monthly Revenue */}
-                      <div className="flex items-center justify-between pt-3 border-t border-neutral-200">
-                        <span className="text-xs text-neutral-600">Monthly Revenue</span>
-                        <span className="text-sm font-bold text-green-600">
-                          KSH {propertyRevenue.toLocaleString()}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })
+                    );
+                  })}
+                </div>
               )}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
+
+        {/* Right Column - Tracked Properties (1/3 width, Fixed Height with Scroll) */}
+        <div className="lg:col-span-1">
+          <div className="bg-white rounded-xl border border-neutral-200/60 h-[600px] flex flex-col">
+            <div className="p-5 flex items-center justify-between flex-shrink-0">
+              <h2 className="font-semibold text-neutral-900">Tracked Properties</h2>
+              <Badge variant="secondary">{properties.length}</Badge>
+            </div>
+            
+            <div className="overflow-y-auto flex-1">
+              {properties.length === 0 ? (
+                <div className="p-4 text-center">
+                  <Building className="h-8 w-8 text-neutral-300 mx-auto mb-2" />
+                  <p className="text-sm text-neutral-500">No properties to track</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-neutral-100">
+                  {properties.map((property: any) => {
+                    const totalUnits = property.propertyTypes?.reduce((sum: number, pt: any) => sum + (pt.units || 0), 0) || 0;
+                    const occupiedUnits = allTenants.filter((tenant: any) => tenant.propertyId === property.id).length;
+                    const occupancyRate = totalUnits > 0 ? Math.round((occupiedUnits / totalUnits) * 100) : 0;
+                    const vacantUnits = totalUnits - occupiedUnits;
+
+                    const now = new Date();
+                    const currentMonth = now.getMonth() + 1;
+                    const currentYear = now.getFullYear();
+                    
+                    const propertyRevenue = paymentHistory
+                      .filter((p: any) => 
+                        p.propertyId === property.id &&
+                        p.forMonth === currentMonth &&
+                        p.forYear === currentYear &&
+                        !isTransactionRecord(p)
+                      )
+                      .reduce((sum: number, p: any) => sum + paidForBill(p), 0);
+
+                    const isExpanded = expandedProperty === property.id;
+
+                    return (
+                      <div key={property.id}>
+                        {/* Collapsed Row */}
+                        <button
+                          onClick={() => setExpandedProperty(isExpanded ? null : property.id)}
+                          className="w-full p-4 hover:bg-neutral-50/50 transition-colors text-left"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <h3 className="font-medium text-sm text-neutral-900">{property.name}</h3>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Badge variant="outline" className="text-xs">{totalUnits} units</Badge>
+                                <Badge variant="secondary" className="text-xs bg-green-50 text-green-700 border-green-200">
+                                  {occupancyRate}%
+                                </Badge>
+                                <Badge variant="secondary" className="text-xs">
+                                  KSH {(propertyRevenue / 1000).toFixed(1)}k
+                                </Badge>
+                              </div>
+                            </div>
+                            {isExpanded ? (
+                              <ChevronDown className="h-4 w-4 text-neutral-400 flex-shrink-0" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4 text-neutral-400 flex-shrink-0" />
+                            )}
+                          </div>
+                        </button>
+
+                        {/* Expanded Content */}
+                        {isExpanded && (
+                          <div className="px-3 pb-4 bg-neutral-50/50">
+                            {/* Stats Grid */}
+                            <div className="grid grid-cols-3 gap-2 mb-3">
+                              <div className="bg-white rounded-lg p-2 text-center">
+                                <div className="text-xs text-neutral-600 mb-1">Total</div>
+                                <div className="text-lg font-bold text-blue-600">{totalUnits}</div>
+                              </div>
+                              <div className="bg-white rounded-lg p-2 text-center">
+                                <div className="text-xs text-neutral-600 mb-1">Occupied</div>
+                                <div className="text-lg font-bold text-green-600">{occupiedUnits}</div>
+                              </div>
+                              <div className="bg-white rounded-lg p-2 text-center">
+                                <div className="text-xs text-neutral-600 mb-1">Vacant</div>
+                                <div className="text-lg font-bold text-orange-600">{vacantUnits}</div>
+                              </div>
+                            </div>
+
+                            {/* Occupancy Bar */}
+                            <div className="mb-3">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-xs text-neutral-600">Occupancy Rate</span>
+                                <span className="text-xs font-semibold text-neutral-900">{occupancyRate}%</span>
+                              </div>
+                              <div className="w-full bg-neutral-200 rounded-full h-2">
+                                <div 
+                                  className={cn(
+                                    "h-2 rounded-full transition-all",
+                                    occupancyRate >= 80 ? "bg-green-500" :
+                                    occupancyRate >= 50 ? "bg-blue-500" :
+                                    "bg-orange-500"
+                                  )}
+                                  style={{ width: `${occupancyRate}%` }}
+                                />
+                              </div>
+                            </div>
+
+                            {/* Revenue */}
+                            <div className="bg-white rounded-lg p-2 mb-3">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs text-neutral-600">Monthly Revenue</span>
+                                <span className="text-sm font-bold text-green-600">
+                                  KSH {propertyRevenue.toLocaleString()}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Quick Actions */}
+                            <div className="flex gap-2">
+                              <Button variant="outline" size="sm" className="flex-1 text-xs h-8">
+                                <Eye className="h-3 w-3 mr-1" />
+                                View
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

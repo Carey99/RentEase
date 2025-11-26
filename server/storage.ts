@@ -3,6 +3,7 @@ import { Landlord as LandlordModel, Tenant as TenantModel, Property as PropertyM
 import { ObjectId } from "mongodb";
 import { logActivity, createActivityLog } from "./controllers/activityController";
 import { logTenantActivity, createTenantActivityLog } from "./controllers/tenantActivityController";
+import bcrypt from 'bcryptjs';
 
 // Helper function to validate ObjectId format
 function isValidObjectId(id: string): boolean {
@@ -131,11 +132,13 @@ export class MongoStorage implements IStorage {
 
   async createUser(insertUser: InsertUser): Promise<User> {
     try {
+      // Hash password before saving
+      const hashedPassword = await bcrypt.hash(insertUser.password, 10);
       if (insertUser.role === 'landlord') {
         const landlord = new LandlordModel({
           fullName: insertUser.fullName,
           email: insertUser.email,
-          password: insertUser.password,
+          password: hashedPassword,
           role: 'landlord',
         });
         const saved = await landlord.save();
@@ -152,7 +155,7 @@ export class MongoStorage implements IStorage {
           fullName: insertUser.fullName,
           email: insertUser.email,
           phone: insertUser.phone,
-          password: insertUser.password,
+          password: hashedPassword,
           role: 'tenant',
         });
         const saved = await tenant.save();

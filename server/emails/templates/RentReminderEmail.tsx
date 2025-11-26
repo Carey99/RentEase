@@ -10,6 +10,7 @@ import {
   Heading,
   Hr,
   Link,
+  Button,
 } from '@react-email/components';
 
 interface RentReminderEmailProps {
@@ -18,16 +19,12 @@ interface RentReminderEmailProps {
   landlordEmail: string;
   landlordPhone?: string;
   amountDue: number;
-  baseRent?: number;
-  utilitiesCharges?: number;
-  historicalDebt?: number;
   dueDate: string;
   daysRemaining: number;
   propertyName: string;
   unitNumber: string;
   customMessage?: string;
-  mpesaPaybill?: string;
-  mpesaAccountNumber?: string;
+  paymentUrl?: string;
 }
 
 export default function RentReminderEmail({
@@ -36,144 +33,111 @@ export default function RentReminderEmail({
   landlordEmail,
   landlordPhone,
   amountDue,
-  baseRent,
-  utilitiesCharges,
-  historicalDebt,
   dueDate,
   daysRemaining,
   propertyName,
   unitNumber,
   customMessage,
-  mpesaPaybill,
-  mpesaAccountNumber,
+  paymentUrl,
 }: RentReminderEmailProps) {
+  const firstName = tenantName.split(' ')[0];
+  const isOverdue = daysRemaining < 0;
   const isUrgent = daysRemaining <= 1;
   const isDue = daysRemaining === 0;
-  const hasBreakdown = baseRent || utilitiesCharges || historicalDebt;
+  const daysOverdue = Math.abs(daysRemaining);
+
+  // Determine heading based on status
+  let heading = '';
+  let messageText = '';
+  
+  if (isOverdue) {
+    heading = daysOverdue === 1 
+      ? 'Your rent is 1 day overdue.'
+      : `Your rent is ${daysOverdue} days overdue.`;
+    messageText = `Hello ${firstName}, your rent payment for ${propertyName}, Unit ${unitNumber} is now overdue. Please make payment as soon as possible.`;
+  } else if (isDue) {
+    heading = 'Your rent is due today.';
+    messageText = `Hello ${firstName}, this is a reminder that your rent payment for ${propertyName}, Unit ${unitNumber} is due today.`;
+  } else {
+    heading = daysRemaining === 1 
+      ? 'Your rent is due in 1 day.'
+      : `Your rent is due in ${daysRemaining} days.`;
+    messageText = `Hello ${firstName}, this is a friendly reminder about your upcoming rent payment for ${propertyName}, Unit ${unitNumber}.`;
+  }
 
   return (
     <Html>
       <Head />
       <Preview>
-        {isDue
+        {isOverdue
+          ? `Rent Payment Overdue - ${daysOverdue} ${daysOverdue === 1 ? 'Day' : 'Days'}`
+          : isDue
           ? 'Rent Payment Due Today'
           : `Rent Due in ${daysRemaining} ${daysRemaining === 1 ? 'Day' : 'Days'}`}
       </Preview>
       <Body style={main}>
         <Container style={container}>
-          <Section style={isUrgent ? urgentBanner : reminderBanner}>
-            <Heading style={h1}>
-              {isDue ? '⏰ Rent Due Today' : `📅 Rent Reminder`}
-            </Heading>
+          {/* Logo/Brand */}
+          <Section style={logoSection}>
+            <Heading style={logo}>RENTEASE</Heading>
           </Section>
-          
-          <Text style={text}>
-            Dear {tenantName},
-          </Text>
 
-          <Text style={text}>
-            This is a friendly reminder that your rent payment is{' '}
-            {isDue ? <strong>due today</strong> : `due in ${daysRemaining} ${daysRemaining === 1 ? 'day' : 'days'}`}.
+          {/* Main Heading */}
+          <Heading style={h1}>
+            {heading}
+          </Heading>
+          
+          <Text style={message}>
+            {messageText}
           </Text>
 
           {customMessage && (
-            <Section style={customMessageBox}>
-              <Text style={customMessageText}>{customMessage}</Text>
-            </Section>
+            <Text style={customNote}>
+              {customMessage}
+            </Text>
           )}
 
-          <Section style={amountBox}>
-            <Heading style={h2}>Payment Information</Heading>
-            <table style={table}>
-              <tbody>
-                {hasBreakdown ? (
-                  <>
-                    {baseRent && baseRent > 0 && (
-                      <tr>
-                        <td style={labelCell}>Monthly Rent:</td>
-                        <td style={valueCell}>KES {baseRent.toLocaleString()}</td>
-                      </tr>
-                    )}
-                    {utilitiesCharges && utilitiesCharges > 0 && (
-                      <tr>
-                        <td style={labelCell}>Utilities:</td>
-                        <td style={valueCell}>KES {utilitiesCharges.toLocaleString()}</td>
-                      </tr>
-                    )}
-                    {historicalDebt && historicalDebt > 0 && (
-                      <tr>
-                        <td style={labelCell}>Previous Outstanding:</td>
-                        <td style={valueCell}>KES {historicalDebt.toLocaleString()}</td>
-                      </tr>
-                    )}
-                    <tr style={{ borderTop: '2px solid #e5e7eb' }}>
-                      <td style={labelCell}><strong>Total Amount Due:</strong></td>
-                      <td style={amountCell}><strong>KES {amountDue.toLocaleString()}</strong></td>
-                    </tr>
-                  </>
-                ) : (
-                  <tr>
-                    <td style={labelCell}>Amount Due:</td>
-                    <td style={amountCell}><strong>KES {amountDue.toLocaleString()}</strong></td>
-                  </tr>
-                )}
-                <tr>
-                  <td style={labelCell}>Due Date:</td>
-                  <td style={valueCell}>{dueDate}</td>
-                </tr>
-                <tr>
-                  <td style={labelCell}>Property:</td>
-                  <td style={valueCell}>{propertyName}</td>
-                </tr>
-                <tr>
-                  <td style={labelCell}>Unit:</td>
-                  <td style={valueCell}>{unitNumber}</td>
-                </tr>
-              </tbody>
-            </table>
-          </Section>
-
-          {(mpesaPaybill || mpesaAccountNumber) && (
-            <Section style={paymentMethodBox}>
-              <Heading style={h3}>💳 M-Pesa Payment Details</Heading>
-              {mpesaPaybill && (
-                <Text style={paymentText}>
-                  <strong>Paybill Number:</strong> {mpesaPaybill}
-                </Text>
-              )}
-              {mpesaAccountNumber && (
-                <Text style={paymentText}>
-                  <strong>Account Number:</strong> {mpesaAccountNumber}
-                </Text>
-              )}
-              <Text style={paymentSteps}>
-                <strong>How to Pay:</strong><br />
-                1. Go to M-Pesa menu<br />
-                2. Select "Lipa na M-Pesa"<br />
-                3. Select "Paybill"<br />
-                4. Enter Business Number: <strong>{mpesaPaybill}</strong><br />
-                5. Enter Account Number: <strong>{mpesaAccountNumber || 'Your Phone Number'}</strong><br />
-                6. Enter Amount: <strong>{amountDue}</strong><br />
-                7. Enter your M-Pesa PIN and confirm
-              </Text>
-            </Section>
-          )}
-
-          <Section style={contactBox}>
-            <Heading style={h3}>Need Help?</Heading>
-            <Text style={contactText}>
-              If you have any questions or need to discuss your payment, please contact:<br />
-              <strong>{landlordName}</strong><br />
-              📧 <Link href={`mailto:${landlordEmail}`}>{landlordEmail}</Link><br />
-              {landlordPhone && <>📞 {landlordPhone}</>}
+          {/* Amount Due Box */}
+          <Section style={isOverdue ? amountBoxOverdue : isUrgent ? amountBoxUrgent : amountBox}>
+            <Text style={amountLabel}>{isOverdue ? 'Overdue Amount' : 'Amount Due'}</Text>
+            <Text style={amountValue}>KES {amountDue.toLocaleString()}</Text>
+            <Text style={dueText}>
+              {isOverdue 
+                ? `Was due: ${dueDate}` 
+                : `Due by ${dueDate}`}
             </Text>
           </Section>
 
-          <Hr style={hr} />
+          {/* Payment Button */}
+          <Section style={buttonSection}>
+            <Button 
+              style={isOverdue ? payButtonUrgent : payButton} 
+              href={paymentUrl || 'https://rentease-e5g5.onrender.com/signin'}
+            >
+              {isOverdue ? 'Pay Overdue Rent Now' : 'Sign In & Pay Now'}
+            </Button>
+          </Section>
 
+          {/* Contact Section */}
+          <Section style={contactSection}>
+            <Text style={contactLabel}>Need assistance?</Text>
+            <Text style={contactDetails}>
+              <Link href={`mailto:${landlordEmail}`} style={link}>{landlordEmail}</Link>
+              {landlordPhone && (
+                <>
+                  <br />
+                  <Link href={`tel:${landlordPhone}`} style={link}>{landlordPhone}</Link>
+                </>
+              )}
+            </Text>
+          </Section>
+
+          <Hr style={divider} />
+
+          {/* Footer */}
           <Text style={footer}>
-            This is an automated reminder from RentEase<br />
-            Managed by {landlordName}
+            {landlordName}<br />
+            RentEase Property Management
           </Text>
         </Container>
       </Body>
@@ -181,166 +145,175 @@ export default function RentReminderEmail({
   );
 }
 
+// Styles
 const main = {
-  backgroundColor: '#f6f9fc',
-  fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Ubuntu,sans-serif',
+  backgroundColor: '#f5f5f5',
+  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+  padding: '40px 20px',
 };
 
 const container = {
   backgroundColor: '#ffffff',
   margin: '0 auto',
-  padding: '40px 20px',
-  maxWidth: '600px',
-  borderRadius: '8px',
+  padding: '60px 40px',
+  maxWidth: '580px',
 };
 
-const reminderBanner = {
-  backgroundColor: '#3b82f6',
-  padding: '20px',
-  borderRadius: '8px 8px 0 0',
-  marginTop: '-40px',
-  marginLeft: '-20px',
-  marginRight: '-20px',
-  marginBottom: '24px',
+const logoSection = {
+  textAlign: 'center' as const,
+  marginBottom: '48px',
 };
 
-const urgentBanner = {
-  backgroundColor: '#f59e0b',
-  padding: '20px',
-  borderRadius: '8px 8px 0 0',
-  marginTop: '-40px',
-  marginLeft: '-20px',
-  marginRight: '-20px',
-  marginBottom: '24px',
+const logo = {
+  color: '#666666',
+  fontSize: '14px',
+  fontWeight: '400',
+  letterSpacing: '2px',
+  margin: '0',
+  textTransform: 'uppercase' as const,
 };
 
 const h1 = {
-  color: '#ffffff',
-  fontSize: '28px',
-  fontWeight: 'bold',
-  marginBottom: '0',
+  color: '#1a1a1a',
+  fontSize: '32px',
+  fontWeight: '400',
+  lineHeight: '1.3',
   textAlign: 'center' as const,
+  margin: '0 0 32px 0',
 };
 
-const h2 = {
-  color: '#374151',
-  fontSize: '20px',
-  fontWeight: 'bold',
-  marginBottom: '16px',
-};
-
-const h3 = {
-  color: '#374151',
-  fontSize: '18px',
-  fontWeight: 'bold',
-  marginBottom: '12px',
-};
-
-const text = {
-  color: '#4b5563',
+const message = {
+  color: '#666666',
   fontSize: '16px',
-  lineHeight: '24px',
-  marginBottom: '16px',
+  lineHeight: '1.6',
+  textAlign: 'center' as const,
+  margin: '0 0 32px 0',
+};
+
+const customNote = {
+  color: '#666666',
+  fontSize: '15px',
+  lineHeight: '1.6',
+  textAlign: 'center' as const,
+  margin: '0 0 32px 0',
+  fontStyle: 'italic' as const,
+  padding: '0 20px',
 };
 
 const amountBox = {
-  backgroundColor: '#fef3c7',
-  padding: '24px',
-  borderRadius: '8px',
-  marginBottom: '20px',
-  border: '2px solid #f59e0b',
+  backgroundColor: '#fef9e7',
+  padding: '32px',
+  marginBottom: '32px',
+  textAlign: 'center' as const,
 };
 
-const paymentMethodBox = {
-  backgroundColor: '#f0fdf4',
-  padding: '20px',
-  borderRadius: '8px',
-  marginBottom: '20px',
-  border: '1px solid #86efac',
+const amountBoxUrgent = {
+  backgroundColor: '#fee2e2',
+  padding: '32px',
+  marginBottom: '32px',
+  textAlign: 'center' as const,
 };
 
-const contactBox = {
-  backgroundColor: '#f9fafb',
-  padding: '20px',
-  borderRadius: '8px',
-  marginBottom: '20px',
-  border: '1px solid #e5e7eb',
+const amountBoxOverdue = {
+  backgroundColor: '#fecaca',
+  padding: '32px',
+  marginBottom: '32px',
+  textAlign: 'center' as const,
+  border: '2px solid #dc2626',
 };
 
-const table = {
-  width: '100%',
-  borderCollapse: 'collapse' as const,
+const amountLabel = {
+  color: '#666666',
+  fontSize: '12px',
+  fontWeight: '400',
+  textTransform: 'uppercase' as const,
+  letterSpacing: '1px',
+  margin: '0 0 12px 0',
 };
 
-const labelCell = {
-  color: '#6b7280',
-  fontSize: '15px',
-  padding: '8px 0',
-  width: '35%',
+const amountValue = {
+  color: '#1a1a1a',
+  fontSize: '42px',
+  fontWeight: '500',
+  margin: '0 0 8px 0',
+  lineHeight: '1',
 };
 
-const valueCell = {
-  color: '#1f2937',
-  fontSize: '15px',
-  padding: '8px 0',
-  textAlign: 'right' as const,
-};
-
-const amountCell = {
-  color: '#b45309',
-  fontSize: '18px',
-  padding: '8px 0',
-  textAlign: 'right' as const,
-};
-
-const customMessageBox = {
-  backgroundColor: '#eff6ff',
-  padding: '16px',
-  borderRadius: '8px',
-  marginBottom: '20px',
-  borderLeft: '4px solid #3b82f6',
-};
-
-const customMessageText = {
-  color: '#1e40af',
-  fontSize: '15px',
-  lineHeight: '22px',
-  margin: '0',
-  fontStyle: 'italic' as const,
-};
-
-const paymentText = {
-  color: '#166534',
-  fontSize: '15px',
-  lineHeight: '22px',
-  margin: '8px 0',
-};
-
-const paymentSteps = {
-  color: '#166534',
+const dueText = {
+  color: '#666666',
   fontSize: '14px',
-  lineHeight: '20px',
-  margin: '12px 0 0 0',
-  backgroundColor: '#ffffff',
-  padding: '12px',
-  borderRadius: '6px',
-};
-
-const contactText = {
-  color: '#4b5563',
-  fontSize: '15px',
-  lineHeight: '22px',
+  fontWeight: '400',
   margin: '0',
 };
 
-const hr = {
-  borderColor: '#e5e7eb',
-  margin: '24px 0',
+const buttonSection = {
+  textAlign: 'center' as const,
+  marginBottom: '40px',
+};
+
+const payButton = {
+  backgroundColor: '#1a1a1a',
+  borderRadius: '4px',
+  color: '#ffffff',
+  fontSize: '16px',
+  fontWeight: '500',
+  textDecoration: 'none',
+  textAlign: 'center' as const,
+  display: 'inline-block',
+  padding: '16px 48px',
+  cursor: 'pointer',
+};
+
+const payButtonUrgent = {
+  backgroundColor: '#dc2626',
+  borderRadius: '4px',
+  color: '#ffffff',
+  fontSize: '16px',
+  fontWeight: '500',
+  textDecoration: 'none',
+  textAlign: 'center' as const,
+  display: 'inline-block',
+  padding: '16px 48px',
+  cursor: 'pointer',
+};
+
+const contactSection = {
+  textAlign: 'center' as const,
+  marginBottom: '40px',
+};
+
+const contactLabel = {
+  color: '#999999',
+  fontSize: '12px',
+  fontWeight: '400',
+  textTransform: 'uppercase' as const,
+  letterSpacing: '1px',
+  margin: '0 0 8px 0',
+};
+
+const contactDetails = {
+  color: '#666666',
+  fontSize: '14px',
+  lineHeight: '1.6',
+  margin: '0',
+};
+
+const link = {
+  color: '#4a90e2',
+  textDecoration: 'none',
+};
+
+const divider = {
+  borderColor: '#e5e5e5',
+  borderStyle: 'solid',
+  borderWidth: '1px 0 0 0',
+  margin: '40px 0',
 };
 
 const footer = {
-  color: '#9ca3af',
-  fontSize: '14px',
-  lineHeight: '20px',
+  color: '#999999',
+  fontSize: '12px',
+  lineHeight: '1.6',
   textAlign: 'center' as const,
+  margin: '0',
 };
