@@ -23,8 +23,8 @@ export class RentCycleStorage {
 
       // Get rent settings from property or use defaults
       const rentSettings = {
-        paymentDay: (property as any)?.rentSettings?.paymentDay || 1,
-        gracePeriodDays: (property as any)?.rentSettings?.gracePeriodDays || 3
+        paymentDay: property?.rentSettings?.paymentDay || 1,
+        gracePeriodDays: property?.rentSettings?.gracePeriodDays || 3
       };
       console.log(`  ⚙️  Rent settings:`, rentSettings);
 
@@ -33,7 +33,7 @@ export class RentCycleStorage {
       const currentYear = now.getFullYear();
 
       // Get tenant registration date to check if they're new
-      const tenantCreatedAt = new Date(tenant.createdAt);
+      const tenantCreatedAt = tenant.createdAt ? new Date(tenant.createdAt) : now;
       const tenantRegistrationMonth = tenantCreatedAt.getMonth() + 1;
       const tenantRegistrationYear = tenantCreatedAt.getFullYear();
 
