@@ -22,33 +22,7 @@ import { useCurrentUser } from "@/hooks/dashboard/useDashboard";
 import { Check, X } from "lucide-react";
 import EmailSettings from "../EmailSettings";
 import { cn } from "@/lib/utils";
-
-// Password strength checker
-function getPasswordStrength(password: string): { score: number; label: string; color: string } {
-  if (!password) return { score: 0, label: '', color: '' };
-  
-  let score = 0;
-  if (password.length >= 8) score++;
-  if (password.length >= 12) score++;
-  if (/[a-z]/.test(password)) score++;
-  if (/[A-Z]/.test(password)) score++;
-  if (/[0-9]/.test(password)) score++;
-  if (/[^a-zA-Z0-9]/.test(password)) score++;
-  
-  if (score <= 2) return { score, label: 'Weak', color: 'bg-red-500' };
-  if (score <= 4) return { score, label: 'Medium', color: 'bg-amber-500' };
-  return { score, label: 'Strong', color: 'bg-emerald-500' };
-}
-
-function getPasswordRequirements(password: string) {
-  return [
-    { label: 'At least 8 characters', met: password.length >= 8 },
-    { label: 'Contains uppercase letter', met: /[A-Z]/.test(password) },
-    { label: 'Contains lowercase letter', met: /[a-z]/.test(password) },
-    { label: 'Contains number', met: /[0-9]/.test(password) },
-    { label: 'Contains special character', met: /[^a-zA-Z0-9]/.test(password) },
-  ];
-}
+import { getPasswordStrength, getPasswordRequirements } from "@/lib/password-utils";
 
 interface LandlordSettings {
   profile: {

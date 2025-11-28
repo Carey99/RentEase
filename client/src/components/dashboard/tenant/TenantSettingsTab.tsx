@@ -6,38 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { getPasswordStrength, getPasswordRequirements } from "@/lib/password-utils";
 
 interface TenantProfile {
   fullName: string;
   email: string;
   phone: string;
-}
-
-// Password strength checker
-function getPasswordStrength(password: string): { score: number; label: string; color: string } {
-  if (!password) return { score: 0, label: '', color: '' };
-  
-  let score = 0;
-  if (password.length >= 8) score++;
-  if (password.length >= 12) score++;
-  if (/[a-z]/.test(password)) score++;
-  if (/[A-Z]/.test(password)) score++;
-  if (/[0-9]/.test(password)) score++;
-  if (/[^a-zA-Z0-9]/.test(password)) score++;
-  
-  if (score <= 2) return { score, label: 'Weak', color: 'text-red-600' };
-  if (score <= 4) return { score, label: 'Medium', color: 'text-orange-600' };
-  return { score, label: 'Strong', color: 'text-green-600' };
-}
-
-function getPasswordRequirements(password: string) {
-  return [
-    { label: 'At least 8 characters', met: password.length >= 8 },
-    { label: 'Contains uppercase letter (A-Z)', met: /[A-Z]/.test(password) },
-    { label: 'Contains lowercase letter (a-z)', met: /[a-z]/.test(password) },
-    { label: 'Contains number (0-9)', met: /[0-9]/.test(password) },
-    { label: 'Contains special character (!@#$%^&*)', met: /[^a-zA-Z0-9]/.test(password) },
-  ];
 }
 
 interface TenantSettingsTabProps {
