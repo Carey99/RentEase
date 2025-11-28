@@ -1924,4 +1924,5 @@ export class MongoStorage implements IStorage {
   }
 }
 
-export const storage = new MongoStorage();
+// Re-export from adapter for backward compatibility
+export { storage } from "./storage/MongoStorageAdapter";
