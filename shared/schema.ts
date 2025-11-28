@@ -3,6 +3,30 @@ import { z } from "zod";
 // Database schema definitions for RentFlow MongoDB collections
 // Collections: landlords, tenants, properties
 
+// ============================================================================
+// ENUMS - Consolidated status and type definitions
+// ============================================================================
+
+// Payment status enum - represents the state of a payment
+export const PaymentStatusEnum = ["pending", "partial", "completed", "overpaid", "failed"] as const;
+export type PaymentStatus = typeof PaymentStatusEnum[number];
+
+// Rent cycle status - represents the status of rent payment for a period
+export const RentStatusEnum = ["active", "paid", "partial", "grace_period", "overdue"] as const;
+export type RentStatus = typeof RentStatusEnum[number];
+
+// Utility type - represents a utility charge (water, electricity, etc.)
+export interface Utility {
+  type: string; // e.g., "Water", "Electricity"
+  unitsUsed?: number;
+  pricePerUnit?: number;
+  total?: number;
+}
+
+// ============================================================================
+// SCHEMAS
+// ============================================================================
+
 // Landlord Schema (stored in landlords collection)
 export const landlordSchema = z.object({
   _id: z.string().optional(),

@@ -1,3 +1,4 @@
+import { type RentStatus } from "@shared/schema";
 import { Tenant as TenantModel, Property as PropertyModel, PaymentHistory as PaymentHistoryModel } from "../database";
 
 /**

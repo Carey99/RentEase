@@ -7,28 +7,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-
-export interface TenantProperty {
-  id: string;
-  propertyName: string;
-  propertyType: string;
-  unitNumber: string;
-  rentAmount: number;
-  landlordId: string;
-  landlordName: string;
-  landlordPhone?: string;
-  moveInDate?: string;
-  rentCycle: {
-    nextDueDate: string;
-    currentMonthPaid: boolean;
-    paidForMonth?: number;
-    paidForYear?: number;
-    daysRemaining?: number;
-    rentStatus?: string;
-    lastPaymentAmount?: number;
-    lastPaymentDate?: string;
-  };
-}
+import type { TenantProperty } from "@shared/schema";
 
 interface UseTenantPropertyProps {
   tenantId?: string;

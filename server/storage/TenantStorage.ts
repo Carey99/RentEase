@@ -70,7 +70,7 @@ export class TenantStorage {
    * Update tenant profile
    * Whitelist specific fields for security
    */
-  async updateTenant(tenantId: string, updates: Partial<Tenant>): Promise<Tenant | undefined> {
+  async updateTenant(tenantId: string, updates: any): Promise<any | undefined> {
     try {
       if (!isValidObjectId(tenantId)) {
         console.log('Invalid ObjectId format for tenant ID:', tenantId);

@@ -1,4 +1,5 @@
 import { type IStorage } from "../storage";
+import { type Property, type InsertProperty } from "@shared/schema";
 import { userStorage } from "./UserStorage";
 import { propertyStorage } from "./PropertyStorage";
 import { tenantStorage } from "./TenantStorage";
@@ -49,11 +50,11 @@ export class MongoStorageAdapter implements IStorage {
     return propertyStorage.getPropertiesByLandlord(landlordId);
   }
 
-  async createProperty(property: any) {
+  async createProperty(property: InsertProperty): Promise<Property> {
     return propertyStorage.createProperty(property);
   }
 
-  async updateProperty(id: string, updates: any) {
+  async updateProperty(id: string, updates: Partial<Property>): Promise<Property | undefined> {
     return propertyStorage.updateProperty(id, updates);
   }
 
