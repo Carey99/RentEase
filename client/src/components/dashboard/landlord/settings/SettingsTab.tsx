@@ -1,50 +1,52 @@
+/**
+ * Modern Settings Tab - Redesigned UI
+ * Features: Responsive design, modern icons, better organization
+ */
+
 import { useState, useEffect } from "react";
-import { Settings, User, Lock, Bell, Building, HelpCircle, Smartphone, Mail } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { 
+  User, 
+  Lock, 
+  Mail, 
+  Bell,
+  Eye,
+  EyeOff
+} from "lucide-react";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useCurrentUser } from "@/hooks/dashboard/useDashboard";
-import { Check, X, AlertCircle } from "lucide-react";
-import EmailSettings from "@/components/dashboard/landlord/EmailSettings";
+import { Check, X } from "lucide-react";
+import EmailSettings from "../EmailSettings";
+import { cn } from "@/lib/utils";
 
 // Password strength checker
 function getPasswordStrength(password: string): { score: number; label: string; color: string } {
   if (!password) return { score: 0, label: '', color: '' };
   
   let score = 0;
-  
-  // Length check (minimum 8 characters)
   if (password.length >= 8) score++;
   if (password.length >= 12) score++;
-  
-  // Has lowercase
   if (/[a-z]/.test(password)) score++;
-  
-  // Has uppercase
   if (/[A-Z]/.test(password)) score++;
-  
-  // Has number
   if (/[0-9]/.test(password)) score++;
-  
-  // Has special character
   if (/[^a-zA-Z0-9]/.test(password)) score++;
   
-  if (score <= 2) return { score, label: 'Weak', color: 'text-red-600' };
-  if (score <= 4) return { score, label: 'Medium', color: 'text-orange-600' };
-  return { score, label: 'Strong', color: 'text-green-600' };
+  if (score <= 2) return { score, label: 'Weak', color: 'bg-red-500' };
+  if (score <= 4) return { score, label: 'Medium', color: 'bg-amber-500' };
+  return { score, label: 'Strong', color: 'bg-emerald-500' };
 }
 
 function getPasswordRequirements(password: string) {
   return [
     { label: 'At least 8 characters', met: password.length >= 8 },
-    { label: 'Contains uppercase letter (A-Z)', met: /[A-Z]/.test(password) },
-    { label: 'Contains lowercase letter (a-z)', met: /[a-z]/.test(password) },
-    { label: 'Contains number (0-9)', met: /[0-9]/.test(password) },
-    { label: 'Contains special character (!@#$%^&*)', met: /[^a-zA-Z0-9]/.test(password) },
+    { label: 'Contains uppercase letter', met: /[A-Z]/.test(password) },
+    { label: 'Contains lowercase letter', met: /[a-z]/.test(password) },
+    { label: 'Contains number', met: /[0-9]/.test(password) },
+    { label: 'Contains special character', met: /[^a-zA-Z0-9]/.test(password) },
   ];
 }
 
@@ -62,17 +64,20 @@ interface LandlordSettings {
     newTenantAlerts: boolean;
     paymentReminders: boolean;
   };
-  preferences: {
-    currency: string;
-    timezone: string;
-    language: string;
-  };
 }
 
-export default function SettingsTab() {
+type SettingsTab = 'profile' | 'notifications' | 'email' | 'security';
+
+export default function ModernSettingsTab() {
+  const [activeTab, setActiveTab] = useState<SettingsTab>('email');
   const [settings, setSettings] = useState<LandlordSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showPassword, setShowPassword] = useState({
+    current: false,
+    new: false,
+    confirm: false
+  });
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
     newPassword: '',
@@ -81,7 +86,7 @@ export default function SettingsTab() {
   const { toast } = useToast();
   const currentUser = useCurrentUser();
 
-  // Load settings from backend
+  // Load settings
   useEffect(() => {
     const fetchSettings = async () => {
       if (!currentUser?.id) return;
@@ -91,65 +96,43 @@ export default function SettingsTab() {
         if (response.ok) {
           const data = await response.json();
           setSettings(data);
-        } else {
-          toast({
-            title: "Error",
-            description: "Failed to load settings",
-            variant: "destructive",
-          });
         }
       } catch (error) {
         console.error('Error fetching settings:', error);
-        toast({
-          title: "Error", 
-          description: "Failed to load settings",
-          variant: "destructive",
-        });
       } finally {
         setLoading(false);
       }
     };
 
     fetchSettings();
-  }, [currentUser?.id, toast]);
+  }, [currentUser?.id]);
 
-  // Save settings to backend
+  // Save settings
   const saveSettings = async (updates: Partial<LandlordSettings>) => {
     if (!currentUser?.id || !settings) return;
     
     setSaving(true);
     try {
-      console.log('Saving settings:', updates);
-      
       const response = await fetch(`/api/landlords/${currentUser.id}/settings`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updates),
       });
 
       if (response.ok) {
         const result = await response.json();
-        console.log('Save response:', result);
-        
-        // The response has { success, settings, message } structure
         const updatedSettings = result.settings || result;
         setSettings(updatedSettings);
         
         toast({
-          title: "Success",
-          description: result.message || "Settings saved successfully",
+          title: "Saved",
+          description: result.message || "Settings updated successfully",
         });
-      } else {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to save settings');
       }
     } catch (error: any) {
-      console.error('Error saving settings:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to save settings",
+        description: "Failed to save settings",
         variant: "destructive",
       });
     } finally {
@@ -167,25 +150,13 @@ export default function SettingsTab() {
     await saveSettings({ notifications: settings.notifications });
   };
 
-  const handleNotificationToggle = (key: keyof LandlordSettings['notifications']) => {
-    if (!settings) return;
-    setSettings({
-      ...settings,
-      notifications: {
-        ...settings.notifications,
-        [key]: !settings.notifications[key]
-      }
-    });
-  };
-
   const handlePasswordChange = async () => {
     if (!currentUser?.id) return;
     
-    // Validation
     if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
       toast({
         title: "Error",
-        description: "Please fill in all password fields",
+        description: "Please fill in all fields",
         variant: "destructive",
       });
       return;
@@ -200,21 +171,11 @@ export default function SettingsTab() {
       return;
     }
 
-    if (passwordForm.newPassword.length < 8) {
-      toast({
-        title: "Error",
-        description: "New password must be at least 8 characters long",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Check password strength
     const strength = getPasswordStrength(passwordForm.newPassword);
     if (strength.score < 3) {
       toast({
         title: "Error",
-        description: "Password is too weak. Please use a mix of uppercase, lowercase, numbers, and special characters",
+        description: "Password is too weak",
         variant: "destructive",
       });
       return;
@@ -222,13 +183,9 @@ export default function SettingsTab() {
 
     setSaving(true);
     try {
-      console.log('Changing password...');
-      
       const response = await fetch(`/api/landlords/${currentUser.id}/password`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           currentPassword: passwordForm.currentPassword,
           newPassword: passwordForm.newPassword,
@@ -236,19 +193,13 @@ export default function SettingsTab() {
       });
 
       const result = await response.json();
-      console.log('Password change response:', result);
 
       if (response.ok && result.success) {
         toast({
           title: "Success",
-          description: result.message || "Password changed successfully",
+          description: "Password changed successfully",
         });
-        // Clear the form
-        setPasswordForm({
-          currentPassword: '',
-          newPassword: '',
-          confirmPassword: ''
-        });
+        setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
       } else {
         toast({
           title: "Error",
@@ -257,10 +208,9 @@ export default function SettingsTab() {
         });
       }
     } catch (error: any) {
-      console.error('Error changing password:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to change password",
+        description: "Failed to change password",
         variant: "destructive",
       });
     } finally {
@@ -268,249 +218,371 @@ export default function SettingsTab() {
     }
   };
 
-  const handleProfileChange = (field: keyof LandlordSettings['profile'], value: string) => {
-    if (!settings) return;
-    setSettings({
-      ...settings,
-      profile: {
-        ...settings.profile,
-        [field]: value
-      }
-    });
-  };
+  const menuItems = [
+    { id: 'profile' as const, icon: User, label: 'Profile', description: 'Manage your account information' },
+    { id: 'notifications' as const, icon: Bell, label: 'Notifications', description: 'Configure notification preferences' },
+    { id: 'email' as const, icon: Mail, label: 'Email', description: 'Email templates and settings' },
+    { id: 'security' as const, icon: Lock, label: 'Security', description: 'Password and security settings' },
+  ];
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-neutral-600">Loading settings...</div>
-      </div>
-    );
-  }
-
-  if (!settings) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-neutral-600">Failed to load settings</div>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-pulse text-neutral-500">Loading settings...</div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center space-x-3 mb-6">
-        <Settings className="h-6 w-6 text-primary" />
-        <h2 className="text-xl font-semibold text-neutral-900">Settings</h2>
+    <div className="flex flex-col h-full">
+      {/* Tabs Navigation - Fixed */}
+      <div className="flex border-b border-neutral-200 overflow-x-auto mb-6 flex-shrink-0 bg-white sticky top-0 z-10">
+        {menuItems.map((item) => (
+          <button
+            key={item.id}
+            onClick={() => setActiveTab(item.id)}
+            className={cn(
+              "flex items-center gap-2 px-6 py-3 text-sm font-medium whitespace-nowrap transition-all duration-200 border-b-2",
+              activeTab === item.id
+                ? "border-primary text-primary"
+                : "border-transparent text-neutral-600 hover:text-neutral-900"
+            )}
+          >
+            <item.icon className="h-4 w-4" />
+            {item.label}
+          </button>
+        ))}
       </div>
 
-      <Tabs defaultValue="profile">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="profile">Profile</TabsTrigger>
-          <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          <TabsTrigger value="email">Email</TabsTrigger>
-          <TabsTrigger value="security">Security</TabsTrigger>
-        </TabsList>
+      {/* Tab Content - Scrollable */}
+      <div className="space-y-6 flex-1 overflow-y-auto">
+          {/* Email Tab */}
+          {activeTab === 'email' && (
+            <EmailSettings landlordId={currentUser?.id || ""} />
+          )}
 
-        <TabsContent value="profile" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Profile Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+        {/* Profile Tab */}
+        {activeTab === 'profile' && settings && (
+          <Card className="border-neutral-200">
+              <div className="p-6 space-y-6">
                 <div>
-                  <Label>Full Name</Label>
+                  <h2 className="text-lg font-semibold text-neutral-900">Profile Information</h2>
+                  <p className="text-sm text-neutral-600 mt-1">Update your account details</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="fullName" className="text-sm font-medium text-neutral-700">Full Name</Label>
+                    <Input 
+                      id="fullName"
+                      value={settings.profile.fullName}
+                      onChange={(e) => setSettings({
+                        ...settings,
+                        profile: { ...settings.profile, fullName: e.target.value }
+                      })}
+                      className="h-11"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="email" className="text-sm font-medium text-neutral-700">Email Address</Label>
+                    <Input 
+                      id="email"
+                      type="email"
+                      value={settings.profile.email}
+                      onChange={(e) => setSettings({
+                        ...settings,
+                        profile: { ...settings.profile, email: e.target.value }
+                      })}
+                      className="h-11"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="phone" className="text-sm font-medium text-neutral-700">Phone Number</Label>
+                    <Input 
+                      id="phone"
+                      value={settings.profile.phone}
+                      onChange={(e) => setSettings({
+                        ...settings,
+                        profile: { ...settings.profile, phone: e.target.value }
+                      })}
+                      placeholder="+254 712 345 678"
+                      className="h-11"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="company" className="text-sm font-medium text-neutral-700">Company (Optional)</Label>
+                    <Input 
+                      id="company"
+                      value={settings.profile.company}
+                      onChange={(e) => setSettings({
+                        ...settings,
+                        profile: { ...settings.profile, company: e.target.value }
+                      })}
+                      placeholder="Company name"
+                      className="h-11"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="address" className="text-sm font-medium text-neutral-700">Address</Label>
                   <Input 
-                    value={settings.profile.fullName}
-                    onChange={(e) => handleProfileChange('fullName', e.target.value)}
+                    id="address"
+                    value={settings.profile.address}
+                    onChange={(e) => setSettings({
+                      ...settings,
+                      profile: { ...settings.profile, address: e.target.value }
+                    })}
+                    placeholder="Your address"
+                    className="h-11"
                   />
                 </div>
-                <div>
-                  <Label>Email</Label>
-                  <Input 
-                    value={settings.profile.email}
-                    onChange={(e) => handleProfileChange('email', e.target.value)}
-                  />
+
+                <div className="pt-4 border-t">
+                  <Button 
+                    onClick={handleProfileSave} 
+                    disabled={saving}
+                    className="h-11 px-6"
+                  >
+                    {saving ? "Saving..." : "Save Changes"}
+                  </Button>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+            </Card>
+          )}
+
+        {/* Notifications Tab */}
+        {activeTab === 'notifications' && settings && (
+          <Card className="border-neutral-200">
+              <div className="p-6 space-y-6">
                 <div>
-                  <Label>Phone</Label>
-                  <Input 
-                    value={settings.profile.phone}
-                    onChange={(e) => handleProfileChange('phone', e.target.value)}
-                    placeholder="+254712345678"
-                  />
+                  <h2 className="text-lg font-semibold text-neutral-900">Notification Preferences</h2>
+                  <p className="text-sm text-neutral-600 mt-1">Manage how you receive notifications</p>
                 </div>
-                <div>
-                  <Label>Company</Label>
-                  <Input 
-                    value={settings.profile.company}
-                    onChange={(e) => handleProfileChange('company', e.target.value)}
-                    placeholder="Company name (optional)"
-                  />
-                </div>
-              </div>
-              <div>
-                <Label>Address</Label>
-                <Input 
-                  value={settings.profile.address}
-                  onChange={(e) => handleProfileChange('address', e.target.value)}
-                  placeholder="Your address"
-                />
-              </div>
-              <Button onClick={handleProfileSave} disabled={saving}>
-                {saving ? "Saving..." : "Save Changes"}
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
 
-        <TabsContent value="notifications" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Notification Settings</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Label>Email Notifications</Label>
-                <Switch 
-                  checked={settings.notifications.emailNotifications}
-                  onCheckedChange={() => handleNotificationToggle('emailNotifications')}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <Label>SMS Alerts</Label>
-                <Switch 
-                  checked={settings.notifications.smsNotifications}
-                  onCheckedChange={() => handleNotificationToggle('smsNotifications')}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <Label>New Tenant Alerts</Label>
-                <Switch 
-                  checked={settings.notifications.newTenantAlerts}
-                  onCheckedChange={() => handleNotificationToggle('newTenantAlerts')}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <Label>Payment Reminders</Label>
-                <Switch 
-                  checked={settings.notifications.paymentReminders}
-                  onCheckedChange={() => handleNotificationToggle('paymentReminders')}
-                />
-              </div>
-              <Button onClick={handleNotificationSave} disabled={saving}>
-                {saving ? "Saving..." : "Save Settings"}
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="email" className="mt-6">
-          <EmailSettings landlordId={currentUser?.id || ""} />
-        </TabsContent>
-
-        <TabsContent value="security" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Security Settings</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label>Current Password</Label>
-                <Input 
-                  type="password" 
-                  placeholder="Enter current password"
-                  value={passwordForm.currentPassword}
-                  onChange={(e) => setPasswordForm({
-                    ...passwordForm,
-                    currentPassword: e.target.value
-                  })}
-                />
-              </div>
-              <div>
-                <Label>New Password</Label>
-                <Input 
-                  type="password" 
-                  placeholder="Enter new password (min. 8 characters)"
-                  value={passwordForm.newPassword}
-                  onChange={(e) => setPasswordForm({
-                    ...passwordForm,
-                    newPassword: e.target.value
-                  })}
-                />
-                {passwordForm.newPassword && (
-                  <div className="mt-2 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-neutral-600">Password strength:</span>
-                      <span className={`text-sm font-semibold ${getPasswordStrength(passwordForm.newPassword).color}`}>
-                        {getPasswordStrength(passwordForm.newPassword).label}
-                      </span>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between py-4 border-b">
+                    <div className="space-y-0.5">
+                      <Label className="text-base font-medium text-neutral-900">Email Notifications</Label>
+                      <p className="text-sm text-neutral-600">Receive notifications via email</p>
                     </div>
-                    <div className="w-full bg-neutral-200 rounded-full h-2">
-                      <div 
-                        className={`h-2 rounded-full transition-all ${
-                          getPasswordStrength(passwordForm.newPassword).score <= 2 
-                            ? 'bg-red-500' 
-                            : getPasswordStrength(passwordForm.newPassword).score <= 4 
-                            ? 'bg-orange-500' 
-                            : 'bg-green-500'
-                        }`}
-                        style={{ width: `${(getPasswordStrength(passwordForm.newPassword).score / 6) * 100}%` }}
+                    <Switch 
+                      checked={settings.notifications.emailNotifications}
+                      onCheckedChange={(checked) =>
+                        setSettings({
+                          ...settings,
+                          notifications: { ...settings.notifications, emailNotifications: checked }
+                        })
+                      }
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between py-4 border-b">
+                    <div className="space-y-0.5">
+                      <Label className="text-base font-medium text-neutral-900">SMS Alerts</Label>
+                      <p className="text-sm text-neutral-600">Get text message alerts</p>
+                    </div>
+                    <Switch 
+                      checked={settings.notifications.smsNotifications}
+                      onCheckedChange={(checked) =>
+                        setSettings({
+                          ...settings,
+                          notifications: { ...settings.notifications, smsNotifications: checked }
+                        })
+                      }
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between py-4 border-b">
+                    <div className="space-y-0.5">
+                      <Label className="text-base font-medium text-neutral-900">New Tenant Alerts</Label>
+                      <p className="text-sm text-neutral-600">Notify when new tenants are added</p>
+                    </div>
+                    <Switch 
+                      checked={settings.notifications.newTenantAlerts}
+                      onCheckedChange={(checked) =>
+                        setSettings({
+                          ...settings,
+                          notifications: { ...settings.notifications, newTenantAlerts: checked }
+                        })
+                      }
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between py-4">
+                    <div className="space-y-0.5">
+                      <Label className="text-base font-medium text-neutral-900">Payment Reminders</Label>
+                      <p className="text-sm text-neutral-600">Send reminders for upcoming payments</p>
+                    </div>
+                    <Switch 
+                      checked={settings.notifications.paymentReminders}
+                      onCheckedChange={(checked) =>
+                        setSettings({
+                          ...settings,
+                          notifications: { ...settings.notifications, paymentReminders: checked }
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t">
+                  <Button 
+                    onClick={handleNotificationSave} 
+                    disabled={saving}
+                    className="h-11 px-6"
+                  >
+                    {saving ? "Saving..." : "Save Preferences"}
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          )}
+
+        {/* Security Tab */}
+        {activeTab === 'security' && (
+          <Card className="border-neutral-200">
+              <div className="p-6 space-y-6">
+                <div>
+                  <h2 className="text-lg font-semibold text-neutral-900">Security Settings</h2>
+                  <p className="text-sm text-neutral-600 mt-1">Update your password and security preferences</p>
+                </div>
+
+                <div className="space-y-5">
+                  <div className="space-y-2">
+                    <Label htmlFor="currentPassword" className="text-sm font-medium text-neutral-700">Current Password</Label>
+                    <div className="relative">
+                      <Input 
+                        id="currentPassword"
+                        type={showPassword.current ? "text" : "password"}
+                        placeholder="Enter current password"
+                        value={passwordForm.currentPassword}
+                        onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                        className="h-11 pr-10"
                       />
-                    </div>
-                    <div className="mt-3 space-y-1">
-                      <p className="text-xs text-neutral-600 font-medium">Password must contain:</p>
-                      {getPasswordRequirements(passwordForm.newPassword).map((req, idx) => (
-                        <div key={idx} className="flex items-center gap-2">
-                          {req.met ? (
-                            <Check className="h-3.5 w-3.5 text-green-600" />
-                          ) : (
-                            <X className="h-3.5 w-3.5 text-neutral-400" />
-                          )}
-                          <span className={`text-xs ${req.met ? 'text-green-600' : 'text-neutral-500'}`}>
-                            {req.label}
-                          </span>
-                        </div>
-                      ))}
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword({ ...showPassword, current: !showPassword.current })}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-700"
+                      >
+                        {showPassword.current ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
                     </div>
                   </div>
-                )}
-              </div>
-              <div>
-                <Label>Confirm New Password</Label>
-                <Input 
-                  type="password" 
-                  placeholder="Confirm new password"
-                  value={passwordForm.confirmPassword}
-                  onChange={(e) => setPasswordForm({
-                    ...passwordForm,
-                    confirmPassword: e.target.value
-                  })}
-                />
-                {passwordForm.confirmPassword && (
-                  <div className="mt-2 flex items-center gap-2">
-                    {passwordForm.newPassword === passwordForm.confirmPassword ? (
-                      <>
-                        <Check className="h-4 w-4 text-green-600" />
-                        <span className="text-sm text-green-600 font-medium">Passwords match</span>
-                      </>
-                    ) : (
-                      <>
-                        <X className="h-4 w-4 text-red-600" />
-                        <span className="text-sm text-red-600 font-medium">Passwords do not match</span>
-                      </>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="newPassword" className="text-sm font-medium text-neutral-700">New Password</Label>
+                    <div className="relative">
+                      <Input 
+                        id="newPassword"
+                        type={showPassword.new ? "text" : "password"}
+                        placeholder="Enter new password"
+                        value={passwordForm.newPassword}
+                        onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                        className="h-11 pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword({ ...showPassword, new: !showPassword.new })}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-700"
+                      >
+                        {showPassword.new ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    {passwordForm.newPassword && (
+                      <div className="mt-3 space-y-3">
+                        <div className="flex items-center gap-3">
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between text-sm mb-1.5">
+                              <span className="text-neutral-600">Password strength:</span>
+                              <span className={cn("font-medium", 
+                                getPasswordStrength(passwordForm.newPassword).label === 'Weak' ? 'text-red-600' :
+                                getPasswordStrength(passwordForm.newPassword).label === 'Medium' ? 'text-amber-600' :
+                                'text-emerald-600'
+                              )}>
+                                {getPasswordStrength(passwordForm.newPassword).label}
+                              </span>
+                            </div>
+                            <div className="h-2 bg-neutral-100 rounded-full overflow-hidden">
+                              <div 
+                                className={cn("h-full transition-all rounded-full", getPasswordStrength(passwordForm.newPassword).color)}
+                                style={{ width: `${(getPasswordStrength(passwordForm.newPassword).score / 6) * 100}%` }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        <div className="space-y-2 bg-neutral-50 rounded-lg p-3">
+                          <p className="text-xs font-medium text-neutral-700">Password requirements:</p>
+                          {getPasswordRequirements(passwordForm.newPassword).map((req, idx) => (
+                            <div key={idx} className="flex items-center gap-2">
+                              {req.met ? (
+                                <Check className="h-3.5 w-3.5 text-emerald-600" />
+                              ) : (
+                                <X className="h-3.5 w-3.5 text-neutral-400" />
+                              )}
+                              <span className={cn("text-xs", req.met ? 'text-emerald-700' : 'text-neutral-600')}>
+                                {req.label}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     )}
                   </div>
-                )}
+
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmPassword" className="text-sm font-medium text-neutral-700">Confirm New Password</Label>
+                    <div className="relative">
+                      <Input 
+                        id="confirmPassword"
+                        type={showPassword.confirm ? "text" : "password"}
+                        placeholder="Confirm new password"
+                        value={passwordForm.confirmPassword}
+                        onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                        className="h-11 pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword({ ...showPassword, confirm: !showPassword.confirm })}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-700"
+                      >
+                        {showPassword.confirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    {passwordForm.confirmPassword && (
+                      <div className="flex items-center gap-2 mt-2">
+                        {passwordForm.newPassword === passwordForm.confirmPassword ? (
+                          <>
+                            <Check className="h-4 w-4 text-emerald-600" />
+                            <span className="text-sm text-emerald-700 font-medium">Passwords match</span>
+                          </>
+                        ) : (
+                          <>
+                            <X className="h-4 w-4 text-red-600" />
+                            <span className="text-sm text-red-700 font-medium">Passwords do not match</span>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t">
+                  <Button 
+                    onClick={handlePasswordChange} 
+                    disabled={saving}
+                    className="h-11 px-6"
+                  >
+                    {saving ? "Updating..." : "Update Password"}
+                  </Button>
+                </div>
               </div>
-              <Button onClick={handlePasswordChange} disabled={saving}>
-                {saving ? "Changing..." : "Change Password"}
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+            </Card>
+          )}
+      </div>
     </div>
   );
 }

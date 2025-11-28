@@ -216,7 +216,7 @@ export default function TenantSettingsTab({ tenantId }: TenantSettingsTabProps) 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-neutral-600">Loading settings...</div>
+        <div className="text-gray-600 dark:text-gray-400">Loading settings...</div>
       </div>
     );
   }
@@ -224,65 +224,68 @@ export default function TenantSettingsTab({ tenantId }: TenantSettingsTabProps) 
   if (!profile) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-neutral-600">Failed to load settings</div>
+        <div className="text-gray-600 dark:text-gray-400">Failed to load settings</div>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center space-x-3 mb-6">
-        <Settings className="h-6 w-6 text-primary" />
-        <h2 className="text-xl font-semibold text-neutral-900">Settings</h2>
-      </div>
+      <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Settings</h2>
 
-      <Tabs defaultValue="profile">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="profile">Profile</TabsTrigger>
-          <TabsTrigger value="security">Security</TabsTrigger>
+      <Tabs defaultValue="profile" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 bg-gray-100 dark:bg-slate-800 p-1 rounded-lg">
+          <TabsTrigger value="profile" className="rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm text-gray-700 dark:text-gray-300 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white">Profile</TabsTrigger>
+          <TabsTrigger value="security" className="rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm text-gray-700 dark:text-gray-300 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white">Security</TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User className="h-5 w-5" />
+          <Card className="border border-gray-200 dark:border-gray-700 shadow-sm">
+            <CardHeader className="pb-4 border-b border-gray-200 dark:border-gray-700">
+              <CardTitle className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                <User className="h-5 w-5 text-gray-600 dark:text-gray-400" />
                 Profile Information
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="pt-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="fullName">Full Name</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="fullName" className="text-sm text-gray-600 dark:text-gray-400">Full Name</Label>
                   <Input
                     id="fullName"
                     value={profile.fullName}
                     onChange={(e) => handleProfileChange('fullName', e.target.value)}
                     placeholder="Enter your full name"
+                    className="border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-950 text-gray-900 dark:text-white placeholder-gray-400"
                   />
                 </div>
-                <div>
-                  <Label htmlFor="email">Email</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-sm text-gray-600 dark:text-gray-400">Email</Label>
                   <Input
                     id="email"
                     type="email"
                     value={profile.email}
                     disabled
-                    className="bg-neutral-100"
+                    className="border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-900 text-gray-900 dark:text-white cursor-not-allowed"
                   />
-                  <p className="text-xs text-neutral-500 mt-1">Email cannot be changed</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Cannot be changed</p>
                 </div>
               </div>
-              <div>
-                <Label htmlFor="phone">Phone Number</Label>
+              <div className="space-y-2">
+                <Label htmlFor="phone" className="text-sm text-gray-600 dark:text-gray-400">Phone Number</Label>
                 <Input
                   id="phone"
                   value={profile.phone}
                   onChange={(e) => handleProfileChange('phone', e.target.value)}
                   placeholder="+254712345678"
+                  className="border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-950 text-gray-900 dark:text-white placeholder-gray-400"
                 />
               </div>
-              <Button onClick={handleProfileSave} disabled={saving}>
+              <Button 
+                onClick={handleProfileSave} 
+                disabled={saving}
+                className="w-full bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white font-medium py-2 mt-4"
+              >
                 {saving ? "Saving..." : "Save Changes"}
               </Button>
             </CardContent>
@@ -290,16 +293,16 @@ export default function TenantSettingsTab({ tenantId }: TenantSettingsTabProps) 
         </TabsContent>
 
         <TabsContent value="security" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Lock className="h-5 w-5" />
-                Security Settings
+          <Card className="border border-gray-200 dark:border-gray-700 shadow-sm">
+            <CardHeader className="pb-4 border-b border-gray-200 dark:border-gray-700">
+              <CardTitle className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                <Lock className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+                Change Password
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label>Current Password</Label>
+            <CardContent className="pt-6 space-y-4">
+              <div className="space-y-2">
+                <Label className="text-sm text-gray-600 dark:text-gray-400">Current Password</Label>
                 <Input
                   type="password"
                   placeholder="Enter current password"
@@ -308,10 +311,11 @@ export default function TenantSettingsTab({ tenantId }: TenantSettingsTabProps) 
                     ...passwordForm,
                     currentPassword: e.target.value
                   })}
+                  className="border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-950 text-gray-900 dark:text-white placeholder-gray-400"
                 />
               </div>
-              <div>
-                <Label>New Password</Label>
+              <div className="space-y-2">
+                <Label className="text-sm text-gray-600 dark:text-gray-400">New Password</Label>
                 <Input
                   type="password"
                   placeholder="Enter new password (min. 8 characters)"
@@ -320,37 +324,38 @@ export default function TenantSettingsTab({ tenantId }: TenantSettingsTabProps) 
                     ...passwordForm,
                     newPassword: e.target.value
                   })}
+                  className="border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-950 text-gray-900 dark:text-white placeholder-gray-400"
                 />
                 {passwordForm.newPassword && (
-                  <div className="mt-2 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-neutral-600">Password strength:</span>
-                      <span className={`text-sm font-semibold ${getPasswordStrength(passwordForm.newPassword).color}`}>
+                  <div className="mt-3 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Password Strength</span>
+                      <span className={`text-xs font-semibold ${getPasswordStrength(passwordForm.newPassword).color}`}>
                         {getPasswordStrength(passwordForm.newPassword).label}
                       </span>
                     </div>
-                    <div className="w-full bg-neutral-200 rounded-full h-2">
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                       <div
                         className={`h-2 rounded-full transition-all ${
                           getPasswordStrength(passwordForm.newPassword).score <= 2
                             ? 'bg-red-500'
                             : getPasswordStrength(passwordForm.newPassword).score <= 4
-                            ? 'bg-orange-500'
+                            ? 'bg-amber-500'
                             : 'bg-green-500'
                         }`}
                         style={{ width: `${(getPasswordStrength(passwordForm.newPassword).score / 6) * 100}%` }}
                       />
                     </div>
-                    <div className="mt-3 space-y-1">
-                      <p className="text-xs text-neutral-600 font-medium">Password must contain:</p>
+                    <div className="space-y-2 mt-3 p-3 bg-gray-50 dark:bg-slate-900 rounded-lg border border-gray-200 dark:border-gray-700">
+                      <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Requirements:</p>
                       {getPasswordRequirements(passwordForm.newPassword).map((req, idx) => (
                         <div key={idx} className="flex items-center gap-2">
                           {req.met ? (
-                            <Check className="h-3.5 w-3.5 text-green-600" />
+                            <Check className="h-3.5 w-3.5 text-green-600 dark:text-green-400 flex-shrink-0" />
                           ) : (
-                            <X className="h-3.5 w-3.5 text-neutral-400" />
+                            <X className="h-3.5 w-3.5 text-gray-400 dark:text-gray-600 flex-shrink-0" />
                           )}
-                          <span className={`text-xs ${req.met ? 'text-green-600' : 'text-neutral-500'}`}>
+                          <span className={`text-xs ${req.met ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
                             {req.label}
                           </span>
                         </div>
@@ -359,8 +364,8 @@ export default function TenantSettingsTab({ tenantId }: TenantSettingsTabProps) 
                   </div>
                 )}
               </div>
-              <div>
-                <Label>Confirm New Password</Label>
+              <div className="space-y-2">
+                <Label className="text-sm text-gray-600 dark:text-gray-400">Confirm New Password</Label>
                 <Input
                   type="password"
                   placeholder="Confirm new password"
@@ -369,24 +374,29 @@ export default function TenantSettingsTab({ tenantId }: TenantSettingsTabProps) 
                     ...passwordForm,
                     confirmPassword: e.target.value
                   })}
+                  className="border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-950 text-gray-900 dark:text-white placeholder-gray-400"
                 />
                 {passwordForm.confirmPassword && (
                   <div className="mt-2 flex items-center gap-2">
                     {passwordForm.newPassword === passwordForm.confirmPassword ? (
                       <>
-                        <Check className="h-4 w-4 text-green-600" />
-                        <span className="text-sm text-green-600 font-medium">Passwords match</span>
+                        <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
+                        <span className="text-sm text-green-600 dark:text-green-400 font-medium">Passwords match</span>
                       </>
                     ) : (
                       <>
-                        <X className="h-4 w-4 text-red-600" />
-                        <span className="text-sm text-red-600 font-medium">Passwords do not match</span>
+                        <X className="h-4 w-4 text-red-600 dark:text-red-400" />
+                        <span className="text-sm text-red-600 dark:text-red-400 font-medium">Passwords do not match</span>
                       </>
                     )}
                   </div>
                 )}
               </div>
-              <Button onClick={handlePasswordChange} disabled={saving}>
+              <Button 
+                onClick={handlePasswordChange} 
+                disabled={saving}
+                className="w-full bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white font-medium py-2 mt-4"
+              >
                 {saving ? "Changing..." : "Change Password"}
               </Button>
             </CardContent>

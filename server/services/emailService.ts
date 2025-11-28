@@ -9,6 +9,7 @@ import WelcomeEmail from '../emails/templates/WelcomeEmail';
 import PaymentReceivedEmail from '../emails/templates/PaymentReceivedEmail';
 import RentReminderEmail from '../emails/templates/RentReminderEmail';
 import { NotificationLog } from '../database';
+import { generateReceiptBuffer } from '../utils/receiptGenerator';
 
 // Initialize Resend with API key
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -128,16 +129,35 @@ export async function sendPaymentReceivedEmail(params: {
   tenantEmail: string;
   landlordId: string;
   landlordName: string;
+  landlordEmail?: string;
+  landlordPhone?: string;
   amount: number;
   paymentDate: string;
   paymentMethod: string;
   receiptNumber: string;
+  mpesaReceiptNumber?: string;
   propertyName: string;
+  propertyType?: string;
   unitNumber: string;
   forMonth: string;
   forYear: number;
   receiptUrl?: string;
   customMessage?: string;
+  // Receipt data for PDF attachment
+  receiptData?: {
+    monthlyRent: number;
+    utilityCharges?: Array<{
+      type: string;
+      units: number;
+      pricePerUnit: number;
+      total: number;
+    }>;
+    historicalDebt?: number;
+    historicalDebtDetails?: string;
+    tenantPhone: string;
+    transactionId: string;
+    paymentPeriod: string;
+  };
 }): Promise<EmailResult> {
   try {
     console.log(`📧 Sending payment confirmation to ${params.tenantName} (${params.tenantEmail})`);
@@ -159,11 +179,52 @@ export async function sendPaymentReceivedEmail(params: {
       })
     );
 
+    // Generate PDF receipt if receipt data is provided
+    let pdfBuffer: Buffer | undefined;
+    if (params.receiptData) {
+      try {
+        pdfBuffer = await generateReceiptBuffer({
+          receiptNumber: params.receiptNumber,
+          transactionId: params.receiptData.transactionId,
+          mpesaReceiptNumber: params.mpesaReceiptNumber,
+          amount: params.amount,
+          paymentDate: new Date(params.paymentDate),
+          paymentMethod: params.paymentMethod,
+          monthlyRent: params.receiptData.monthlyRent,
+          utilityCharges: params.receiptData.utilityCharges,
+          historicalDebt: params.receiptData.historicalDebt,
+          historicalDebtDetails: params.receiptData.historicalDebtDetails,
+          tenantName: params.tenantName,
+          tenantEmail: params.tenantEmail,
+          tenantPhone: params.receiptData.tenantPhone,
+          propertyName: params.propertyName,
+          propertyType: params.propertyType || 'Apartment',
+          unitNumber: params.unitNumber,
+          landlordName: params.landlordName,
+          landlordEmail: params.landlordEmail,
+          landlordPhone: params.landlordPhone,
+          paymentPeriod: params.receiptData.paymentPeriod,
+        });
+        console.log('✅ PDF receipt generated for attachment');
+      } catch (pdfError) {
+        console.warn('⚠️  Failed to generate PDF attachment:', pdfError);
+        // Continue sending email without attachment
+      }
+    }
+
     const { data, error } = await resend.emails.send({
       from: `${params.landlordName} <${FROM_EMAIL}>`,
       to: params.tenantEmail,
       subject: `Payment Received - KES ${params.amount.toLocaleString()}`,
       html: emailHtml,
+      ...(pdfBuffer && {
+        attachments: [
+          {
+            filename: `receipt-${params.receiptNumber}.pdf`,
+            content: pdfBuffer,
+          },
+        ],
+      }),
     });
 
     if (error) {
@@ -220,16 +281,12 @@ export async function sendRentReminderEmail(params: {
   landlordEmail: string;
   landlordPhone?: string;
   amountDue: number;
-  baseRent?: number;
-  utilitiesCharges?: number;
-  historicalDebt?: number;
   dueDate: string;
   daysRemaining: number;
   propertyName: string;
   unitNumber: string;
   customMessage?: string;
-  mpesaPaybill?: string;
-  mpesaAccountNumber?: string;
+  paymentUrl?: string;
 }): Promise<EmailResult> {
   try {
     console.log(`📧 Sending rent reminder to ${params.tenantName} (${params.tenantEmail})`);
@@ -241,16 +298,12 @@ export async function sendRentReminderEmail(params: {
         landlordEmail: params.landlordEmail,
         landlordPhone: params.landlordPhone,
         amountDue: params.amountDue,
-        baseRent: params.baseRent,
-        utilitiesCharges: params.utilitiesCharges,
-        historicalDebt: params.historicalDebt,
         dueDate: params.dueDate,
         daysRemaining: params.daysRemaining,
         propertyName: params.propertyName,
         unitNumber: params.unitNumber,
         customMessage: params.customMessage,
-        mpesaPaybill: params.mpesaPaybill,
-        mpesaAccountNumber: params.mpesaAccountNumber,
+        paymentUrl: params.paymentUrl,
       })
     );
 

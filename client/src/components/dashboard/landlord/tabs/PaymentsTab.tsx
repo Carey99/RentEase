@@ -30,6 +30,7 @@ interface Tenant {
 
 export function PaymentsTab({ landlordId }: PaymentsTabProps) {
   const [showCashPaymentDialog, setShowCashPaymentDialog] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview');
 
   // Fetch tenants for cash payment recording
   const { data: tenants = [] } = useQuery<Tenant[]>({
@@ -42,55 +43,61 @@ export function PaymentsTab({ landlordId }: PaymentsTabProps) {
   });
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Payments</h2>
-          <p className="text-muted-foreground">
-            Manage payment history, M-Pesa statements, and gateway configuration
-          </p>
+    <div className="space-y-0 px-2 md:px-6 h-full flex flex-col">
+      {/* Fixed header - stays at top while content scrolls */}
+      <div className="sticky top-0 z-10 bg-white dark:bg-slate-950 pt-8 pb-6 space-y-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h2 className="text-3xl font-semibold tracking-tight text-gray-900 dark:text-white mb-1">Payments</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Manage payment history, M-Pesa statements, and gateway configuration</p>
+          </div>
+          <Button 
+            onClick={() => setShowCashPaymentDialog(true)} 
+            className="gap-2 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg px-5 py-2 text-base font-medium"
+          >
+            <DollarSign className="h-4 w-4" />
+            Record Cash Payment
+          </Button>
         </div>
-        <Button 
-          onClick={() => setShowCashPaymentDialog(true)} 
-          className="gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-md"
-        >
-          <DollarSign className="h-4 w-4" />
-          Record Cash Payment
-        </Button>
+
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="flex gap-8 bg-transparent border-b border-gray-200 dark:border-gray-700 rounded-none px-0 py-0 w-full h-auto justify-start">
+            <TabsTrigger value="overview" className="flex items-center gap-2 px-0 pb-2 text-base font-medium border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=inactive]:text-gray-600 rounded-none">
+              <DollarSign className="h-4 w-4" />
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="mpesa" className="flex items-center gap-2 px-0 pb-2 text-base font-medium border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=inactive]:text-gray-600 rounded-none">
+              <FileText className="h-4 w-4" />
+              M-Pesa Statements
+            </TabsTrigger>
+            <TabsTrigger value="gateway" className="flex items-center gap-2 px-0 pb-2 text-base font-medium border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=inactive]:text-gray-600 rounded-none">
+              <Settings className="h-4 w-4" />
+              Payment Gateway
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
-      <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3 max-w-md">
-          <TabsTrigger value="overview" className="gap-2">
-            <DollarSign className="h-4 w-4" />
-            Overview
-          </TabsTrigger>
-          <TabsTrigger value="mpesa" className="gap-2">
-            <FileText className="h-4 w-4" />
-            M-Pesa Statements
-          </TabsTrigger>
-          <TabsTrigger value="gateway" className="gap-2">
-            <Settings className="h-4 w-4" />
-            Payment Gateway
-          </TabsTrigger>
-        </TabsList>
+      {/* Scrollable content area */}
+      <div className="flex-1 overflow-y-auto">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+          <TabsContent value="overview" className="space-y-6 mt-0 px-0">
+            <PaymentOverview landlordId={landlordId} />
+            <MonthlyPaymentBreakdown 
+              landlordId={landlordId}
+              title="All Payments Collected"
+            />
+          </TabsContent>
 
-        <TabsContent value="overview" className="space-y-6">
-          <PaymentOverview landlordId={landlordId} />
-          <MonthlyPaymentBreakdown 
-            landlordId={landlordId}
-            title="All Payments Collected"
-          />
-        </TabsContent>
+          <TabsContent value="mpesa" className="mt-0 px-0">
+            <MpesaStatementsTab />
+          </TabsContent>
 
-        <TabsContent value="mpesa">
-          <MpesaStatementsTab />
-        </TabsContent>
-
-        <TabsContent value="gateway">
-          <MpesaSetupWizard landlordId={landlordId} />
-        </TabsContent>
-      </Tabs>
+          <TabsContent value="gateway" className="mt-0 px-0">
+            <MpesaSetupWizard landlordId={landlordId} />
+          </TabsContent>
+        </Tabs>
+      </div>
 
       {showCashPaymentDialog && (
         <RecordCashPayment 

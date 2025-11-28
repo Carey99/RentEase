@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Sidebar from "@/components/dashboard/sidebar";
 import DashboardTab from "@/components/dashboard/landlord/tabs/DashboardTab";
 import PropertiesTab from "@/components/dashboard/landlord/tabs/PropertiesTab";
-import TenantsWithPropertyFilter from "@/components/dashboard/landlord/TenantsWithPropertyFilter";
+import TenantsTab from "@/components/dashboard/landlord/tabs/TenantsTab";
 import { SettingsTab } from "@/components/dashboard/landlord/settings";
 import AddPropertyDialog from "@/components/dashboard/landlord/properties/AddPropertyDialog";
 import RecordCashPayment from "@/components/dashboard/landlord/RecordCashPayment";
@@ -166,7 +166,7 @@ export default function LandlordDashboard() {
         );
       
       case 'tenants':
-        return <TenantsWithPropertyFilter />;
+        return <TenantsTab />;
       
       case 'payments':
       case 'mpesa-statements': // Redirect old route to unified payments tab
@@ -191,8 +191,8 @@ export default function LandlordDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-neutral-50">
-      <div className="flex">
+    <div className="h-screen bg-neutral-50/50 overflow-hidden">
+      <div className="flex h-full">
         <Sidebar 
           role="landlord" 
           userName={currentUser?.name || 'Landlord'}
@@ -200,24 +200,32 @@ export default function LandlordDashboard() {
           onTabChange={setActiveTab}
         />
         
-        <div className="flex-1">
-          <div className="p-8">
-            <div className="mb-8">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h1 className="text-2xl font-bold text-neutral-900">
-                    {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
-                  </h1>
-                  <p className="text-neutral-600 mt-1">
-                    Welcome back, {currentUser?.name || 'Landlord'}!
-                  </p>
-                </div>
+        <main className="flex-1 flex flex-col h-screen">
+          {/* Top Bar - Fixed */}
+          <div className="bg-white border-b border-neutral-100 px-8 py-4 flex-shrink-0">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-xl font-semibold text-neutral-900 tracking-tight">
+                  {activeTab === 'dashboard' ? 'Dashboard' :
+                   activeTab === 'properties' ? 'Properties' :
+                   activeTab === 'tenants' ? 'Tenants' :
+                   activeTab === 'payments' ? 'Payments' :
+                   activeTab === 'debt-tracking' ? 'Debt Tracking' :
+                   activeTab === 'settings' ? 'Settings' :
+                   activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
+                </h1>
+                <p className="text-sm text-neutral-500 mt-0.5">
+                  Welcome back, {currentUser?.name || 'Landlord'}!
+                </p>
               </div>
             </div>
+          </div>
 
+          {/* Content Area - Scrollable */}
+          <div className="flex-1 overflow-y-auto p-8">
             {renderTabContent()}
           </div>
-        </div>
+        </main>
       </div>
 
       {/* Add Property Dialog */}

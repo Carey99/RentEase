@@ -116,148 +116,133 @@ export default function RecordedPaymentsCard({ payments, expectedRent }: Recorde
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Receipt className="h-5 w-5 text-purple-600" />
+    <Card className="border border-gray-200 dark:border-gray-700 shadow-sm">
+      <CardHeader className="pb-4 border-b border-gray-200 dark:border-gray-700">
+        <CardTitle className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+          <Receipt className="h-5 w-5 text-gray-600 dark:text-gray-400" />
           Recorded Payments
         </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-4">
         {currentMonthPayments.length === 0 ? (
-          <div className="text-center py-6 text-neutral-500">
-            <Receipt className="h-12 w-12 mx-auto mb-2 opacity-30" />
-            <p>No payments recorded for {MONTHS[currentMonth - 1]} {currentYear}</p>
-            <p className="text-sm mt-1">Your landlord will record payments here when received</p>
+          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+            <Receipt className="h-10 w-10 mx-auto mb-2 opacity-40" />
+            <p className="text-sm">No payments recorded for {MONTHS[currentMonth - 1]} {currentYear}</p>
+            <p className="text-xs mt-1">Your landlord will record payments here when received</p>
           </div>
         ) : (
           <div className="space-y-4">
-            {/* Balance Summary */}
-            <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-lg p-4">
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-neutral-600">Base Rent:</span>
-                  <span className="font-medium">KSH {baseRentOnly.toLocaleString()}</span>
+            {/* Top Summary Section - Clean Layout */}
+            <div className="space-y-3">
+              {/* Row 1: Base Rent & Utilities */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide font-medium mb-1">Base Rent</p>
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">KSH {baseRentOnly.toLocaleString()}</p>
                 </div>
                 {totalUtilitiesInBill > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-neutral-600">Utilities:</span>
-                    <span className="font-medium text-amber-700">KSH {totalUtilitiesInBill.toLocaleString()}</span>
+                  <div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide font-medium mb-1">Utilities</p>
+                    <p className="text-lg font-semibold text-amber-600 dark:text-amber-400">KSH {totalUtilitiesInBill.toLocaleString()}</p>
                   </div>
                 )}
-                {historicalDebt > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-neutral-600">Previous Balance:</span>
-                    <span className="font-medium text-red-600">KSH {historicalDebt.toLocaleString()}</span>
-                  </div>
-                )}
-                <div className="flex justify-between text-sm border-t border-purple-200 pt-2">
-                  <span className="text-neutral-700 font-medium">Total Expected:</span>
-                  <span className="font-semibold">KSH {totalExpected.toLocaleString()}</span>
+              </div>
+
+              {/* Row 2: Total Expected & Total Paid */}
+              <div className="grid grid-cols-2 gap-3 border-t border-gray-200 dark:border-gray-700 pt-3">
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide font-medium mb-1">Total Expected</p>
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">KSH {totalExpected.toLocaleString()}</p>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-neutral-600">Total Paid:</span>
-                  <span className="font-semibold text-purple-700">KSH {totalPaid.toLocaleString()}</span>
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide font-medium mb-1">Total Paid</p>
+                  <p className="text-lg font-semibold text-blue-600 dark:text-blue-400">KSH {totalPaid.toLocaleString()}</p>
                 </div>
-                <div className="border-t border-purple-200 pt-2 flex justify-between items-center">
-                  <span className="font-medium text-neutral-800">Outstanding Balance:</span>
-                  <div className="flex items-center gap-2">
-                    {overallStatus && getStatusBadge(overallStatus)}
-                    <span className={`font-bold text-lg ${
-                      balance > 0 ? 'text-orange-600' : 
-                      balance < 0 ? 'text-blue-600' : 
-                      'text-green-600'
-                    }`}>
-                      KSH {Math.abs(balance).toLocaleString()}
-                      {balance < 0 && ' (Credit)'}
-                      {balance === 0 && ' ✓'}
-                    </span>
-                  </div>
+              </div>
+
+              {/* Row 3: Outstanding Balance & Status */}
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-3 flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide font-medium mb-1">Outstanding Balance</p>
+                  <p className={`text-lg font-semibold ${
+                    balance > 0 ? 'text-amber-600 dark:text-amber-400' : 
+                    balance < 0 ? 'text-blue-600 dark:text-blue-400' : 
+                    'text-green-600 dark:text-green-400'
+                  }`}>
+                    KSH {Math.abs(balance).toLocaleString()}
+                  </p>
+                </div>
+                <div className="flex flex-col items-end">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide font-medium mb-1">Status</p>
+                  {overallStatus && getStatusBadge(overallStatus)}
                 </div>
               </div>
             </div>
 
-            {/* Payment Records */}
-            <div className="space-y-3">
-              <h4 className="text-sm font-semibold text-neutral-700">Payment Records for {MONTHS[currentMonth - 1]}</h4>
-              {currentMonthPayments.map((payment) => {
-                // Use helpers for expected and paid amounts
-                const paymentExpectedAmount = expectedForBill(payment, expectedRent);
-                const paymentPaidAmount = paidForBill(payment);
-                const displayAmount = paymentPaidAmount > 0 ? paymentPaidAmount : paymentExpectedAmount;
-                
-                // Use the calculated overallStatus (which considers consolidated billing)
-                // instead of the stored status which doesn't account for historical debts
-                const displayStatus = overallStatus;
+            {/* Payment Records Section */}
+            {currentMonthPayments.map((payment) => {
+              const paymentExpectedAmount = expectedForBill(payment, expectedRent);
+              const paymentPaidAmount = paidForBill(payment);
+              const displayAmount = paymentPaidAmount > 0 ? paymentPaidAmount : paymentExpectedAmount;
+              const displayStatus = overallStatus;
 
-                return (
-                  <div key={payment._id} className="border border-neutral-200 rounded-lg p-3 hover:bg-neutral-50 transition-colors">
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="flex items-center gap-2">
-                        <DollarSign className="h-4 w-4 text-purple-600" />
-                        <span className="font-semibold text-neutral-900">KSH {displayAmount.toLocaleString()}</span>
-                      </div>
-                      {getStatusBadge(displayStatus)}
+              return (
+                <div key={payment._id} className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                  {/* Payment Date */}
+                  <div className="flex items-center gap-2 mb-3">
+                    <Calendar className="h-4 w-4 text-gray-400" />
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                      {new Date(payment.paymentDate).toLocaleDateString()}
+                    </span>
+                  </div>
+
+                  {/* Breakdown */}
+                  <div className="space-y-2 text-sm">
+                    {/* Base Rent Line */}
+                    <div className="flex justify-between">
+                      <span className="text-gray-600 dark:text-gray-400">Base Rent</span>
+                      <span className="font-medium text-gray-900 dark:text-white">KSH {payment.monthlyRent.toLocaleString()}</span>
                     </div>
 
-                    <div className="text-sm text-neutral-600 space-y-1">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-3 w-3" />
-                        <span>Recorded: {new Date(payment.paymentDate).toLocaleDateString()}</span>
+                    {/* Historical Debt Line */}
+                    {historicalDebt > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600 dark:text-gray-400">Previous Balance</span>
+                        <span className="font-medium text-amber-600 dark:text-amber-400">KSH {historicalDebt.toLocaleString()}</span>
                       </div>
+                    )}
 
-                      {/* Base Rent */}
-                      <div className="flex justify-between pl-5">
-                        <span>Base Rent:</span>
-                        <span className="font-semibold">KSH {payment.monthlyRent.toLocaleString()}</span>
-                      </div>
-                      
-                      {/* Historical Debt (if this bill includes it) */}
-                      {historicalDebt > 0 && (
-                        <div className="flex justify-between pl-5 text-red-600">
-                          <span>Previous Balance:</span>
-                          <span className="font-semibold">KSH {historicalDebt.toLocaleString()}</span>
+                    {/* Utilities */}
+                    {payment.utilityCharges && payment.utilityCharges.length > 0 && (
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600 dark:text-gray-400">Utilities</span>
+                          <span className="font-medium text-amber-600 dark:text-amber-400">KSH {(payment.totalUtilityCost || 0).toLocaleString()}</span>
                         </div>
-                      )}
-
-                      {/* Utility Charges */}
-                      {payment.utilityCharges && payment.utilityCharges.length > 0 && (
-                        <div className="mt-2 pl-5 space-y-1">
-                          <span className="font-medium text-amber-700">Utilities:</span>
+                        <div className="ml-4 space-y-1 text-xs text-gray-500 dark:text-gray-500">
                           {payment.utilityCharges.map((utility, idx) => (
-                            <div key={idx} className="flex justify-between text-xs">
-                              <span className="text-neutral-600">
-                                {utility.type} ({utility.unitsUsed} units × KSH {utility.pricePerUnit})
-                              </span>
-                              <span className="font-medium text-amber-700">KSH {utility.total.toLocaleString()}</span>
+                            <div key={idx} className="flex justify-between">
+                              <span>{utility.type}</span>
+                              <span>{utility.unitsUsed} units × KSH {utility.pricePerUnit}</span>
                             </div>
                           ))}
-                          <div className="flex justify-between border-t border-neutral-200 pt-1">
-                            <span className="font-medium">Total Utilities:</span>
-                            <span className="font-semibold text-amber-700">
-                              KSH {(payment.totalUtilityCost || 0).toLocaleString()}
-                            </span>
-                          </div>
                         </div>
-                      )}
+                      </>
+                    )}
 
-                      {/* Total Expected - Use consolidated amount for current month */}
-                      <div className="flex justify-between pl-5 pt-2 border-t border-neutral-200">
-                        <span className="font-medium">Total Expected:</span>
-                        <span className="font-semibold">KSH {totalExpected.toLocaleString()}</span>
-                      </div>
+                    {/* Total Line */}
+                    <div className="border-t border-gray-200 dark:border-gray-700 pt-2 flex justify-between font-semibold">
+                      <span className="text-gray-900 dark:text-white">Total</span>
+                      <span className="text-gray-900 dark:text-white">KSH {displayAmount.toLocaleString()}</span>
                     </div>
                   </div>
-                );
-              })}
-            </div>
+                </div>
+              );
+            })}
 
             {/* Help Text */}
-            <div className="text-xs text-neutral-500 bg-neutral-50 p-3 rounded-md">
-              <p>💡 <strong>Note:</strong> These are payments recorded by your landlord. Use the "Make Payment" section below to confirm when you've actually paid.</p>
-              {currentBill?.status === 'pending' && (
-                <p className="mt-2 text-amber-600">⚠️ You have a pending bill. Please make your payment to update the status.</p>
-              )}
+            <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4 text-xs text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-slate-900/30 p-3 rounded-lg">
+              <p>These are payments recorded by your landlord. Make your payment to confirm when you've paid.</p>
             </div>
           </div>
         )}

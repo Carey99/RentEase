@@ -7,8 +7,9 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { CheckCircle2, XCircle, Loader2, Smartphone, Building2, AlertCircle, Eye, EyeOff, ExternalLink } from 'lucide-react';
+import { CheckCircle2, XCircle, Loader2, Smartphone, Building2, AlertCircle, Eye, EyeOff, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 
 interface MpesaSetupWizardProps {
   landlordId: string;
@@ -36,7 +37,6 @@ interface ConfigStatus {
   hasCredentials: boolean;
   configuredAt: string | null;
   lastTestedAt: string | null;
-  // Masked credential fields (for display only)
   consumerKeyMasked?: string | null;
   consumerSecretMasked?: string | null;
   passkeyMasked?: string | null;
@@ -52,6 +52,7 @@ export function MpesaSetupWizard({ landlordId }: MpesaSetupWizardProps) {
   const [showConsumerKey, setShowConsumerKey] = useState(false);
   const [showConsumerSecret, setShowConsumerSecret] = useState(false);
   const [showPasskey, setShowPasskey] = useState(false);
+  const [expandedSection, setExpandedSection] = useState<string | null>(null);
   const [config, setConfig] = useState<DarajaConfig>({
     businessShortCode: '',
     businessType: 'paybill',
@@ -63,7 +64,6 @@ export function MpesaSetupWizard({ landlordId }: MpesaSetupWizardProps) {
     environment: 'sandbox'
   });
 
-  // Fetch current configuration status
   useEffect(() => {
     if (landlordId) {
       fetchStatus();
@@ -76,43 +76,26 @@ export function MpesaSetupWizard({ landlordId }: MpesaSetupWizardProps) {
     try {
       setFetchingStatus(true);
       setFetchError(null);
-      console.log('Fetching M-Pesa status for landlordId:', landlordId);
       const response = await fetch(`/api/landlords/${landlordId}/daraja/status`);
-      console.log('Response status:', response.status, response.statusText);
       
       if (response.ok) {
         const data = await response.json();
-        console.log('M-Pesa status data:', data);
-        console.log('Masked credentials:', {
-          consumerKeyMasked: data.consumerKeyMasked,
-          consumerSecretMasked: data.consumerSecretMasked,
-          passkeyMasked: data.passkeyMasked
-        });
         setStatus(data);
         
-        // Pre-fill form if configured
         if (data.isConfigured) {
           setConfig({
             businessShortCode: data.businessShortCode || '',
             businessType: data.businessType || 'paybill',
             businessName: data.businessName || '',
             accountNumber: data.accountNumber || '',
-            // Show masked credentials if available, otherwise keep empty
             consumerKey: data.consumerKeyMasked || '',
             consumerSecret: data.consumerSecretMasked || '',
             passkey: data.passkeyMasked || '',
             environment: data.environment || 'sandbox'
           });
-          console.log('Form pre-filled with config:', {
-            consumerKey: data.consumerKeyMasked || '',
-            consumerSecret: data.consumerSecretMasked || '',
-            passkey: data.passkeyMasked || ''
-          });
         }
       } else {
-        const text = await response.text();
-        console.error('Failed to fetch status. Response:', response.status, text.substring(0, 200));
-        setFetchError(`Failed to load M-Pesa configuration (${response.status})`);
+        setFetchError(`Failed to load M-Pesa configuration`);
       }
     } catch (error) {
       console.error('Failed to fetch M-Pesa status:', error);
@@ -233,304 +216,225 @@ export function MpesaSetupWizard({ landlordId }: MpesaSetupWizardProps) {
     }
   };
 
-  // Show loading state
+  const ConfigSection = ({ title, description, children, id }: { title: string; description: string; children: React.ReactNode; id: string }) => {
+    const isExpanded = expandedSection === id;
+    return (
+      <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setExpandedSection(isExpanded ? null : id)}
+          className="w-full px-4 py-4 flex items-center justify-between bg-gray-50 dark:bg-slate-900/50 hover:bg-gray-100 dark:hover:bg-slate-900 transition-colors"
+        >
+          <div className="text-left">
+            <h3 className="font-medium text-gray-900 dark:text-white">{title}</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{description}</p>
+          </div>
+          {isExpanded ? (
+            <ChevronUp className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+          ) : (
+            <ChevronDown className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+          )}
+        </button>
+        {isExpanded && (
+          <div className="px-4 py-6 border-t border-gray-200 dark:border-gray-700 space-y-4">
+            {children}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   if (fetchingStatus) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Smartphone className="h-5 w-5" />
-            M-Pesa Payment Configuration
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="flex items-center justify-center py-12">
-          <div className="flex flex-col items-center gap-3">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="text-sm text-muted-foreground">Loading configuration...</p>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="flex items-center justify-center p-12">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+          <p className="text-sm text-gray-500 dark:text-gray-400">Loading configuration...</p>
+        </div>
+      </div>
     );
   }
 
-  // Show error state
   if (fetchError) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Smartphone className="h-5 w-5" />
-            M-Pesa Payment Configuration
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              {fetchError}
-            </AlertDescription>
-          </Alert>
-          <Button onClick={fetchStatus} variant="outline">
-            Retry
-          </Button>
-        </CardContent>
-      </Card>
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>
+          {fetchError}
+        </AlertDescription>
+      </Alert>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Smartphone className="h-5 w-5" />
-          M-Pesa Payment Configuration
-        </CardTitle>
-        <CardDescription>
-          Configure your M-Pesa paybill or till number to receive rent payments directly
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Status Display */}
-        {status?.isConfigured && (
-          <Alert className={status.isActive ? 'border-green-200 bg-green-50' : 'border-gray-200'}>
-            <div className="flex items-start justify-between">
-              <div className="flex items-start gap-3">
-                {status.isActive ? (
-                  <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5" />
-                ) : (
-                  <XCircle className="h-5 w-5 text-gray-400 mt-0.5" />
-                )}
-                <div className="space-y-1">
-                  <p className="font-medium">
-                    {status.isActive ? 'M-Pesa Configured' : 'M-Pesa Inactive'}
+    <div className="space-y-6">
+      {/* Status Header */}
+      {status?.isConfigured && (
+        <div className="grid grid-cols-4 gap-4">
+          <Card className="border-gray-200 dark:border-gray-700">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Status</p>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white mt-1">
+                    {status.isActive ? 'Active' : 'Inactive'}
                   </p>
-                  <AlertDescription className="text-sm space-y-1">
-                    <div>Type: <Badge variant="outline">{status.businessType}</Badge></div>
-                    <div>Environment: <Badge variant="outline" className={status.environment === 'production' ? 'bg-green-100' : 'bg-yellow-100'}>{status.environment}</Badge></div>
-                    <div>Business Short Code: <span className="font-mono">{status.businessShortCode}</span></div>
-                    <div>Credentials: <Badge variant={status.hasCredentials ? 'default' : 'destructive'}>{status.hasCredentials ? 'Configured' : 'Missing'}</Badge></div>
-                    {status.accountNumber && (
-                      <div>Account Reference: <span className="font-mono">{status.accountNumber}</span></div>
-                    )}
-                    {status.configuredAt && (
-                      <div className="text-xs text-muted-foreground">
-                        Configured: {new Date(status.configuredAt).toLocaleDateString()}
-                      </div>
-                    )}
-                    {status.lastTestedAt && (
-                      <div className="text-xs text-muted-foreground">
-                        Last tested: {new Date(status.lastTestedAt).toLocaleDateString()}
-                      </div>
-                    )}
-                  </AlertDescription>
                 </div>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleTest}
-                  disabled={testing}
-                >
-                  {testing ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Testing...
-                    </>
-                  ) : (
-                    'Test Connection'
-                  )}
-                </Button>
-                {status.isActive && (
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={handleRemove}
-                    disabled={loading}
-                  >
-                    Deactivate
-                  </Button>
+                {status.isActive ? (
+                  <CheckCircle2 className="h-5 w-5 text-green-600" />
+                ) : (
+                  <XCircle className="h-5 w-5 text-amber-600" />
                 )}
               </div>
-            </div>
-          </Alert>
-        )}
+            </CardContent>
+          </Card>
 
-        {/* Information Alert */}
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            <strong>How it works:</strong> Configure your own Daraja API credentials and M-Pesa paybill/till number below. 
-            When your tenants pay rent, the money goes <strong>directly to YOUR M-Pesa account</strong>. 
-            RentEase securely uses your credentials to facilitate the payment request.
-          </AlertDescription>
-        </Alert>
-
-        {/* Configuration Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Business Type Selection */}
-          <div className="space-y-3">
-            <Label>M-Pesa Account Type *</Label>
-            <RadioGroup
-              value={config.businessType}
-              onValueChange={(value: 'paybill' | 'till') => 
-                setConfig({ ...config, businessType: value })
-              }
-            >
-              <div className="flex items-center space-x-2 border rounded-lg p-3">
-                <RadioGroupItem value="paybill" id="paybill" />
-                <Label htmlFor="paybill" className="flex-1 cursor-pointer">
-                  <div className="flex items-center gap-2">
-                    <Building2 className="h-4 w-4" />
-                    <span className="font-medium">Paybill Number</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Business paybill (e.g., 123456) - Requires account reference
-                  </p>
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2 border rounded-lg p-3">
-                <RadioGroupItem value="till" id="till" />
-                <Label htmlFor="till" className="flex-1 cursor-pointer">
-                  <div className="flex items-center gap-2">
-                    <Smartphone className="h-4 w-4" />
-                    <span className="font-medium">Till Number</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Buy Goods and Services till (e.g., 556677)
-                  </p>
-                </Label>
-              </div>
-            </RadioGroup>
-          </div>
-
-          {/* Business Short Code */}
-          <div className="space-y-2">
-            <Label htmlFor="shortCode">
-              {config.businessType === 'paybill' ? 'Paybill' : 'Till'} Number *
-            </Label>
-            <Input
-              id="shortCode"
-              type="text"
-              placeholder={config.businessType === 'paybill' ? 'e.g., 123456' : 'e.g., 556677'}
-              value={config.businessShortCode}
-              onChange={(e) => setConfig({ ...config, businessShortCode: e.target.value })}
-              required
-              pattern="\d{5,7}"
-              title="Must be 5-7 digits"
-            />
-            <p className="text-xs text-muted-foreground">
-              Your M-Pesa {config.businessType} number (5-7 digits)
-            </p>
-          </div>
-
-          {/* Business Name */}
-          <div className="space-y-2">
-            <Label htmlFor="businessName">Business Name (Optional)</Label>
-            <Input
-              id="businessName"
-              type="text"
-              placeholder="e.g., Sunset Properties"
-              value={config.businessName}
-              onChange={(e) => setConfig({ ...config, businessName: e.target.value })}
-            />
-            <p className="text-xs text-muted-foreground">
-              Appears on tenant's M-Pesa confirmation
-            </p>
-          </div>
-
-          {/* Daraja API Credentials Section */}
-          <div className="border-t pt-6 space-y-4">
-            <div className="flex items-start gap-2">
-              <AlertCircle className="h-4 w-4 text-blue-600 mt-0.5" />
+          <Card className="border-gray-200 dark:border-gray-700">
+            <CardContent className="pt-6">
               <div>
-                <h3 className="font-medium text-sm">Daraja API Credentials</h3>
-                <p className="text-xs text-muted-foreground mt-1">
-                  You need to register on the{' '}
-                  <a 
-                    href="https://developer.safaricom.co.ke/" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline inline-flex items-center gap-1"
-                  >
-                    Safaricom Daraja Portal
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
-                  {' '}to get these credentials.
-                </p>
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Type</p>
+                <p className="text-sm font-semibold text-gray-900 dark:text-white mt-1 capitalize">{status.businessType}</p>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-gray-200 dark:border-gray-700">
+            <CardContent className="pt-6">
+              <div>
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Environment</p>
+                <Badge className="mt-1" variant={status.environment === 'production' ? 'destructive' : 'secondary'}>
+                  {status.environment}
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-gray-200 dark:border-gray-700">
+            <CardContent className="pt-6">
+              <div>
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Short Code</p>
+                <p className="text-sm font-semibold text-gray-900 dark:text-white mt-1">{status.businessShortCode}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {!status?.isConfigured && (
+        <div className="border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/20 rounded-lg p-4">
+          <div className="flex gap-3">
+            <AlertCircle className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <h3 className="font-medium text-blue-900 dark:text-blue-100">M-Pesa Not Configured</h3>
+              <p className="text-sm text-blue-800 dark:text-blue-200 mt-1">Set up M-Pesa to start accepting payments from your tenants.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {status?.isConfigured && !status?.isActive && (
+        <div className="border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20 rounded-lg p-4">
+          <div className="flex gap-3">
+            <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <h3 className="font-medium text-amber-900 dark:text-amber-100">M-Pesa is Disabled</h3>
+              <p className="text-sm text-amber-800 dark:text-amber-200 mt-1">Enable M-Pesa to receive payments. Click "Edit Configuration" to reactivate.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Configuration Form */}
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <ConfigSection
+          id="business"
+          title="Business Information"
+          description={status?.isConfigured ? `${status.businessName || 'No name'} • ${status.businessShortCode}` : 'Configure your M-Pesa account'}
+        >
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="businessType" className="text-sm font-medium">Business Type</Label>
+              <RadioGroup value={config.businessType} onValueChange={(value: any) => setConfig({ ...config, businessType: value })} className="mt-2">
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="paybill" id="paybill" />
+                  <Label htmlFor="paybill" className="font-normal cursor-pointer text-sm">Paybill</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="till" id="till" />
+                  <Label htmlFor="till" className="font-normal cursor-pointer text-sm">Till Number</Label>
+                </div>
+              </RadioGroup>
             </div>
 
-            {/* Environment Selection */}
-            <div className="space-y-2">
-              <Label htmlFor="environment">Environment *</Label>
-              <Select
-                value={config.environment}
-                onValueChange={(value: 'sandbox' | 'production') => 
-                  setConfig({ ...config, environment: value })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="sandbox">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="bg-yellow-100">Sandbox</Badge>
-                      <span className="text-sm">For testing (free)</span>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="production">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="bg-green-100">Production</Badge>
-                      <span className="text-sm">Live payments</span>
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                Use <strong>Sandbox</strong> for testing, <strong>Production</strong> for real payments
-              </p>
+            <div>
+              <Label htmlFor="shortCode" className="text-sm font-medium">Short Code</Label>
+              <Input
+                id="shortCode"
+                placeholder="e.g., 123456"
+                value={config.businessShortCode}
+                onChange={(e) => setConfig({ ...config, businessShortCode: e.target.value })}
+                required
+                className="mt-1 text-sm"
+              />
             </div>
 
-            {/* Consumer Key */}
-            <div className="space-y-2">
-              <Label htmlFor="consumerKey">Consumer Key *</Label>
-              <div className="relative">
+            <div>
+              <Label htmlFor="businessName" className="text-sm font-medium">Business Name</Label>
+              <Input
+                id="businessName"
+                placeholder="e.g., Property Management Ltd"
+                value={config.businessName}
+                onChange={(e) => setConfig({ ...config, businessName: e.target.value })}
+                required
+                className="mt-1 text-sm"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="accountNumber" className="text-sm font-medium">Account Number (Reference)</Label>
+              <Input
+                id="accountNumber"
+                placeholder="e.g., REF001"
+                value={config.accountNumber}
+                onChange={(e) => setConfig({ ...config, accountNumber: e.target.value })}
+                required
+                className="mt-1 text-sm"
+              />
+            </div>
+          </div>
+        </ConfigSection>
+
+        <ConfigSection
+          id="credentials"
+          title="Daraja Credentials"
+          description="M-Pesa API credentials from Safaricom"
+        >
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="consumerKey" className="text-sm font-medium">Consumer Key</Label>
+              <div className="relative mt-1">
                 <Input
                   id="consumerKey"
                   type={showConsumerKey ? 'text' : 'password'}
-                  placeholder={config.environment === 'sandbox' ? 'e.g., xxxxxxxxxxxxx' : 'Your production consumer key'}
+                  placeholder="Your consumer key"
                   value={config.consumerKey}
                   onChange={(e) => setConfig({ ...config, consumerKey: e.target.value })}
                   required
-                  className="font-mono text-sm pr-10"
+                  className="pr-10 text-sm"
                 />
-                <Button
+                <button
                   type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
                   onClick={() => setShowConsumerKey(!showConsumerKey)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                 >
-                  {showConsumerKey ? (
-                    <EyeOff className="h-4 w-4 text-gray-400" />
-                  ) : (
-                    <Eye className="h-4 w-4 text-gray-400" />
-                  )}
-                </Button>
+                  {showConsumerKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
               </div>
-              <p className="text-xs text-muted-foreground">
-                {status?.hasCredentials 
-                  ? 'Encrypted credential shown. Clear to update with new value.'
-                  : `Get this from your Daraja ${config.environment} app`}
-              </p>
             </div>
 
-            {/* Consumer Secret */}
-            <div className="space-y-2">
-              <Label htmlFor="consumerSecret">Consumer Secret *</Label>
-              <div className="relative">
+            <div>
+              <Label htmlFor="consumerSecret" className="text-sm font-medium">Consumer Secret</Label>
+              <div className="relative mt-1">
                 <Input
                   id="consumerSecret"
                   type={showConsumerSecret ? 'text' : 'password'}
@@ -538,132 +442,202 @@ export function MpesaSetupWizard({ landlordId }: MpesaSetupWizardProps) {
                   value={config.consumerSecret}
                   onChange={(e) => setConfig({ ...config, consumerSecret: e.target.value })}
                   required
-                  className="font-mono text-sm pr-10"
+                  className="pr-10 text-sm"
                 />
-                <Button
+                <button
                   type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
                   onClick={() => setShowConsumerSecret(!showConsumerSecret)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                 >
-                  {showConsumerSecret ? (
-                    <EyeOff className="h-4 w-4 text-gray-400" />
-                  ) : (
-                    <Eye className="h-4 w-4 text-gray-400" />
-                  )}
-                </Button>
+                  {showConsumerSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
               </div>
-              <p className="text-xs text-muted-foreground">
-                {status?.hasCredentials 
-                  ? 'Encrypted credential shown. Clear to update with new value.'
-                  : `Get this from your Daraja ${config.environment} app (keep it secret!)`}
-              </p>
             </div>
 
-            {/* Passkey */}
-            <div className="space-y-2">
-              <Label htmlFor="passkey">Lipa Na M-Pesa Passkey *</Label>
-              <div className="relative">
+            <div>
+              <Label htmlFor="passkey" className="text-sm font-medium">Passkey</Label>
+              <div className="relative mt-1">
                 <Input
                   id="passkey"
                   type={showPasskey ? 'text' : 'password'}
-                  placeholder={config.environment === 'sandbox' ? 'Sandbox passkey provided by Safaricom' : 'Your production passkey'}
+                  placeholder="Your M-Pesa passkey"
                   value={config.passkey}
                   onChange={(e) => setConfig({ ...config, passkey: e.target.value })}
                   required
-                  className="font-mono text-sm pr-10"
+                  className="pr-10 text-sm"
                 />
-                <Button
+                <button
                   type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
                   onClick={() => setShowPasskey(!showPasskey)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                 >
-                  {showPasskey ? (
-                    <EyeOff className="h-4 w-4 text-gray-400" />
-                  ) : (
-                    <Eye className="h-4 w-4 text-gray-400" />
-                  )}
-                </Button>
+                  {showPasskey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
               </div>
-              <p className="text-xs text-muted-foreground">
-                {status?.hasCredentials 
-                  ? 'Encrypted credential shown. Clear to update with new value.'
-                  : (config.environment === 'sandbox' 
-                    ? 'For sandbox, use: bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919'
-                    : 'Get this from Safaricom when you activate Lipa Na M-Pesa Online')}
-              </p>
             </div>
           </div>
+        </ConfigSection>
 
-          {/* Account Number (for Paybill only) */}
-          {config.businessType === 'paybill' && (
-            <div className="space-y-2">
-              <Label htmlFor="accountNumber">Account Reference (Recommended)</Label>
-              <Input
-                id="accountNumber"
-                type="text"
-                placeholder="e.g., RENT or Property-A"
-                value={config.accountNumber}
-                onChange={(e) => setConfig({ ...config, accountNumber: e.target.value })}
-              />
-              <p className="text-xs text-muted-foreground">
-                Helps identify payments in your M-Pesa statement
-              </p>
+        <ConfigSection
+          id="environment"
+          title="Environment"
+          description={`Currently using ${config.environment}`}
+        >
+          <RadioGroup value={config.environment} onValueChange={(value: any) => setConfig({ ...config, environment: value })}>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="sandbox" id="sandbox" />
+              <Label htmlFor="sandbox" className="font-normal cursor-pointer text-sm">
+                <span className="font-medium">Sandbox (Testing)</span>
+                <span className="text-gray-500 dark:text-gray-400 block text-xs mt-0.5">Use this to test the integration before going live</span>
+              </Label>
             </div>
-          )}
+            <div className="flex items-center space-x-2 mt-3">
+              <RadioGroupItem value="production" id="production" />
+              <Label htmlFor="production" className="font-normal cursor-pointer text-sm">
+                <span className="font-medium">Production (Live)</span>
+                <span className="text-gray-500 dark:text-gray-400 block text-xs mt-0.5">Live payments will be processed with this setting</span>
+              </Label>
+            </div>
+          </RadioGroup>
+        </ConfigSection>
 
-          {/* Submit Button */}
-          <div className="flex gap-3 pt-4">
+        {/* Action Buttons */}
+        <div className="flex gap-2 justify-between pt-4">
+          <div className="flex gap-2">
+            {status?.isConfigured && (
+              <>
+                <Button
+                  type="button"
+                  onClick={handleTest}
+                  disabled={testing || loading}
+                  variant="outline"
+                  className="text-sm"
+                >
+                  {testing ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Testing...
+                    </>
+                  ) : (
+                    'Test Connection'
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleRemove}
+                  disabled={loading || testing}
+                  variant="destructive"
+                  className="text-sm"
+                >
+                  Deactivate
+                </Button>
+              </>
+            )}
+          </div>
+
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setConfig({
+                businessShortCode: '',
+                businessType: 'paybill',
+                businessName: '',
+                accountNumber: '',
+                consumerKey: '',
+                consumerSecret: '',
+                passkey: '',
+                environment: 'sandbox'
+              })}
+              className="text-sm"
+            >
+              Clear
+            </Button>
             <Button
               type="submit"
-              disabled={loading || !config.businessShortCode || !config.consumerKey || !config.consumerSecret || !config.passkey}
-              className="flex-1"
+              disabled={loading}
+              className="text-sm"
             >
               {loading ? (
                 <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Saving...
                 </>
               ) : (
-                <>
-                  <CheckCircle2 className="h-4 w-4 mr-2" />
-                  {status?.isConfigured ? 'Update Configuration' : 'Save Configuration'}
-                </>
+                'Save Configuration'
               )}
             </Button>
           </div>
-        </form>
-
-        {/* Help Text */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">
-          <p className="font-medium text-sm text-blue-900">Getting Started with Daraja</p>
-          <ul className="text-xs text-blue-800 space-y-1 list-disc list-inside">
-            <li>Visit <a href="https://developer.safaricom.co.ke/" target="_blank" rel="noopener noreferrer" className="underline">developer.safaricom.co.ke</a> and create an account</li>
-            <li>Create a new app to get your Consumer Key and Consumer Secret</li>
-            <li>For <strong>Sandbox</strong>: Use the test credentials provided above</li>
-            <li>For <strong>Production</strong>: Register your business with Safaricom to get real credentials</li>
-            <li>The Passkey is provided when you activate "Lipa Na M-Pesa Online" for your paybill/till</li>
-            <li>Test your setup in Sandbox before going live in Production</li>
-          </ul>
         </div>
+      </form>
 
-        {/* Security Notice */}
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-          <div className="flex items-start gap-2">
-            <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5" />
-            <div>
-              <p className="font-medium text-sm text-amber-900">Security Notice</p>
-              <p className="text-xs text-amber-800 mt-1">
-                Your credentials are encrypted and stored securely. Never share them with anyone. 
-                RentEase will only use them to process payments on your behalf.
-              </p>
+      {/* Help Section */}
+      <div className="border-t border-gray-200 dark:border-gray-700 pt-6 mt-6">
+        <div className="space-y-4">
+          <div>
+            <h3 className="font-semibold text-gray-900 dark:text-white text-sm flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-gray-400" />
+              Getting Started
+            </h3>
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-slate-900/30">
+              <div className="flex items-start gap-3">
+                <Smartphone className="h-5 w-5 text-gray-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-medium text-sm text-gray-900 dark:text-white">How to Get Credentials</h4>
+                  <ol className="text-xs text-gray-600 dark:text-gray-400 space-y-1 mt-2 list-decimal list-inside">
+                    <li>Visit Safaricom Daraja</li>
+                    <li>Create developer account</li>
+                    <li>Create new app</li>
+                    <li>Copy credentials</li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-slate-900/30">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-gray-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-medium text-sm text-gray-900 dark:text-white">Important Notes</h4>
+                  <ul className="text-xs text-gray-600 dark:text-gray-400 space-y-1 mt-2 list-disc list-inside">
+                    <li>Keep credentials secure</li>
+                    <li>Test in sandbox first</li>
+                    <li>Never share secrets</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-slate-900/30">
+              <div className="flex items-start gap-3">
+                <CheckCircle2 className="h-5 w-5 text-gray-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-medium text-sm text-gray-900 dark:text-white">Next Steps</h4>
+                  <ol className="text-xs text-gray-600 dark:text-gray-400 space-y-1 mt-2 list-decimal list-inside">
+                    <li>Enter credentials</li>
+                    <li>Test connection</li>
+                    <li>Go live</li>
+                  </ol>
+                </div>
+              </div>
             </div>
           </div>
+
+          <a
+            href="https://developer.safaricom.co.ke"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+          >
+            <Building2 className="h-4 w-4" />
+            Visit Daraja Developer Portal
+            <ExternalLink className="h-3 w-3" />
+          </a>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

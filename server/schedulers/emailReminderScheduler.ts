@@ -76,49 +76,54 @@ async function checkAndSendReminders() {
       try {
         const reminderDaysBefore = landlord.emailSettings?.reminderDaysBefore || 3;
         
-        // Get all tenants for this landlord
+        // Get all tenants for THIS SPECIFIC landlord
         const tenants = await Tenant.find({
           'apartmentInfo.landlordId': landlord.id
         });
 
-        console.log(`\n👥 Landlord ${landlord.fullName}: ${tenants.length} tenant(s)`);
+        console.log(`\n👥 Processing landlord ${landlord.fullName} (${landlord.email}): ${tenants.length} tenant(s)`);
 
         for (const tenant of tenants) {
           try {
-            // Calculate next due date
-            const nextDueDate = calculateNextDueDate(tenant);
+            // Use tenant's actual rent cycle data (already correctly calculated)
+            const nextDueDate = tenant.rentCycle?.nextDueDate || new Date();
+            const daysRemaining = tenant.rentCycle?.daysRemaining ?? 0;
+            const rentStatus = tenant.rentCycle?.rentStatus || 'unknown';
             const today = startOfDay(new Date());
-            const daysRemaining = differenceInDays(nextDueDate, today);
 
-            console.log(`  📅 Tenant ${tenant.fullName}: Due ${format(nextDueDate, 'MMM dd')}, ${daysRemaining} days remaining`);
+            console.log(`  📅 Tenant ${tenant.fullName}:`);
+            console.log(`     Due: ${format(nextDueDate, 'MMM dd, yyyy')}`);
+            console.log(`     Days remaining: ${daysRemaining}`);
+            console.log(`     Status: ${rentStatus}`);
+            console.log(`     Reminder threshold: ${reminderDaysBefore} days before`);
 
             // Check if reminder should be sent
             if (daysRemaining === reminderDaysBefore && daysRemaining >= 0) {
-              console.log(`    📧 Sending reminder (${reminderDaysBefore} days before due date)...`);
+              console.log(`    ✅ MATCH! Sending reminder to ${tenant.fullName} from landlord ${landlord.fullName}`);
               
               await sendRentReminderEmail({
+                tenantId: tenant.id,
                 tenantName: tenant.fullName,
                 tenantEmail: tenant.email,
+                landlordId: landlord.id,
                 landlordName: landlord.fullName,
                 landlordEmail: landlord.email,
                 landlordPhone: landlord.phone ?? undefined,
                 amountDue: Number(tenant.apartmentInfo?.rentAmount) || 0,
                 dueDate: format(nextDueDate, 'MMMM dd, yyyy'),
-                daysRemaining: Math.max(0, daysRemaining),
+                daysRemaining: daysRemaining, // Use actual value, can be negative for overdue
                 propertyName: tenant.apartmentInfo?.propertyName || 'Property',
                 unitNumber: tenant.apartmentInfo?.unitNumber || 'N/A',
                 customMessage: landlord.emailSettings?.templates?.rentReminder?.customMessage,
-                mpesaPaybill: landlord.darajaConfig?.businessShortCode ?? undefined,
-                mpesaAccountNumber: landlord.darajaConfig?.accountNumber ?? undefined,
-                landlordId: landlord.id,
-                tenantId: tenant.id
               });
 
               totalReminders++;
               successCount++;
-              console.log(`    ✅ Reminder sent to ${tenant.email}`);
+              console.log(`    ✅ Reminder sent successfully to ${tenant.email}`);
             } else if (daysRemaining < 0) {
-              console.log(`    ⚠️  Payment overdue by ${Math.abs(daysRemaining)} days`);
+              console.log(`    ⚠️  Payment overdue by ${Math.abs(daysRemaining)} days - not sending reminder`);
+            } else {
+              console.log(`    ⏭️  Skipping - not matching reminder threshold (${daysRemaining} != ${reminderDaysBefore})`);
             }
           } catch (tenantError) {
             console.error(`    ❌ Failed to process tenant ${tenant.fullName}:`, tenantError);
@@ -148,16 +153,20 @@ export function startEmailReminderScheduler() {
   // Cron format: minute hour day month weekday
   const cronSchedule = '0 8 * * *';
 
-  console.log('⏰ Initializing email reminder scheduler...');
-  console.log(`📅 Schedule: Daily at 8:00 AM EAT`);
+  console.log('\n⏰ Initializing email reminder scheduler...');
+  console.log(`📅 Schedule: Daily at 8:00 AM EAT (cron: ${cronSchedule})`);
+  console.log(`🌍 Current time: ${new Date().toLocaleString('en-US', { timeZone: 'Africa/Nairobi' })} EAT`);
 
-  const task = cron.schedule(cronSchedule, checkAndSendReminders);
+  const task = cron.schedule(cronSchedule, checkAndSendReminders, {
+    timezone: 'Africa/Nairobi'
+  });
 
   console.log('✅ Email reminder scheduler started');
+  console.log('📝 To manually trigger: POST /api/emails/trigger-scheduler\n');
 
   // Run immediately on startup for testing (optional - remove in production)
   if (process.env.NODE_ENV === 'development') {
-    console.log('🧪 Running initial reminder check (development mode)...');
+    console.log('🧪 Development mode: Scheduler will run 5 seconds after startup...\n');
     setTimeout(() => checkAndSendReminders(), 5000); // Wait 5 seconds after startup
   }
 

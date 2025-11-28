@@ -241,62 +241,48 @@ export default function PaymentOverview({ landlordId }: PaymentOverviewProps) {
         </CardHeader>
 
         <CardContent>
-          {/* Stats Cards - Modern Design with Gradients */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div className="relative overflow-hidden bg-gradient-to-br from-green-50 to-emerald-100 border-0 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300 group">
-              <div className="absolute top-0 right-0 w-20 h-20 bg-green-500/10 rounded-full -mr-10 -mt-10 group-hover:scale-150 transition-transform duration-500"></div>
-              <div className="relative">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm font-medium text-green-700">Paid</p>
-                  <CheckCircle2 className="h-5 w-5 text-green-600" />
-                </div>
-                <p className="text-3xl font-bold text-green-900">{stats.paid}</p>
-                <p className="text-xs text-green-600 mt-1">Tenants</p>
+          {/* Stats Cards - Minimalist Design */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+            <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-slate-900/50 hover:bg-gray-50 dark:hover:bg-slate-900 transition-colors">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Paid</p>
+                <CheckCircle2 className="h-4 w-4 text-gray-400 dark:text-gray-600" />
               </div>
+              <p className="text-2xl font-semibold text-gray-900 dark:text-white">{stats.paid}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">tenants</p>
             </div>
-            <div className="relative overflow-hidden bg-gradient-to-br from-orange-50 to-amber-100 border-0 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300 group">
-              <div className="absolute top-0 right-0 w-20 h-20 bg-orange-500/10 rounded-full -mr-10 -mt-10 group-hover:scale-150 transition-transform duration-500"></div>
-              <div className="relative">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm font-medium text-orange-700">Unpaid</p>
-                  <AlertCircle className="h-5 w-5 text-orange-600" />
-                </div>
-                <p className="text-3xl font-bold text-orange-900">{stats.unpaid}</p>
-                <p className="text-xs text-orange-600 mt-1">Tenants</p>
+            <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-slate-900/50 hover:bg-gray-50 dark:hover:bg-slate-900 transition-colors">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Unpaid</p>
+                <AlertCircle className="h-4 w-4 text-gray-400 dark:text-gray-600" />
               </div>
+              <p className="text-2xl font-semibold text-gray-900 dark:text-white">{stats.unpaid}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">tenants</p>
             </div>
-            <div className="relative overflow-hidden bg-gradient-to-br from-amber-50 to-yellow-100 border-0 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300 group">
-              <div className="absolute top-0 right-0 w-20 h-20 bg-amber-500/10 rounded-full -mr-10 -mt-10 group-hover:scale-150 transition-transform duration-500"></div>
-              <div className="relative">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm font-medium text-amber-700">Grace Period</p>
-                  <AlertCircle className="h-5 w-5 text-amber-600" />
-                </div>
-                <p className="text-3xl font-bold text-amber-900">{stats.gracePeriod}</p>
-                <p className="text-xs text-amber-600 mt-1">Tenants</p>
+            <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-slate-900/50 hover:bg-gray-50 dark:hover:bg-slate-900 transition-colors">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Grace</p>
+                <AlertCircle className="h-4 w-4 text-gray-400 dark:text-gray-600" />
               </div>
+              <p className="text-2xl font-semibold text-gray-900 dark:text-white">{stats.gracePeriod}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">tenants</p>
             </div>
-            <div className="relative overflow-hidden bg-gradient-to-br from-red-50 to-rose-100 border-0 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300 group">
-              <div className="absolute top-0 right-0 w-20 h-20 bg-red-500/10 rounded-full -mr-10 -mt-10 group-hover:scale-150 transition-transform duration-500"></div>
-              <div className="relative">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm font-medium text-red-700">Overdue</p>
-                  <XCircle className="h-5 w-5 text-red-600" />
-                </div>
-                <p className="text-3xl font-bold text-red-900">{stats.overdue}</p>
-                <p className="text-xs text-red-600 mt-1">Tenants</p>
+            <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-slate-900/50 hover:bg-gray-50 dark:hover:bg-slate-900 transition-colors">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Overdue</p>
+                <XCircle className="h-4 w-4 text-gray-400 dark:text-gray-600" />
               </div>
+              <p className="text-2xl font-semibold text-gray-900 dark:text-white">{stats.overdue}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">tenants</p>
             </div>
           </div>
 
-          {/* Collection Summary - Modern Design */}
-          <div className="relative overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-6 mb-6 shadow-lg hover:shadow-xl transition-all duration-300">
-            <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -mr-20 -mt-20"></div>
-            <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full -ml-16 -mb-16"></div>
-            <div className="relative flex justify-between items-center">
+          {/* Collection Summary - Minimalist Design */}
+          <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-6 mb-6 bg-gradient-to-br from-gray-50 to-white dark:from-slate-900/50 dark:to-slate-900">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
               <div>
-                <p className="text-sm text-blue-100 mb-1 font-medium">Total Collected</p>
-                <p className="text-4xl font-bold text-white mb-1">
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Total Collected</p>
+                <p className="text-4xl font-bold text-gray-900 dark:text-white">
                   KSH {stats.totalCollected.toLocaleString()}
                 </p>
                 <p className="text-xs text-blue-200">
@@ -304,35 +290,26 @@ export default function PaymentOverview({ landlordId }: PaymentOverviewProps) {
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-sm text-blue-100 mb-1 font-medium">
-                  {stats.hasBills ? "Total Billed" : "Base Rent"}
-                </p>
-                <p className="text-3xl font-bold text-white">
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Expected</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
                   KSH {stats.totalExpected.toLocaleString()}
                 </p>
-                {!stats.hasBills && (
-                  <p className="text-xs text-blue-200 mt-1">
-                    Bills not yet created
-                  </p>
-                )}
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  {stats.hasBills ? `of billed amount` : 'based on agreements'}
+                </p>
               </div>
-            </div>
-            <div className="relative mt-4">
-              <div className="w-full bg-white/20 rounded-full h-3 overflow-hidden">
-                <div
-                  className="bg-gradient-to-r from-white to-blue-100 h-3 rounded-full transition-all duration-500 ease-out shadow-sm"
-                  style={{
-                    width: `${Math.min((stats.totalCollected / stats.totalExpected) * 100, 100)}%`,
-                  }}
-                />
+              <div>
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1 text-right">Collection Rate</p>
+                <p className="text-3xl font-bold text-gray-900 dark:text-white text-right">
+                  {stats.totalExpected > 0 ? Math.round((stats.totalCollected / stats.totalExpected) * 100) : 0}%
+                </p>
               </div>
             </div>
           </div>
 
-          {/* Tenant List - Modern Cards */}
-          <div className="space-y-3">
-            <h4 className="font-semibold text-base text-neutral-800 mb-4 flex items-center gap-2">
-              <span className="w-1 h-6 bg-gradient-to-b from-blue-500 to-indigo-600 rounded-full"></span>
+          {/* Tenant List - Minimalist Cards */}
+          <div className="space-y-2">
+            <h4 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wide">
               Tenants ({filteredTenants.length})
             </h4>
             {filteredTenants.map((tenant) => {
@@ -345,61 +322,48 @@ export default function PaymentOverview({ landlordId }: PaymentOverviewProps) {
               return (
                 <div
                   key={tenant.id}
-                  className="relative group flex items-center justify-between p-5 bg-white border-0 rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden"
+                  className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-slate-900/50 hover:bg-gray-50 dark:hover:bg-slate-900 transition-colors"
                 >
-                  {/* Status indicator line */}
-                  <div className={cn(
-                    "absolute left-0 top-0 bottom-0 w-1 transition-all duration-300",
-                    monthStatus.status === 'paid' && "bg-gradient-to-b from-green-500 to-emerald-600",
-                    monthStatus.status === 'overdue' && "bg-gradient-to-b from-red-500 to-rose-600",
-                    monthStatus.status === 'grace' && "bg-gradient-to-b from-orange-500 to-amber-600",
-                    monthStatus.status === 'unpaid' && "bg-gradient-to-b from-neutral-300 to-neutral-400"
-                  )}></div>
-
-                  {/* Background decoration */}
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-neutral-50 to-transparent rounded-full -mr-16 -mt-16 opacity-50 group-hover:scale-150 transition-transform duration-500"></div>
-
-                  <div className="relative flex items-center gap-4 flex-1">
-                    <Avatar className="h-12 w-12 ring-2 ring-neutral-100 shadow-sm">
+                  {/* Left side - Tenant info */}
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <Avatar className="h-9 w-9 border border-gray-200 dark:border-gray-700 flex-shrink-0">
                       <AvatarImage src={tenant.avatar || tenant.profileImage} />
-                      <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-semibold">{getInitials(tenant.name)}</AvatarFallback>
+                      <AvatarFallback className="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs font-medium">{getInitials(tenant.name)}</AvatarFallback>
                     </Avatar>
 
-                    <div className="flex-1">
-                      <p className="font-semibold text-neutral-900">{tenant.name}</p>
-                      <p className="text-sm text-neutral-500 flex items-center gap-1">
-                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-                        {tenant.propertyName} · {tenant.unitNumber}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-gray-900 dark:text-white truncate">{tenant.name}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                        {tenant.propertyName} • {tenant.unitNumber}
                       </p>
-                    </div>
-
-                    <div className="text-right mr-4 px-4 py-2 bg-neutral-50 rounded-lg">
-                      <p className="text-xs text-neutral-500 mb-0.5">Monthly Rent</p>
-                      <p className="font-bold text-neutral-900">KSH {tenant.rentAmount.toLocaleString()}</p>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <Badge className={cn(
-                        monthStatus.color,
-                        "shadow-sm border-0 font-medium px-3 py-1"
-                      )}>
-                        <span className="flex items-center gap-1.5">
-                          {monthStatus.icon}
-                          {monthStatus.badge}
-                        </span>
-                      </Badge>
                     </div>
                   </div>
 
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setRecordPaymentTenant(tenant)}
-                    className="relative ml-4 border-2 hover:border-blue-500 hover:bg-blue-50 hover:text-blue-600 transition-all duration-300 shadow-sm"
-                  >
-                    <Plus className="h-4 w-4 mr-1.5" />
-                    Bill
-                  </Button>
+                  {/* Right side - Amount and Status */}
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Rent</p>
+                      <p className="font-semibold text-gray-900 dark:text-white">KSH {tenant.rentAmount.toLocaleString()}</p>
+                    </div>
+                    <div className="w-px h-8 bg-gray-200 dark:bg-gray-700"></div>
+                    <Badge className={cn(
+                      "text-xs font-medium px-2 py-1 border-0",
+                      monthStatus.status === 'paid' && "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300",
+                      monthStatus.status === 'overdue' && "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300",
+                      monthStatus.status === 'grace' && "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300",
+                      monthStatus.status === 'unpaid' && "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+                    )}>
+                      {monthStatus.badge}
+                    </Badge>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setRecordPaymentTenant(tenant)}
+                      className="text-xs h-8 px-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </div>
               );
             })}

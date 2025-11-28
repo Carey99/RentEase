@@ -9,6 +9,7 @@ import { insertUserSchema } from "@shared/schema";
 import { ZodError } from "zod";
 import { logActivity, createActivityLog } from "./activityController";
 import { createUserSession, destroyUserSession } from "../middleware/auth";
+import bcrypt from 'bcryptjs';
 
 export class AuthController {
   /**
@@ -76,9 +77,24 @@ export class AuthController {
       }
 
       const user = await storage.getUserByEmail(email);
-      if (!user || user.password !== password) {
-        return res.status(401).json({ error: "Invalid credentials" });
-      }
+        if (!user) {
+          return res.status(401).json({ error: "Invalid credentials" });
+        }
+        // Support both bcrypt-hashed and legacy plain-text passwords
+        let passwordMatches = false;
+        if (user.password) {
+          if (user.password.startsWith('$2a$') || user.password.startsWith('$2b$') || user.password.startsWith('$2y$')) {
+            // bcrypt hash
+            passwordMatches = await bcrypt.compare(password, user.password);
+          } else {
+            // legacy plain-text
+            passwordMatches = password === user.password;
+          }
+        }
+        if (!passwordMatches) {
+          return res.status(401).json({ error: "Invalid credentials" });
+        }
+
 
       // Create session
       createUserSession(req, user.id, user.role, rememberMe || false);
@@ -110,9 +126,23 @@ export class AuthController {
       }
 
       const user = await storage.getUserByEmail(email);
-      if (!user || user.password !== password) {
-        return res.status(401).json({ error: "Invalid credentials" });
-      }
+        if (!user) {
+          return res.status(401).json({ error: "Invalid credentials" });
+        }
+        // Support both bcrypt-hashed and legacy plain-text passwords
+        let passwordMatches = false;
+        if (user.password) {
+          if (user.password.startsWith('$2a$') || user.password.startsWith('$2b$') || user.password.startsWith('$2y$')) {
+            // bcrypt hash
+            passwordMatches = await bcrypt.compare(password, user.password);
+          } else {
+            // legacy plain-text
+            passwordMatches = password === user.password;
+          }
+        }
+        if (!passwordMatches) {
+          return res.status(401).json({ error: "Invalid credentials" });
+        }
 
       // Create session
       createUserSession(req, user.id, user.role, rememberMe || false);
