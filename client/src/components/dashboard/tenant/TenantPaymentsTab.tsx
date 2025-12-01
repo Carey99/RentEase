@@ -8,60 +8,73 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import MonthlyPaymentBreakdown from "@/components/dashboard/shared/MonthlyPaymentBreakdown";
 import RecordedPaymentsCard from "@/components/dashboard/tenant/RecordedPaymentsCard";
 import { usePaymentHistoryViewState } from "@/hooks/useTenantDashboardState";
+import type { TenantProperty } from "@shared/schema";
 
 interface TenantPaymentsTabProps {
   tenantId?: string;
   paymentHistory?: any[];
+  tenantProperty?: TenantProperty | null;
 }
 
-export default function TenantPaymentsTab({ tenantId, paymentHistory = [] }: TenantPaymentsTabProps) {
+export default function TenantPaymentsTab({ tenantId, paymentHistory = [], tenantProperty }: TenantPaymentsTabProps) {
   const viewState = usePaymentHistoryViewState();
-  const paymentData = paymentHistory;
+  
+  // Calculate totals from payment history array
+  const completedPayments = paymentHistory.filter(p => 
+    p.status === 'completed' || p.status === 'overpaid'
+  );
+  
+  const totalPaid = completedPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+  const pendingPayments = paymentHistory.filter(p => 
+    p.status === 'pending' || p.status === 'partial'
+  );
+  const totalOutstanding = pendingPayments.reduce((sum, p) => {
+    const expected = (p.monthlyRent || 0) + (p.totalUtilityCost || 0);
+    return sum + (expected - (p.amount || 0));
+  }, 0);
+
+  const expectedRent = parseFloat(tenantProperty?.rentAmount || '0');
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-neutral-900">Payment History</h2>
-        {paymentData?.totalPaid && (
-          <p className="text-sm text-gray-600">
-            Total Paid: KSH {paymentData.totalPaid.toLocaleString()}
-          </p>
-        )}
+        <p className="text-sm text-gray-600">
+          Total Paid: KSH {totalPaid.toLocaleString()}
+        </p>
       </div>
 
       {/* Summary Cards */}
-      {paymentData && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Total Paid</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">KSH {paymentData.totalPaid?.toLocaleString() || 0}</p>
-            </CardContent>
-          </Card>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">Total Paid</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">KSH {totalPaid.toLocaleString()}</p>
+          </CardContent>
+        </Card>
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Outstanding</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold text-amber-600">
-                KSH {paymentData.totalOutstanding?.toLocaleString() || 0}
-              </p>
-            </CardContent>
-          </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">Outstanding</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-amber-600">
+              KSH {totalOutstanding.toLocaleString()}
+            </p>
+          </CardContent>
+        </Card>
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Total Payments</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">{paymentData.payments?.length || 0}</p>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">Total Payments</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">{paymentHistory.length}</p>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Monthly Payment Breakdown */}
       <MonthlyPaymentBreakdown 
@@ -70,7 +83,7 @@ export default function TenantPaymentsTab({ tenantId, paymentHistory = [] }: Ten
       />
 
       {/* Recorded Payments */}
-      <RecordedPaymentsCard tenantId={tenantId} />
+      <RecordedPaymentsCard payments={paymentHistory} expectedRent={expectedRent} />
     </div>
   );
 }

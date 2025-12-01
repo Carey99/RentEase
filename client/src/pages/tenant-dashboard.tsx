@@ -262,7 +262,7 @@ export default function TenantDashboard() {
         return <TenantDashboardTab tenantId={currentUser?.id} tenantProperty={tenantProperty} paymentHistory={paymentHistory} currentUser={currentUser} />;
 
       case 'payments':
-        return <TenantPaymentsTab tenantId={currentUser?.id} paymentHistory={paymentHistory} />;
+        return <TenantPaymentsTab tenantId={currentUser?.id} paymentHistory={paymentHistory} tenantProperty={tenantProperty} />;
 
       case 'apartment':
         return <TenantApartmentTab tenantId={currentUser?.id} tenantProperty={tenantProperty} />;
