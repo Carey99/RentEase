@@ -6,32 +6,16 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Phone, Mail, MapPin, User, Calendar } from "lucide-react";
-import { useTenantProperty } from "@/hooks/useTenantProperty";
 import { useApartmentViewState } from "@/hooks/useTenantDashboardState";
+import type { TenantProperty } from "@shared/schema";
 
 interface TenantApartmentTabProps {
   tenantId?: string;
+  tenantProperty?: TenantProperty | null;
 }
 
-export default function TenantApartmentTab({ tenantId }: TenantApartmentTabProps) {
+export default function TenantApartmentTab({ tenantId, tenantProperty }: TenantApartmentTabProps) {
   const viewState = useApartmentViewState();
-  const { data: tenantProperty, isLoading, error } = useTenantProperty({ tenantId });
-
-  if (isLoading) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-gray-600">Loading apartment details...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-red-600">Error loading apartment details</p>
-      </div>
-    );
-  }
 
   if (!tenantProperty) {
     return (

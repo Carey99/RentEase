@@ -24,13 +24,16 @@ export function useTenantProperty({ tenantId, enabled = true }: UseTenantPropert
   const { toast } = useToast();
 
   return useQuery({
-    queryKey: ['/api/tenants/property', tenantId],
+    queryKey: ['/api/tenant-properties/tenant', tenantId],
     queryFn: async () => {
       if (!tenantId) throw new Error('Tenant ID is required');
       
       try {
-        const response = await apiRequest('GET', `/api/tenants/${tenantId}/property`);
+        const response = await fetch(`/api/tenant-properties/tenant/${tenantId}`);
         if (!response.ok) {
+          if (response.status === 404) {
+            return null; // No apartment assigned
+          }
           throw new Error('Failed to fetch property data');
         }
         return response.json() as Promise<TenantProperty>;

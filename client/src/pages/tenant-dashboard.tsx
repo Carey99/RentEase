@@ -259,13 +259,13 @@ export default function TenantDashboard() {
   const renderTabContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <TenantDashboardTab tenantId={currentUser?.id} />;
+        return <TenantDashboardTab tenantId={currentUser?.id} tenantProperty={tenantProperty} />;
 
       case 'payments':
-        return <TenantPaymentsTab tenantId={currentUser?.id} />;
+        return <TenantPaymentsTab tenantId={currentUser?.id} paymentHistory={paymentHistory} />;
 
       case 'apartment':
-        return <TenantApartmentTab tenantId={currentUser?.id} />;
+        return <TenantApartmentTab tenantId={currentUser?.id} tenantProperty={tenantProperty} />;
 
       case 'settings':
         return <TenantSettingsTab tenantId={currentUser?.id} />;

@@ -7,32 +7,16 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import MonthlyPaymentBreakdown from "@/components/dashboard/shared/MonthlyPaymentBreakdown";
 import RecordedPaymentsCard from "@/components/dashboard/tenant/RecordedPaymentsCard";
-import { usePaymentHistory } from "@/hooks/usePaymentHistory";
 import { usePaymentHistoryViewState } from "@/hooks/useTenantDashboardState";
 
 interface TenantPaymentsTabProps {
   tenantId?: string;
+  paymentHistory?: any[];
 }
 
-export default function TenantPaymentsTab({ tenantId }: TenantPaymentsTabProps) {
+export default function TenantPaymentsTab({ tenantId, paymentHistory = [] }: TenantPaymentsTabProps) {
   const viewState = usePaymentHistoryViewState();
-  const { data: paymentData, isLoading, error } = usePaymentHistory({ tenantId });
-
-  if (isLoading) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-gray-600">Loading payment history...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-red-600">Error loading payment history</p>
-      </div>
-    );
-  }
+  const paymentData = paymentHistory;
 
   return (
     <div className="space-y-6">

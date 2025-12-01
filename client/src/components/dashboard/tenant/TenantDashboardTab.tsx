@@ -10,33 +10,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import StatsCard from "@/components/dashboard/stats-card";
 import { MpesaPaymentModal } from "@/components/dashboard/tenant/MpesaPaymentModal";
-import { useTenantProperty } from "@/hooks/useTenantProperty";
 import { useQueryClient } from "@tanstack/react-query";
+import type { TenantProperty } from "@shared/schema";
 
 interface TenantDashboardTabProps {
   tenantId?: string;
+  tenantProperty?: TenantProperty | null;
 }
 
-export default function TenantDashboardTab({ tenantId }: TenantDashboardTabProps) {
+export default function TenantDashboardTab({ tenantId, tenantProperty }: TenantDashboardTabProps) {
   const [showMpesaModal, setShowMpesaModal] = useState(false);
   const queryClient = useQueryClient();
-  const { data: tenantProperty, isLoading, error } = useTenantProperty({ tenantId });
-
-  if (isLoading) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-gray-600">Loading dashboard...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-red-600">Error loading dashboard</p>
-      </div>
-    );
-  }
 
   if (!tenantProperty) {
     return (
