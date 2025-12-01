@@ -154,6 +154,7 @@ export class RentCycleStorage {
         currentMonthPaid,
         paidForMonth: lastPayment?.forMonth || null,
         paidForYear: lastPayment?.forYear || null,
+        // Show currentDueDate if not paid, nextDueDate if paid or new tenant
         nextDueDate: isNewTenant ? nextDueDate : (currentMonthPaid ? nextDueDate : currentDueDate),
         daysRemaining,
         rentStatus,
