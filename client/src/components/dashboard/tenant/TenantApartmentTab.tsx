@@ -7,7 +7,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Phone, Mail, MapPin, User, Calendar } from "lucide-react";
 import { useApartmentViewState } from "@/hooks/useTenantDashboardState";
-import { useQuery } from "@tanstack/react-query";
 import type { TenantProperty } from "@shared/schema";
 
 interface TenantApartmentTabProps {
@@ -18,22 +17,8 @@ interface TenantApartmentTabProps {
 export default function TenantApartmentTab({ tenantId, tenantProperty }: TenantApartmentTabProps) {
   const viewState = useApartmentViewState();
   
-  // Fetch landlord details if we have a landlordId
-  const { data: landlordInfo } = useQuery({
-    queryKey: ['/api/landlords', tenantProperty?.property?.landlordId],
-    queryFn: async () => {
-      const landlordId = tenantProperty?.property?.landlordId;
-      if (!landlordId) return null;
-      
-      const response = await fetch(`/api/landlords/${landlordId}`);
-      if (!response.ok) {
-        if (response.status === 404) return null;
-        throw new Error('Failed to fetch landlord info');
-      }
-      return response.json();
-    },
-    enabled: !!tenantProperty?.property?.landlordId,
-  });
+  // Get landlord details from tenantProperty
+  const landlordInfo = tenantProperty?.landlord;
 
   if (!tenantProperty) {
     return (
@@ -90,7 +75,7 @@ export default function TenantApartmentTab({ tenantId, tenantProperty }: TenantA
               <div className="flex justify-between items-start">
                 <span className="text-xs text-gray-600 dark:text-gray-400">Property</span>
                 <span className="text-sm font-medium text-gray-900 dark:text-white text-right">
-                  {tenantProperty.propertyName || 'N/A'}
+                  {tenantProperty.property?.name || 'N/A'}
                 </span>
               </div>
               <div className="flex justify-between items-start">
