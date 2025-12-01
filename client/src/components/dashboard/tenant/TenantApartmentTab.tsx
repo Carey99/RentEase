@@ -7,6 +7,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Phone, Mail, MapPin, User, Calendar } from "lucide-react";
 import { useApartmentViewState } from "@/hooks/useTenantDashboardState";
+import { useQuery } from "@tanstack/react-query";
 import type { TenantProperty } from "@shared/schema";
 
 interface TenantApartmentTabProps {
@@ -16,6 +17,23 @@ interface TenantApartmentTabProps {
 
 export default function TenantApartmentTab({ tenantId, tenantProperty }: TenantApartmentTabProps) {
   const viewState = useApartmentViewState();
+  
+  // Fetch landlord details if we have a landlordId
+  const { data: landlordInfo } = useQuery({
+    queryKey: ['/api/landlords', tenantProperty?.property?.landlordId],
+    queryFn: async () => {
+      const landlordId = tenantProperty?.property?.landlordId;
+      if (!landlordId) return null;
+      
+      const response = await fetch(`/api/landlords/${landlordId}`);
+      if (!response.ok) {
+        if (response.status === 404) return null;
+        throw new Error('Failed to fetch landlord info');
+      }
+      return response.json();
+    },
+    enabled: !!tenantProperty?.property?.landlordId,
+  });
 
   if (!tenantProperty) {
     return (
@@ -120,22 +138,49 @@ export default function TenantApartmentTab({ tenantId, tenantProperty }: TenantA
                 <div>
                   <p className="text-xs text-gray-600 dark:text-gray-400">Name</p>
                   <p className="text-sm font-medium text-gray-900 dark:text-white">
-                    {tenantProperty.landlordName || 'N/A'}
+                    {landlordInfo?.fullName || 'N/A'}
                   </p>
                 </div>
               </div>
 
-              {tenantProperty.landlordPhone && (
+              {landlordInfo?.phone && (
                 <div className="flex items-start gap-3">
                   <Phone className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
                   <div>
                     <p className="text-xs text-gray-600 dark:text-gray-400">Phone</p>
                     <a
-                      href={`tel:${tenantProperty.landlordPhone}`}
+                      href={`tel:${landlordInfo.phone}`}
                       className="text-sm font-medium text-blue-600 hover:underline"
                     >
-                      {tenantProperty.landlordPhone}
+                      {landlordInfo.phone}
                     </a>
+                  </div>
+                </div>
+              )}
+
+              {landlordInfo?.email && (
+                <div className="flex items-start gap-3">
+                  <Mail className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">Email</p>
+                    <a
+                      href={`mailto:${landlordInfo.email}`}
+                      className="text-sm font-medium text-blue-600 hover:underline"
+                    >
+                      {landlordInfo.email}
+                    </a>
+                  </div>
+                </div>
+              )}
+
+              {landlordInfo?.company && (
+                <div className="flex items-start gap-3">
+                  <MapPin className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">Company</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">
+                      {landlordInfo.company}
+                    </p>
                   </div>
                 </div>
               )}
