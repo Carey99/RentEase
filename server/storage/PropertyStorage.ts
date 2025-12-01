@@ -282,6 +282,23 @@ export class PropertyStorage {
       const property = await PropertyModel.findById(propertyId).lean();
       console.log('Found property:', property);
 
+      // Get landlord information
+      const landlordId = tenant.apartmentInfo.landlordId || property?.landlordId;
+      let landlordInfo = null;
+      if (landlordId) {
+        const landlord = await LandlordModel.findById(landlordId).select('fullName email phone company').lean();
+        if (landlord) {
+          landlordInfo = {
+            id: landlord._id.toString(),
+            fullName: landlord.fullName,
+            email: landlord.email,
+            phone: landlord.phone,
+            company: landlord.company,
+          };
+        }
+        console.log('Found landlord info:', landlordInfo);
+      }
+
       // Note: rentCycle would be populated by RentCycleStorage
       const result = {
         _id: tenantId,
@@ -301,6 +318,7 @@ export class PropertyStorage {
           occupiedUnits: property.occupiedUnits || undefined,
           createdAt: property.createdAt,
         } : undefined,
+        landlord: landlordInfo,
         // rentCycle is populated by caller (RentCycleStorage)
       };
 

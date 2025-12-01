@@ -85,6 +85,14 @@ export default function TenantDashboardTab({ tenantId, tenantProperty, paymentHi
   const [showMpesaModal, setShowMpesaModal] = useState(false);
   const queryClient = useQueryClient();
 
+  // Debug: Log rent cycle status
+  console.log('📊 TenantDashboardTab - Rent Cycle:', {
+    rentStatus: tenantProperty?.rentCycle?.rentStatus,
+    daysRemaining: tenantProperty?.rentCycle?.daysRemaining,
+    nextDueDate: tenantProperty?.rentCycle?.nextDueDate,
+    currentMonthPaid: tenantProperty?.rentCycle?.currentMonthPaid
+  });
+
   if (!tenantProperty) {
     return (
       <div className="space-y-8">
@@ -131,6 +139,16 @@ export default function TenantDashboardTab({ tenantId, tenantProperty, paymentHi
                       <p className="text-sm font-bold text-blue-700 dark:text-blue-400">Due Soon</p>
                       <p className="text-xs text-blue-600 dark:text-blue-500 mt-1">{tenantProperty?.rentCycle?.daysRemaining} days remaining</p>
                     </div>
+                  ) : tenantProperty?.rentCycle?.rentStatus === 'grace_period' ? (
+                    <div>
+                      <p className="text-sm font-bold text-orange-700 dark:text-orange-400">Grace Period</p>
+                      <p className="text-xs text-orange-600 dark:text-orange-500 mt-1">{Math.abs(tenantProperty?.rentCycle?.daysRemaining || 0)} days overdue</p>
+                    </div>
+                  ) : tenantProperty?.rentCycle?.rentStatus === 'overdue' ? (
+                    <div>
+                      <p className="text-sm font-bold text-red-700 dark:text-red-400">Overdue</p>
+                      <p className="text-xs text-red-600 dark:text-red-500 mt-1">{Math.abs(tenantProperty?.rentCycle?.daysRemaining || 0)} days overdue</p>
+                    </div>
                   ) : (
                     <p className="text-sm font-semibold text-gray-600 dark:text-gray-300">N/A</p>
                   )}
@@ -141,10 +159,18 @@ export default function TenantDashboardTab({ tenantId, tenantProperty, paymentHi
                   ? 'bg-green-100 dark:bg-green-950/30'
                   : tenantProperty?.rentCycle?.rentStatus === 'partial'
                   ? 'bg-amber-100 dark:bg-amber-950/30'
+                  : tenantProperty?.rentCycle?.rentStatus === 'grace_period'
+                  ? 'bg-orange-100 dark:bg-orange-950/30'
+                  : tenantProperty?.rentCycle?.rentStatus === 'overdue'
+                  ? 'bg-red-100 dark:bg-red-950/30'
                   : 'bg-blue-100 dark:bg-blue-950/30'
               }`}>
                 {tenantProperty?.rentCycle?.rentStatus === 'paid' || tenantProperty?.rentCycle?.rentStatus === 'paid_in_advance' ? (
                   <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+                ) : tenantProperty?.rentCycle?.rentStatus === 'overdue' ? (
+                  <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                ) : tenantProperty?.rentCycle?.rentStatus === 'grace_period' ? (
+                  <AlertTriangle className="h-5 w-5 text-orange-600 dark:text-orange-400" />
                 ) : (
                   <AlertCircle className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                 )}

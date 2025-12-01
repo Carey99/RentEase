@@ -165,6 +165,13 @@ export type TenantProperty = InsertTenantProperty & {
     occupiedUnits?: string;
     createdAt?: Date;
   };
+  landlord?: {
+    id: string;
+    fullName: string;
+    email?: string;
+    phone?: string;
+    company?: string;
+  };
   rentCycle?: {
     lastPaymentDate?: Date;
     nextDueDate?: Date;
