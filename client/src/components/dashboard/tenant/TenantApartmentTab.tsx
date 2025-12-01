@@ -186,16 +186,31 @@ export default function TenantApartmentTab({ tenantId, tenantProperty }: TenantA
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 <div>
                   <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Status</p>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">
-                    {tenantProperty.rentCycle.currentMonthPaid ? 'Paid' : 'Pending'}
-                  </p>
+                  <span className={`inline-flex px-2 py-1 rounded text-xs font-medium ${
+                    tenantProperty.rentCycle.rentStatus === 'paid' || tenantProperty.rentCycle.rentStatus === 'paid_in_advance'
+                      ? 'bg-green-100 dark:bg-green-950/30 text-green-700 dark:text-green-400'
+                      : tenantProperty.rentCycle.rentStatus === 'partial'
+                      ? 'bg-amber-100 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400'
+                      : tenantProperty.rentCycle.rentStatus === 'grace_period'
+                      ? 'bg-orange-100 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400'
+                      : tenantProperty.rentCycle.rentStatus === 'overdue'
+                      ? 'bg-red-100 dark:bg-red-950/30 text-red-700 dark:text-red-400'
+                      : 'bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400'
+                  }`}>
+                    {tenantProperty.rentCycle.rentStatus === 'paid_in_advance' ? 'Paid Ahead' :
+                     tenantProperty.rentCycle.rentStatus === 'paid' ? 'Current' :
+                     tenantProperty.rentCycle.rentStatus === 'partial' ? 'Partial' :
+                     tenantProperty.rentCycle.rentStatus === 'grace_period' ? 'Grace Period' :
+                     tenantProperty.rentCycle.rentStatus === 'overdue' ? 'Overdue' :
+                     tenantProperty.rentCycle.rentStatus === 'active' ? 'Active' : 'Pending'}
+                  </span>
                 </div>
                 <div>
                   <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">
-                    Days Remaining
+                    {tenantProperty.rentCycle.daysRemaining < 0 ? 'Days Overdue' : 'Days Remaining'}
                   </p>
                   <p className="text-sm font-medium text-gray-900 dark:text-white">
-                    {tenantProperty.rentCycle.daysRemaining || 0} days
+                    {Math.abs(tenantProperty.rentCycle.daysRemaining || 0)} days
                   </p>
                 </div>
                 {tenantProperty.rentCycle.lastPaymentDate && (

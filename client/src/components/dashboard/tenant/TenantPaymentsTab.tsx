@@ -7,6 +7,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import MonthlyPaymentBreakdown from "@/components/dashboard/shared/MonthlyPaymentBreakdown";
 import RecordedPaymentsCard from "@/components/dashboard/tenant/RecordedPaymentsCard";
+import { expectedForBill, balanceForCurrentMonth, paidForBill, expectedForCurrentMonth } from "@/lib/payment-utils";
 import { usePaymentHistoryViewState } from "@/hooks/useTenantDashboardState";
 import type { TenantProperty } from "@shared/schema";
 
@@ -28,12 +29,17 @@ export default function TenantPaymentsTab({ tenantId, paymentHistory = [], tenan
   const pendingPayments = paymentHistory.filter(p => 
     p.status === 'pending' || p.status === 'partial'
   );
-  const totalOutstanding = pendingPayments.reduce((sum, p) => {
-    const expected = (p.monthlyRent || 0) + (p.totalUtilityCost || 0);
-    return sum + (expected - (p.amount || 0));
-  }, 0);
+  // Prefer using the property's base rent (from tenantProperty) when calculating expected/balance
+  const defaultMonthlyRent = parseFloat(tenantProperty?.rentAmount || '0');
 
-  const expectedRent = parseFloat(tenantProperty?.rentAmount || '0');
+  // Calculate outstanding using shared utility that consolidates historical debt
+  const now = new Date();
+  const currentMonth = now.getMonth() + 1;
+  const currentYear = now.getFullYear();
+
+  const totalOutstanding = balanceForCurrentMonth(paymentHistory || [], currentMonth, currentYear, defaultMonthlyRent);
+
+  const expectedRent = expectedForCurrentMonth(paymentHistory || [], currentMonth, currentYear, defaultMonthlyRent);
 
   return (
     <div className="space-y-6">
