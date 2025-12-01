@@ -433,6 +433,30 @@ export async function approveMatch(req: Request, res: Response) {
     const paymentMonth = paymentDate.getMonth() + 1; // 1-12
     const paymentYear = paymentDate.getFullYear();
 
+    // Get property to calculate base rent and utilities
+    const property = await Property.findById(tenant.apartmentInfo?.propertyId);
+    let monthlyRent = match.transaction.amount; // Default to payment amount
+    let totalUtilityCost = 0;
+    let utilityCharges = [];
+    
+    if (property) {
+      // Get base rent from property type
+      const propertyType = tenant.apartmentInfo?.propertyType;
+      const propertyTypeInfo = property.propertyTypes?.find((pt: any) => pt.type === propertyType);
+      if (propertyTypeInfo) {
+        monthlyRent = parseFloat(propertyTypeInfo.price);
+      }
+      
+      // Calculate utilities
+      utilityCharges = property.utilities?.map((utility: any) => ({
+        type: utility.type,
+        unitsUsed: 1,
+        pricePerUnit: parseFloat(utility.price),
+        total: parseFloat(utility.price),
+      })) || [];
+      totalUtilityCost = utilityCharges.reduce((sum: number, charge: any) => sum + charge.total, 0);
+    }
+
     const paymentHistory = await PaymentHistory.create({
       tenantId,
       landlordId,
@@ -441,8 +465,11 @@ export async function approveMatch(req: Request, res: Response) {
       paymentMethod: 'mpesa',
       mpesaReceiptNumber: match.transaction.receiptNo,
       paymentDate,
-      month: paymentMonth,
-      year: paymentYear,
+      forMonth: paymentMonth,
+      forYear: paymentYear,
+      monthlyRent, // Base rent from property type
+      totalUtilityCost,
+      utilityCharges,
       status: 'completed',
       notes: `M-Pesa payment from ${match.transaction.senderName} (${match.transaction.senderPhone})`,
       createdAt: new Date(),

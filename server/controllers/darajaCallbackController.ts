@@ -151,6 +151,20 @@ export async function handleSTKCallback(req: Request, res: Response) {
             
             const now = new Date();
             
+            // Get base rent from property type
+            const propertyType = tenant.apartmentInfo?.propertyType;
+            const propertyTypeInfo = property.propertyTypes?.find((pt: any) => pt.type === propertyType);
+            const monthlyRent = propertyTypeInfo ? parseFloat(propertyTypeInfo.price) : paymentIntent.amount;
+            
+            // Calculate utilities
+            const utilityCharges = property.utilities?.map((utility: any) => ({
+              type: utility.type,
+              unitsUsed: 1,
+              pricePerUnit: parseFloat(utility.price),
+              total: parseFloat(utility.price),
+            })) || [];
+            const totalUtilityCost = utilityCharges.reduce((sum: number, charge: any) => sum + charge.total, 0);
+            
             paymentHistory = await PaymentHistory.create({
               tenantId: paymentIntent.tenantId,
               landlordId: paymentIntent.landlordId,
@@ -159,11 +173,12 @@ export async function handleSTKCallback(req: Request, res: Response) {
               paymentDate,
               forMonth: now.getMonth() + 1, // Current month (1-12)
               forYear: now.getFullYear(),
-              monthlyRent: property.rent || paymentIntent.amount, // Use payment amount if rent not set
+              monthlyRent, // Base rent from property type
               paymentMethod: 'mpesa',
               status: 'completed',
               notes: `M-Pesa payment: ${mpesaReceiptNumber}`,
-              totalUtilityCost: 0
+              utilityCharges,
+              totalUtilityCost
             });
             
             console.log('✅ Payment history created:', paymentHistory._id);
