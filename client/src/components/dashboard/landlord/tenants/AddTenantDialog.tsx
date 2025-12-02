@@ -67,7 +67,12 @@ export default function AddTenantDialog({ open, onOpenChange }: AddTenantDialogP
       });
 
       if (!response.ok) {
-        throw new Error('Failed to register tenant');
+        let errorMessage = 'Failed to register tenant';
+        try {
+          const json = await response.json();
+          errorMessage = json.error || json.message || errorMessage;
+        } catch {}
+        throw new Error(errorMessage);
       }
 
       return response.json();
@@ -84,7 +89,12 @@ export default function AddTenantDialog({ open, onOpenChange }: AddTenantDialogP
       });
 
       if (!response.ok) {
-        throw new Error('Failed to assign tenant to property');
+        let errorMessage = 'Failed to assign tenant to property';
+        try {
+          const json = await response.json();
+          errorMessage = json.error || json.message || errorMessage;
+        } catch {}
+        throw new Error(errorMessage);
       }
 
       return response.json();
