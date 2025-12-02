@@ -145,6 +145,15 @@ export function usePropertyManagement() {
     ));
   };
 
+  const updatePropertyTypeUnits = (
+    selectedTypes: PropertyType[], 
+    setSelectedTypes: (types: PropertyType[]) => void
+  ) => (type: string, newUnits: number) => {
+    setSelectedTypes(selectedTypes.map(pt => 
+      pt.type === type ? { ...pt, units: newUnits } : pt
+    ));
+  };
+
   const addUtility = (
     selectedUtilities: Utility[], 
     setSelectedUtilities: (utilities: Utility[]) => void
@@ -174,6 +183,7 @@ export function usePropertyManagement() {
     addPropertyType,
     removePropertyType,
     updatePropertyTypePrice,
+    updatePropertyTypeUnits,
     addUtility,
     removeUtility,
     updateUtilityPrice,

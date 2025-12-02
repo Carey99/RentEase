@@ -15,6 +15,7 @@ interface LandlordPropertyStepProps {
   addPropertyType: (type: string, price: string, units?: number) => void;
   removePropertyType: (type: string) => void;
   updatePropertyTypePrice: (type: string, price: string) => void;
+  updatePropertyTypeUnits: (type: string, units: number) => void;
   showCustomType: boolean;
   setShowCustomType: (show: boolean) => void;
   isAddingAnotherProperty: boolean;
@@ -28,6 +29,7 @@ export function LandlordPropertyStep({
   addPropertyType,
   removePropertyType,
   updatePropertyTypePrice,
+  updatePropertyTypeUnits,
   showCustomType,
   setShowCustomType,
   isAddingAnotherProperty
@@ -128,44 +130,40 @@ export function LandlordPropertyStep({
                   
                   {isSelected && (
                     <div className="ml-6 animate-in slide-in-from-top-2 duration-200">
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2">
                         <div className="flex items-center space-x-2">
-                          <Label htmlFor={`units-${typeOption.value}`} className="text-sm text-neutral-600 min-w-fit">
+                          <Label htmlFor={`units-${typeOption.value}`} className="text-sm text-neutral-600 w-24">
                             Units:
                           </Label>
                           <Input
                             id={`units-${typeOption.value}`}
                             type="number"
                             min="1"
-                            placeholder="Number of units"
+                            placeholder="e.g., 5"
                             value={isSelected.units || 1}
                             onChange={(e) => {
-                              const currentType = selectedPropertyTypes.find(pt => pt.type === typeOption.value);
-                              if (currentType) {
-                                // Update with new units value
-                                removePropertyType(typeOption.value);
-                                addPropertyType(typeOption.value, currentType.price, parseInt(e.target.value) || 1);
-                              }
+                              const newUnits = parseInt(e.target.value) || 1;
+                              updatePropertyTypeUnits(typeOption.value, newUnits);
                             }}
-                            className="flex-1"
+                            className="w-32"
                             data-testid={`units-${typeOption.value}`}
                           />
-                          <span className="text-sm text-neutral-500 min-w-fit">units</span>
+                          <span className="text-sm text-neutral-500">units</span>
                         </div>
                         <div className="flex items-center space-x-2">
-                          <Label htmlFor={`price-${typeOption.value}`} className="text-sm text-neutral-600 min-w-fit">
+                          <Label htmlFor={`price-${typeOption.value}`} className="text-sm text-neutral-600 w-24">
                             Monthly Rent:
                           </Label>
                           <Input
                             id={`price-${typeOption.value}`}
                             type="number"
-                            placeholder="Enter price"
+                            placeholder="e.g., 20000"
                             value={isSelected.price}
                             onChange={(e) => updatePropertyTypePrice(typeOption.value, e.target.value)}
-                            className="flex-1"
+                            className="w-32"
                             data-testid={`price-${typeOption.value}`}
                           />
-                          <span className="text-sm text-neutral-500 min-w-fit">KSH/month</span>
+                          <span className="text-sm text-neutral-500">KSH/month</span>
                         </div>
                       </div>
                     </div>
