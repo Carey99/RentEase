@@ -88,9 +88,7 @@ export class MongoStorageAdapter implements IStorage {
   }
 
   async createTenantProperty(tenantProperty: any) {
-    // createTenantProperty was a tenant operation in original MongoStorage
-    // For now return undefined - this needs proper implementation
-    return undefined;
+    return tenantStorage.createTenantProperty(tenantProperty);
   }
 
   // Tenant operations

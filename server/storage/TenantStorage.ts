@@ -403,6 +403,74 @@ export class TenantStorage {
       throw error;
     }
   }
+
+  /**
+   * Create tenant property assignment
+   * Assigns a tenant to a property unit
+   */
+  async createTenantProperty(insertTenantProperty: any): Promise<any> {
+    try {
+      console.log('Creating tenant property with data:', insertTenantProperty);
+      
+      // Validate ObjectId format for tenantId
+      if (!isValidObjectId(insertTenantProperty.tenantId)) {
+        throw new Error('Invalid tenant ID format');
+      }
+
+      // Validate ObjectId format for propertyId
+      if (!isValidObjectId(insertTenantProperty.propertyId)) {
+        throw new Error('Invalid property ID format');
+      }
+
+      // Get the property to find the landlordId
+      const property = await PropertyModel.findById(insertTenantProperty.propertyId);
+      console.log('Found property:', property);
+      
+      if (!property) {
+        // Let's see what properties exist
+        const allProperties = await PropertyModel.find({}).lean();
+        console.log('All existing properties:', allProperties.map(p => ({ id: p._id, name: p.name })));
+        throw new Error(`Property not found with ID: ${insertTenantProperty.propertyId}`);
+      }
+
+      // Update tenant with apartment info including landlordId
+      const tenant = await TenantModel.findByIdAndUpdate(
+        insertTenantProperty.tenantId,
+        {
+          apartmentInfo: {
+            propertyId: insertTenantProperty.propertyId,
+            propertyName: property.name,
+            propertyType: insertTenantProperty.propertyType,
+            unitNumber: insertTenantProperty.unitNumber,
+            rentAmount: insertTenantProperty.rentAmount,
+            landlordId: property.landlordId,
+          }
+        },
+        { new: true }
+      );
+
+      // Add tenant to property's tenants array
+      await PropertyModel.findByIdAndUpdate(
+        insertTenantProperty.propertyId,
+        { $push: { tenants: insertTenantProperty.tenantId } }
+      );
+
+      if (!tenant) throw new Error('Tenant not found');
+
+      return {
+        _id: tenant._id.toString(),
+        tenantId: insertTenantProperty.tenantId,
+        propertyId: insertTenantProperty.propertyId,
+        propertyType: insertTenantProperty.propertyType,
+        unitNumber: insertTenantProperty.unitNumber,
+        rentAmount: insertTenantProperty.rentAmount,
+        createdAt: tenant.createdAt,
+      };
+    } catch (error) {
+      console.error('Error creating tenant property:', error);
+      throw error;
+    }
+  }
 }
 
 export const tenantStorage = new TenantStorage();
