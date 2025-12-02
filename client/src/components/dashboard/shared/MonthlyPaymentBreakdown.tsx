@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CheckCircle2, XCircle, AlertCircle, Calendar, Zap, Download, Loader2, ChevronDown, ChevronRight, User } from "lucide-react";
-import { isTransactionRecord, expectedForBill, paidForBill } from "@/lib/payment-utils";
+import { isTransactionRecord, expectedForBill, paidForBill, expectedForCurrentMonth, balanceForCurrentMonth } from "@/lib/payment-utils";
 import { cn } from "@/lib/utils";
 import { formatPaymentHistoryMonth } from "@/lib/rent-cycle-utils";
 import {
@@ -385,9 +385,17 @@ export default function MonthlyPaymentBreakdown({
                           {tenantMonths.map((month) => {
                             const monthPayments = group.payments[month];
                             const billRecord = monthPayments[0]; // Should only be one bill per month
-                            const expectedAmount = expectedForBill(billRecord);
+                            
+                            // Get tenant's base rent (use property rent, not bill's stored monthlyRent)
+                            const tenantBaseRent = billRecord.monthlyRent; // This should be base rent
+                            
+                            // Filter all bills for this tenant (no transactions)
+                            const allTenantBills = Object.values(group.payments).flat().filter((p: any) => !isTransactionRecord(p));
+                            
+                            // Use DebtTrackingTab logic: includes historical debt
+                            const expectedAmount = expectedForCurrentMonth(allTenantBills, month, parseInt(selectedYear), tenantBaseRent);
                             const paidAmount = paidForBill(billRecord);
-                            const balanceAmount = expectedAmount - paidAmount;
+                            const balanceAmount = balanceForCurrentMonth(allTenantBills, month, parseInt(selectedYear), tenantBaseRent);
                       
                             return (
                               <div
@@ -428,7 +436,7 @@ export default function MonthlyPaymentBreakdown({
                           <div>
                             <p className="text-xs text-neutral-500 mb-1">Method</p>
                             <p className="font-medium text-sm text-neutral-700">
-                              {billRecord.paymentMethod || "Cash"}
+                              {billRecord.paymentMethod || "Not specified"}
                             </p>
                           </div>
                         </div>
@@ -455,35 +463,6 @@ export default function MonthlyPaymentBreakdown({
                                 </>
                               )}
                             </Button>
-                          </div>
-                        )}
-
-                        {/* Utility Charges Breakdown */}
-                        {billRecord.utilityCharges && billRecord.utilityCharges.length > 0 && (
-                          <div className="bg-amber-50 border border-amber-200 rounded-md p-3 space-y-2">
-                            <div className="flex items-center gap-2 mb-2">
-                              <Zap className="h-4 w-4 text-amber-600" />
-                              <p className="text-sm font-semibold text-amber-900">Utility Charges</p>
-                            </div>
-                            
-                            <div className="space-y-1">
-                              <div className="text-sm text-neutral-700">
-                                <span className="font-medium">Rent:</span> KSH {billRecord.monthlyRent.toLocaleString()}
-                              </div>
-                              
-                              {billRecord.utilityCharges.map((utility, idx) => (
-                                <div key={idx} className="text-sm text-neutral-700">
-                                  <span className="font-medium">{utility.type}:</span>{" "}
-                                  {utility.unitsUsed} units × KSH {utility.pricePerUnit.toLocaleString()} = KSH {utility.total.toLocaleString()}
-                                </div>
-                              ))}
-                              
-                              {billRecord.totalUtilityCost && billRecord.totalUtilityCost > 0 && (
-                                <div className="pt-2 border-t border-amber-300 text-sm font-semibold text-amber-900">
-                                  Total Utilities: KSH {billRecord.totalUtilityCost.toLocaleString()}
-                                </div>
-                              )}
-                            </div>
                           </div>
                         )}
                               </div>
