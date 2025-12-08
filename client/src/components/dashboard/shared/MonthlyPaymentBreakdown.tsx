@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CheckCircle2, XCircle, AlertCircle, Calendar, Zap, Download, Loader2, ChevronDown, ChevronRight, User } from "lucide-react";
-import { isTransactionRecord, expectedForBill, paidForBill } from "@/lib/payment-utils";
+import { isTransactionRecord, expectedForBill, paidForBill, expectedForCurrentMonth, balanceForCurrentMonth } from "@/lib/payment-utils";
 import { cn } from "@/lib/utils";
 import { formatPaymentHistoryMonth } from "@/lib/rent-cycle-utils";
 import {
@@ -70,9 +70,15 @@ export default function MonthlyPaymentBreakdown({
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [expandedTenants, setExpandedTenants] = useState<Set<string>>(new Set());
 
-  // Fetch payment history
+  // Fetch payment history - use consistent query key format
   const { data: payments = [], isLoading } = useQuery<PaymentHistoryItem[]>({
-    queryKey: ["payment-history", { tenantId, landlordId, propertyId }],
+    queryKey: tenantId 
+      ? ['/api/payment-history/tenant', tenantId]
+      : landlordId 
+        ? [`/api/payment-history/landlord/${landlordId}`]
+        : propertyId
+          ? [`/api/payment-history/property/${propertyId}`]
+          : ["payment-history"],
     queryFn: async () => {
       let url = "";
       if (tenantId) {
@@ -385,9 +391,20 @@ export default function MonthlyPaymentBreakdown({
                           {tenantMonths.map((month) => {
                             const monthPayments = group.payments[month];
                             const billRecord = monthPayments[0]; // Should only be one bill per month
-                            const expectedAmount = expectedForBill(billRecord);
+                            
+                            // CRITICAL: DO NOT pass defaultMonthlyRent parameter
+                            // The bill.monthlyRent might already include utilities (old data)
+                            // By passing 0, expectedForBill will use bill.monthlyRent as-is
+                            // and add utilities from bill.totalUtilityCost
+                            // This prevents double-counting utilities
+                            
+                            // Filter all bills for this tenant (no transactions)
+                            const allTenantBills = Object.values(group.payments).flat().filter((p: any) => !isTransactionRecord(p));
+                            
+                            // Pass 0 as defaultMonthlyRent to use bill's stored monthlyRent
+                            const expectedAmount = expectedForCurrentMonth(allTenantBills, month, parseInt(selectedYear), 0);
                             const paidAmount = paidForBill(billRecord);
-                            const balanceAmount = expectedAmount - paidAmount;
+                            const balanceAmount = balanceForCurrentMonth(allTenantBills, month, parseInt(selectedYear), 0);
                       
                             return (
                               <div
@@ -428,7 +445,7 @@ export default function MonthlyPaymentBreakdown({
                           <div>
                             <p className="text-xs text-neutral-500 mb-1">Method</p>
                             <p className="font-medium text-sm text-neutral-700">
-                              {billRecord.paymentMethod || "Cash"}
+                              {billRecord.paymentMethod || "Not specified"}
                             </p>
                           </div>
                         </div>
@@ -455,35 +472,6 @@ export default function MonthlyPaymentBreakdown({
                                 </>
                               )}
                             </Button>
-                          </div>
-                        )}
-
-                        {/* Utility Charges Breakdown */}
-                        {billRecord.utilityCharges && billRecord.utilityCharges.length > 0 && (
-                          <div className="bg-amber-50 border border-amber-200 rounded-md p-3 space-y-2">
-                            <div className="flex items-center gap-2 mb-2">
-                              <Zap className="h-4 w-4 text-amber-600" />
-                              <p className="text-sm font-semibold text-amber-900">Utility Charges</p>
-                            </div>
-                            
-                            <div className="space-y-1">
-                              <div className="text-sm text-neutral-700">
-                                <span className="font-medium">Rent:</span> KSH {billRecord.monthlyRent.toLocaleString()}
-                              </div>
-                              
-                              {billRecord.utilityCharges.map((utility, idx) => (
-                                <div key={idx} className="text-sm text-neutral-700">
-                                  <span className="font-medium">{utility.type}:</span>{" "}
-                                  {utility.unitsUsed} units × KSH {utility.pricePerUnit.toLocaleString()} = KSH {utility.total.toLocaleString()}
-                                </div>
-                              ))}
-                              
-                              {billRecord.totalUtilityCost && billRecord.totalUtilityCost > 0 && (
-                                <div className="pt-2 border-t border-amber-300 text-sm font-semibold text-amber-900">
-                                  Total Utilities: KSH {billRecord.totalUtilityCost.toLocaleString()}
-                                </div>
-                              )}
-                            </div>
                           </div>
                         )}
                               </div>

@@ -5,8 +5,29 @@
 
 import type { Request, Response } from "express";
 import { storage } from "../storage";
+import { userStorage } from "../storage/UserStorage";
 
 export class LandlordController {
+  /**
+   * Get complete landlord details with properties
+   * GET /api/landlords/:landlordId
+   */
+  static async getDetails(req: Request, res: Response) {
+    try {
+      const { landlordId } = req.params;
+      const landlordDetails = await userStorage.getLandlordDetails(landlordId);
+      
+      if (!landlordDetails) {
+        return res.status(404).json({ error: "Landlord not found" });
+      }
+      
+      res.json(landlordDetails);
+    } catch (error) {
+      console.error("Error getting landlord details:", error);
+      res.status(500).json({ error: "Failed to get landlord details" });
+    }
+  }
+
   /**
    * Get landlord settings
    * GET /api/landlords/:landlordId/settings

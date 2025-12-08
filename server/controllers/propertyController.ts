@@ -50,7 +50,9 @@ export class PropertyController {
    */
   static async getPropertiesByLandlord(req: Request, res: Response) {
     try {
+      console.log('📋 PropertyController: GET /api/properties/landlord/' + req.params.landlordId);
       const properties = await storage.getPropertiesByLandlord(req.params.landlordId);
+      console.log(`📋 PropertyController: Returning ${properties.length} properties`);
       res.json(properties);
     } catch (error) {
       console.error("Error getting properties by landlord:", error);

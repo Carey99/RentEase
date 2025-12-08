@@ -8,11 +8,20 @@ export function isTransactionRecord(p: PaymentRecord): boolean {
 }
 
 export function expectedForBill(bill: PaymentRecord, defaultMonthlyRent = 0): number {
-  // Use defaultMonthlyRent (base rent from tenant props) instead of bill.monthlyRent
-  // because bill.monthlyRent might incorrectly include utilities in legacy data
-  const monthlyRent = defaultMonthlyRent || Number(bill?.monthlyRent ?? 0) || 0;
-  const utilities = Number(bill?.totalUtilityCost ?? 0) || 0;
-  return monthlyRent + utilities;
+  // CRITICAL: Determine if bill.monthlyRent already includes utilities
+  // If defaultMonthlyRent is provided and > 0, use it (it's the base rent from property)
+  // If defaultMonthlyRent is 0 or not provided, use bill.monthlyRent as the TOTAL
+  // (assume bill.monthlyRent already includes utilities to avoid double-counting)
+  
+  if (defaultMonthlyRent > 0) {
+    // We have clean base rent from property, add utilities from bill
+    const utilities = Number(bill?.totalUtilityCost ?? 0) || 0;
+    return defaultMonthlyRent + utilities;
+  } else {
+    // No base rent provided, use bill.monthlyRent as final amount
+    // DO NOT add utilities again as bill.monthlyRent likely already includes them
+    return Number(bill?.monthlyRent ?? 0) || 0;
+  }
 }
 
 export function paidForBill(bill: PaymentRecord): number {

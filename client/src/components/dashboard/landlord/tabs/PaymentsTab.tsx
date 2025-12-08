@@ -5,7 +5,7 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { DollarSign, FileText, Settings } from 'lucide-react';
+import { DollarSign, FileText, Settings, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import PaymentOverview from '@/components/dashboard/landlord/payments/PaymentOverview';
@@ -13,6 +13,7 @@ import MonthlyPaymentBreakdown from '@/components/dashboard/shared/MonthlyPaymen
 import MpesaStatementsTab from './MpesaStatementsTab';
 import RecordCashPayment from '../RecordCashPayment';
 import { MpesaSetupWizard } from '../payment-gateway';
+import PaymentDetailsSettings from '../settings/PaymentDetailsSettings';
 
 interface PaymentsTabProps {
   landlordId: string;
@@ -70,6 +71,10 @@ export function PaymentsTab({ landlordId }: PaymentsTabProps) {
               <FileText className="h-4 w-4" />
               M-Pesa Statements
             </TabsTrigger>
+            <TabsTrigger value="payment-details" className="flex items-center gap-2 px-0 pb-2 text-base font-medium border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=inactive]:text-gray-600 rounded-none">
+              <Wallet className="h-4 w-4" />
+              Payment Details
+            </TabsTrigger>
             <TabsTrigger value="gateway" className="flex items-center gap-2 px-0 pb-2 text-base font-medium border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=inactive]:text-gray-600 rounded-none">
               <Settings className="h-4 w-4" />
               Payment Gateway
@@ -91,6 +96,10 @@ export function PaymentsTab({ landlordId }: PaymentsTabProps) {
 
           <TabsContent value="mpesa" className="mt-0 px-0">
             <MpesaStatementsTab />
+          </TabsContent>
+
+          <TabsContent value="payment-details" className="mt-0 px-0">
+            <PaymentDetailsSettings landlordId={landlordId} />
           </TabsContent>
 
           <TabsContent value="gateway" className="mt-0 px-0">

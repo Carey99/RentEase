@@ -47,13 +47,19 @@ export class CashPaymentController {
       }
 
       const propertyId = tenant.apartmentInfo.propertyId;
-      const monthlyRent = parseFloat(tenant.apartmentInfo.rentAmount || '0');
 
-      // Fetch property to get utilities
+      // Fetch property to get base rent and utilities
       const property = await Property.findById(propertyId);
       if (!property) {
         return res.status(404).json({ message: 'Property not found' });
       }
+
+      // Get base rent from property type (NOT from tenant.apartmentInfo.rentAmount which might already include utilities)
+      const propertyType = tenant.apartmentInfo.propertyType;
+      const propertyTypeInfo = property.propertyTypes?.find((pt: any) => pt.type === propertyType);
+      const monthlyRent = propertyTypeInfo ? parseFloat(propertyTypeInfo.price) : parseFloat(tenant.apartmentInfo.rentAmount || '0');
+      
+      console.log(`💰 Base rent calculation: propertyType=${propertyType}, base rent=${monthlyRent}`);
 
       // Find ALL bills for this tenant/month/year to check for duplicates FIRST
       // We need to check if a bill already exists to use its utility charges

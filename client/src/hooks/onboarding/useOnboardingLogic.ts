@@ -103,7 +103,12 @@ export function useOnboardingLogic({
         userId = registerResponse.user.id;
         setRegisteredUserId(userId);
 
-        // Store user data in localStorage for dashboard access
+        // CRITICAL: Clear any old user data before storing new user
+        // This prevents showing wrong user's dashboard due to stale localStorage
+        localStorage.removeItem('rentease_user');
+        localStorage.removeItem('currentUser');
+        
+        // Store new user data in localStorage for dashboard access
         localStorage.setItem('rentease_user', JSON.stringify({
           id: registerResponse.user.id,
           name: registerResponse.user.fullName,
@@ -133,8 +138,26 @@ export function useOnboardingLogic({
 
         console.log('Property data to create:', propertyData);
 
-        await createPropertyMutation.mutateAsync(propertyData);
-        console.log('Property created successfully');
+        try {
+          await createPropertyMutation.mutateAsync(propertyData);
+          console.log('Property created successfully');
+        } catch (propertyError) {
+          console.error('Property creation failed:', propertyError);
+          
+          // If user was just registered, still redirect to dashboard
+          // They can add properties later from the dashboard
+          if (!isAddingAnotherProperty && registeredUserId) {
+            toast({
+              title: "Registration successful!",
+              description: "You can add properties from your dashboard",
+            });
+            setLocation(`/dashboard/${role}`);
+            return; // Exit early to prevent further execution
+          }
+          
+          // If adding another property failed, re-throw to show error
+          throw propertyError;
+        }
       } else if (role === 'tenant') {
         // Find the selected property type details
         const selectedType = propertyTypes.find((pt: any) => pt.type === data.propertyType);
@@ -147,15 +170,33 @@ export function useOnboardingLogic({
           rentAmount: selectedType?.price || "0",
         });
         
-        await createTenantPropertyMutation.mutateAsync({
-          tenantId: userId,
-          propertyId: data.propertyId,
-          propertyType: data.propertyType,
-          unitNumber: data.unitNumber,
-          rentAmount: selectedType?.price || "0",
-        });
-        
-        console.log('Tenant property created successfully');
+        try {
+          await createTenantPropertyMutation.mutateAsync({
+            tenantId: userId,
+            propertyId: data.propertyId,
+            propertyType: data.propertyType,
+            unitNumber: data.unitNumber,
+            rentAmount: selectedType?.price || "0",
+          });
+          
+          console.log('Tenant property created successfully');
+        } catch (tenantError) {
+          console.error('Tenant property assignment failed:', tenantError);
+          
+          // If user was just registered, still redirect to dashboard
+          // They can be assigned to a property later by their landlord
+          if (!isAddingAnotherProperty && registeredUserId) {
+            toast({
+              title: "Registration successful!",
+              description: "Please contact your landlord to complete property assignment",
+            });
+            setLocation(`/dashboard/${role}`);
+            return; // Exit early to prevent further execution
+          }
+          
+          // Re-throw to show error
+          throw tenantError;
+        }
       }
 
       // Success - redirect to dashboard
@@ -170,11 +211,34 @@ export function useOnboardingLogic({
       setLocation(`/dashboard/${role}`);
     } catch (error) {
       console.error('Registration error:', error);
-      toast({
-        title: isAddingAnotherProperty ? "Property creation failed" : "Registration failed",
-        description: error instanceof Error ? error.message : "Something went wrong during registration",
-        variant: "destructive",
-      });
+      
+      // Check if this is a "User already exists" error - means registration succeeded before
+      const errorMessage = error instanceof Error ? error.message : "";
+      const isUserAlreadyExists = errorMessage.toLowerCase().includes("already exists");
+      
+      if (isUserAlreadyExists && !isAddingAnotherProperty) {
+        // User was created in a previous attempt, redirect to dashboard
+        toast({
+          title: "Account already exists",
+          description: "Logging you into your account...",
+        });
+        
+        // Store user data if we have it
+        if (formData.email) {
+          // We don't have the full user data, so try to get it from registration attempt
+          // For now, just redirect - the dashboard will handle missing data
+          setLocation(`/dashboard/${role}`);
+        } else {
+          setLocation('/signin');
+        }
+      } else {
+        // Show error for other failures
+        toast({
+          title: isAddingAnotherProperty ? "Property creation failed" : "Registration failed",
+          description: errorMessage || "Something went wrong during registration",
+          variant: "destructive",
+        });
+      }
     }
   };
 

@@ -282,20 +282,61 @@ export const activityNotificationService = new ActivityNotificationService();
 /**
  * Helper function to broadcast a custom message to a specific user
  * Detects userType automatically (landlord or tenant)
+ * Sends message directly without wrapping (for payment events, bills, etc.)
  */
 export function broadcastToUser(userId: string, message: any) {
   // Try both landlord and tenant
-  const isLandlord = activityNotificationService.getConnectionCount(userId, 'landlord') > 0;
-  const isTenant = activityNotificationService.getConnectionCount(userId, 'tenant') > 0;
+  const landlordClients = activityNotificationService['landlordClients'].get(userId);
+  const tenantClients = activityNotificationService['tenantClients'].get(userId);
   
-  if (isLandlord) {
-    activityNotificationService.broadcastActivity(userId, message, 'landlord');
-  }
-  if (isTenant) {
-    activityNotificationService.broadcastActivity(userId, message, 'tenant');
+  let successCount = 0;
+  let failCount = 0;
+  
+  // Add timestamp to message if not present
+  const messageWithTimestamp = {
+    ...message,
+    timestamp: message.timestamp || new Date().toISOString()
+  };
+  
+  const messageStr = JSON.stringify(messageWithTimestamp);
+  
+  // Send to landlord clients
+  if (landlordClients && landlordClients.size > 0) {
+    landlordClients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        try {
+          client.send(messageStr);
+          successCount++;
+        } catch (error) {
+          console.error(`❌ Error sending to landlord client:`, error);
+          failCount++;
+        }
+      }
+    });
+    console.log(`📤 Broadcast to landlord ${userId}: ${successCount} sent, ${failCount} failed`);
   }
   
-  if (!isLandlord && !isTenant) {
+  // Reset counters for tenant broadcast
+  successCount = 0;
+  failCount = 0;
+  
+  // Send to tenant clients
+  if (tenantClients && tenantClients.size > 0) {
+    tenantClients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        try {
+          client.send(messageStr);
+          successCount++;
+        } catch (error) {
+          console.error(`❌ Error sending to tenant client:`, error);
+          failCount++;
+        }
+      }
+    });
+    console.log(`📤 Broadcast to tenant ${userId}: ${successCount} sent, ${failCount} failed`);
+  }
+  
+  if (!landlordClients && !tenantClients) {
     console.log(`📭 No active WebSocket connections for user ${userId}`);
   }
 }

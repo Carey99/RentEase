@@ -109,6 +109,17 @@ export function usePropertiesQuery(currentUser: CurrentUser | null) {
   });
 }
 
+export function useLandlordDetailsQuery(currentUser: CurrentUser | null) {
+  return useQuery({
+    queryKey: ['/api/landlords', currentUser?.id],
+    queryFn: async () => {
+      const response = await apiRequest('GET', `/api/landlords/${currentUser?.id}`);
+      return response.json();
+    },
+    enabled: !!currentUser?.id && currentUser?.role === 'landlord',
+  });
+}
+
 export function usePropertyMutations(currentUser: CurrentUser | null) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -124,6 +135,7 @@ export function usePropertyMutations(currentUser: CurrentUser | null) {
         description: "Property created successfully",
       });
       queryClient.invalidateQueries({ queryKey: ['/api/properties/landlord', currentUser?.id] });
+      queryClient.invalidateQueries({ queryKey: ['/api/landlords', currentUser?.id] });
     },
     onError: (error: any) => {
       toast({

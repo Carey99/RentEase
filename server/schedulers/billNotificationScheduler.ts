@@ -64,9 +64,10 @@ export class BillNotificationScheduler {
       const now = new Date();
       console.log(`📋 Checking for overdue bills: ${now.toISOString()}`);
       
-      // Find all pending bills (not fully paid)
+      // Find all pending bills (not fully paid) - exclude transaction records
       const pendingBills = await PaymentHistory.find({
-        status: 'pending'
+        status: 'pending',
+        notes: { $not: /Payment transaction/ }
       }).lean();
       
       console.log(`  Found ${pendingBills.length} pending bills to check`);

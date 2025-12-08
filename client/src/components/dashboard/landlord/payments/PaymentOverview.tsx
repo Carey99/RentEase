@@ -75,19 +75,31 @@ export default function PaymentOverview({ landlordId }: PaymentOverviewProps) {
     const month = parseInt(selectedMonth);
     const year = parseInt(selectedYear);
 
-    const paid = filteredTenants.filter(
-      (t) =>
-        t.rentCycle?.currentMonthPaid &&
+    // Count paid tenants: those with completed/overpaid bills for the selected month
+    const paid = filteredTenants.filter((t) => {
+      const tenantBill = paymentHistory.find((bill: any) => 
+        bill.tenantId === t.id && 
+        bill.forMonth === month && 
+        bill.forYear === year
+      );
+      
+      // Tenant is paid if they have a completed or overpaid bill
+      if (tenantBill && (tenantBill.status === 'completed' || tenantBill.status === 'overpaid')) {
+        return true;
+      }
+      
+      // Fallback to rent cycle
+      return t.rentCycle?.currentMonthPaid &&
         t.rentCycle.paidForMonth === month &&
-        t.rentCycle.paidForYear === year
-    ).length;
+        t.rentCycle.paidForYear === year;
+    }).length;
 
     const overdue = filteredTenants.filter((t) => t.rentCycle?.rentStatus === "overdue").length;
     const gracePeriod = filteredTenants.filter((t) => t.rentCycle?.rentStatus === "grace_period")
       .length;
     const unpaid = filteredTenants.length - paid;
 
-    // Calculate base rent (sum of all monthly rent commitments)
+    // Calculate base rent (sum of all monthly rent commitments from tenants)
     const totalBaseRent = filteredTenants.reduce((sum, t) => sum + t.rentAmount, 0);
     
     // Get bills for selected month/year
@@ -96,16 +108,26 @@ export default function PaymentOverview({ landlordId }: PaymentOverviewProps) {
       filteredTenants.some((t) => t.id === p.tenantId)
     );
     
-    // Calculate total billed (rent + utilities from actual bills)
+    // CRITICAL: Calculate total billed using BASE RENT from tenant + utilities from bill
+    // DO NOT use bill.monthlyRent as it may have utilities double-counted
     const totalBilled = monthBills.reduce((sum: number, bill: any) => {
-      const billAmount = bill.monthlyRent + (bill.totalUtilityCost || 0);
+      // Find the tenant for this bill to get their BASE rent
+      const tenant = filteredTenants.find((t) => t.id === bill.tenantId);
+      const baseRent = tenant ? tenant.rentAmount : 0;
+      const utilities = bill.totalUtilityCost || 0;
+      const billAmount = baseRent + utilities;
       return sum + billAmount;
     }, 0);
     
-    // Calculate total collected (what's actually been paid)
+    // CRITICAL: Calculate total collected using BASE RENT + utilities
     const totalCollected = monthBills.reduce((sum: number, bill: any) => {
+      const tenant = filteredTenants.find((t) => t.id === bill.tenantId);
+      const baseRent = tenant ? tenant.rentAmount : 0;
+      const utilities = bill.totalUtilityCost || 0;
+      const expectedAmount = baseRent + utilities;
+      
       if (bill.status === 'completed' || bill.status === 'overpaid') {
-        return sum + bill.monthlyRent + (bill.totalUtilityCost || 0);
+        return sum + expectedAmount;
       } else if (bill.status === 'partial') {
         return sum + (bill.amount || 0);
       }
@@ -128,6 +150,35 @@ export default function PaymentOverview({ landlordId }: PaymentOverviewProps) {
   };
 
   const getPaymentStatusForMonth = (tenant: Tenant, month: number, year: number) => {
+    // Check if there's a bill for this tenant in this month/year
+    const tenantBill = paymentHistory.find((bill: any) => 
+      bill.tenantId === tenant.id && 
+      bill.forMonth === month && 
+      bill.forYear === year
+    );
+
+    // If bill exists, use bill status to determine payment status
+    if (tenantBill) {
+      if (tenantBill.status === 'completed' || tenantBill.status === 'overpaid') {
+        return {
+          status: "paid",
+          icon: <CheckCircle2 className="h-5 w-5 text-green-600" />,
+          badge: "Paid",
+          color: "bg-green-100 text-green-800",
+        };
+      }
+      
+      if (tenantBill.status === 'partial') {
+        return {
+          status: "partial",
+          icon: <AlertCircle className="h-5 w-5 text-orange-600" />,
+          badge: "Partial",
+          color: "bg-orange-100 text-orange-800",
+        };
+      }
+    }
+
+    // Fallback to rent cycle logic if no bill found
     if (
       tenant.rentCycle?.currentMonthPaid &&
       tenant.rentCycle.paidForMonth === month &&

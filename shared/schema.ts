@@ -3,6 +3,30 @@ import { z } from "zod";
 // Database schema definitions for RentFlow MongoDB collections
 // Collections: landlords, tenants, properties
 
+// ============================================================================
+// ENUMS - Consolidated status and type definitions
+// ============================================================================
+
+// Payment status enum - represents the state of a payment
+export const PaymentStatusEnum = ["pending", "partial", "completed", "overpaid", "failed"] as const;
+export type PaymentStatus = typeof PaymentStatusEnum[number];
+
+// Rent cycle status - represents the status of rent payment for a period
+export const RentStatusEnum = ["active", "paid", "partial", "grace_period", "overdue"] as const;
+export type RentStatus = typeof RentStatusEnum[number];
+
+// Utility type - represents a utility charge (water, electricity, etc.)
+export interface Utility {
+  type: string; // e.g., "Water", "Electricity"
+  unitsUsed?: number;
+  pricePerUnit?: number;
+  total?: number;
+}
+
+// ============================================================================
+// SCHEMAS
+// ============================================================================
+
 // Landlord Schema (stored in landlords collection)
 export const landlordSchema = z.object({
   _id: z.string().optional(),
@@ -98,10 +122,29 @@ export const insertPropertySchema = propertySchema.omit({
 export const insertUserSchema = z.object({
   fullName: z.string().min(2, "Full name must be at least 2 characters"),
   email: z.string().email("Please enter a valid email"),
-  phone: z.string().optional(),
+  phone: z.string().min(1, "Phone number is required"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   role: z.enum(["landlord", "tenant"]),
 });
+
+// Manual Payment Details Schema
+export const manualPaymentDetailsSchema = z.object({
+  enabled: z.boolean().default(false),
+  mpesa: z.object({
+    type: z.enum(['paybill', 'till']).optional(), // Either paybill or till, not both
+    businessNumber: z.string().optional(), // Paybill number or Till number
+    accountNumber: z.string().optional(), // Only for paybill
+  }).optional(),
+  bank: z.object({
+    enabled: z.boolean().default(false),
+    bankName: z.string().optional(),
+    accountNumber: z.string().optional()
+  }).optional(),
+  instructions: z.string().optional(),
+  updatedAt: z.date().optional()
+});
+
+export type ManualPaymentDetails = z.infer<typeof manualPaymentDetailsSchema>;
 
 // Type exports
 export type Landlord = z.infer<typeof landlordSchema>;
@@ -140,6 +183,13 @@ export type TenantProperty = InsertTenantProperty & {
     totalUnits?: string;
     occupiedUnits?: string;
     createdAt?: Date;
+  };
+  landlord?: {
+    id: string;
+    fullName: string;
+    email?: string;
+    phone?: string;
+    company?: string;
   };
   rentCycle?: {
     lastPaymentDate?: Date;

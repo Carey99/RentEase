@@ -57,7 +57,7 @@ export function PersonalInfoStep({ form, onSubmit, isAddingAnotherProperty }: Pe
         </div>
 
         <div>
-          <Label htmlFor="phone">WhatsApp Number</Label>
+          <Label htmlFor="phone">Phone Number</Label>
           <Input
             id="phone"
             type="tel"

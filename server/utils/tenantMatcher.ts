@@ -150,8 +150,9 @@ function scoreTenantMatch(
   const amountScore = amountMatch.score;
 
   // Composite weighted score
-  // Weights: Phone (30%), Name (50%), Amount (20%)
-  const overallScore = (phoneScore * 0.3) + (nameScore * 0.5) + (amountScore * 0.2);
+  // Enhanced weights: Name (60%), Phone (25%), Amount (15%)
+  // Prioritize name matching since it's most reliable identifier
+  const overallScore = (nameScore * 0.6) + (phoneScore * 0.25) + (amountScore * 0.15);
 
   // Determine confidence level
   let confidence: 'high' | 'medium' | 'low' | 'none';
@@ -165,15 +166,21 @@ function scoreTenantMatch(
     confidence = 'none';
   }
 
-  // Determine match type
+  // Determine match type (prioritize name over phone)
   let matchType: 'perfect' | 'good' | 'partial' | 'weak' | 'none';
-  if (phoneScore === 100 && nameScore >= 95 && amountScore >= 95) {
+  if (nameScore >= 95 && (phoneScore === 100 || amountScore >= 95)) {
+    // Perfect name + phone OR perfect name + amount
     matchType = 'perfect';
+  } else if (nameScore >= 90) {
+    // Very strong name match is good even without perfect phone
+    matchType = 'good';
   } else if (phoneScore === 100 && nameScore >= 80 && amountScore >= 75) {
+    // Phone + decent name + amount
     matchType = 'good';
   } else if (phoneScore === 100 && nameScore >= 60) {
     matchType = 'partial';
-  } else if (phoneScore === 100) {
+  } else if (phoneScore === 100 || nameScore >= 70) {
+    // Either phone OR reasonable name match
     matchType = 'weak';
   } else {
     matchType = 'none';
@@ -199,24 +206,44 @@ function scoreTenantMatch(
 /**
  * Match a transaction to tenants
  * Returns best match and alternatives
+ * Enhanced algorithm: prioritizes name matching, then uses phone as confirmation
  */
 export function matchTransactionToTenants(
   transaction: ParsedTransaction,
   tenants: TenantInfo[]
 ): TransactionMatchResult {
-  // Step 1: Filter tenants by phone last 3 digits
-  const phoneCandidates = findTenantsWithPhoneLast3(
-    transaction.senderPhoneLast3,
-    tenants
-  );
-
-  // Step 2: Score all candidates
-  const allMatches = phoneCandidates
+  // Step 1: Score ALL tenants (not just phone matches)
+  // This allows name-based matching even without phone match
+  const allMatches = tenants
     .map(tenant => scoreTenantMatch(transaction, tenant))
     .sort((a, b) => b.overallScore - a.overallScore); // Sort by score descending
 
-  // Step 3: Determine best match and alternatives
-  if (allMatches.length === 0) {
+  // Step 2: Check for strong name matches (even without phone match)
+  const strongNameMatches = allMatches.filter(m => m.nameScore >= 90);
+  
+  // If we have a very strong name match (>=95%), trust it even without phone
+  const perfectNameMatch = allMatches.find(m => m.nameScore >= 95);
+  if (perfectNameMatch) {
+    // Phone match is bonus, not requirement for perfect name match
+    const alternativeMatches = allMatches
+      .slice(1)
+      .filter(m => m.overallScore >= 50 || m.nameScore >= 80);
+    
+    return {
+      transaction,
+      bestMatch: perfectNameMatch,
+      alternativeMatches,
+      status: 'matched',
+    };
+  }
+
+  // Step 3: Filter by phone match OR strong name match (>=90%)
+  const candidates = allMatches.filter(m => 
+    m.phoneScore === 100 || m.nameScore >= 90
+  );
+
+  // Step 4: Determine best match and alternatives
+  if (candidates.length === 0) {
     return {
       transaction,
       bestMatch: null,
@@ -225,11 +252,11 @@ export function matchTransactionToTenants(
     };
   }
 
-  const bestMatch = allMatches[0];
+  const bestMatch = candidates[0];
   // Show alternatives with score >= 50 (lower threshold to show ambiguous cases)
-  const alternativeMatches = allMatches.slice(1).filter(m => m.overallScore >= 50);
+  const alternativeMatches = candidates.slice(1).filter(m => m.overallScore >= 50);
 
-  // Status logic
+  // Step 5: Status logic
   let status: 'matched' | 'ambiguous' | 'no_match';
   if (bestMatch.overallScore < 60) {
     status = 'no_match';

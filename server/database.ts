@@ -78,7 +78,7 @@ const landlordSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   role: { type: String, default: 'landlord' },
-  phone: { type: String },
+  phone: { type: String, required: true, unique: true },
   company: { type: String },
   address: { type: String },
   properties: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Property' }],
@@ -103,6 +103,25 @@ const landlordSchema = new mongoose.Schema({
     isActive: { type: Boolean, default: false },
     configuredAt: { type: Date },
     lastTestedAt: { type: Date }
+  },
+  // Manual payment details (alternative to Daraja API)
+  manualPaymentDetails: {
+    enabled: { type: Boolean, default: false },
+    // M-Pesa details
+    mpesa: {
+      type: { type: String, enum: ['paybill', 'till'] }, // Either paybill or till
+      businessNumber: { type: String }, // Paybill number or Till number
+      accountNumber: { type: String }, // Only for paybill
+    },
+    // Bank details
+    bank: {
+      enabled: { type: Boolean, default: false },
+      bankName: { type: String },
+      accountNumber: { type: String }
+    },
+    // Additional instructions
+    instructions: { type: String },
+    updatedAt: { type: Date }
   },
   settings: {
     emailNotifications: { type: Boolean, default: true },
@@ -144,7 +163,7 @@ const landlordSchema = new mongoose.Schema({
 const tenantSchema = new mongoose.Schema({
   fullName: { type: String, required: true },
   email: { type: String, required: true, unique: true },
-  phone: { type: String },
+  phone: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   role: { type: String, default: 'tenant' },
   status: { type: String, enum: ['active', 'pending', 'inactive'], default: 'active' },
