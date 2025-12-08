@@ -52,13 +52,18 @@ export class PropertyStorage {
    */
   async getPropertiesByLandlord(landlordId: string): Promise<Property[]> {
     try {
+      console.log('🔍 PropertyStorage: Fetching properties for landlordId:', landlordId);
       // Check if landlordId is a valid ObjectId format
       if (!isValidObjectId(landlordId)) {
-        console.log('Invalid ObjectId format for landlordId:', landlordId);
+        console.log('❌ Invalid ObjectId format for landlordId:', landlordId);
         return [];
       }
 
       const properties = await PropertyModel.find({ landlordId }).lean();
+      console.log(`📊 PropertyStorage: Found ${properties.length} properties for landlord ${landlordId}`);
+      if (properties.length > 0) {
+        console.log('Properties:', properties.map(p => ({ id: p._id, name: p.name, landlordId: p.landlordId })));
+      }
       return properties.map(property => ({
         id: property._id.toString(),
         landlordId: property.landlordId.toString(),
@@ -82,6 +87,12 @@ export class PropertyStorage {
    */
   async createProperty(insertProperty: InsertProperty): Promise<Property> {
     try {
+      console.log('🏠 PropertyStorage: Creating property with data:', {
+        landlordId: insertProperty.landlordId,
+        name: insertProperty.name,
+        propertyTypes: insertProperty.propertyTypes?.length,
+        utilities: insertProperty.utilities?.length
+      });
       const property = new PropertyModel({
         landlordId: insertProperty.landlordId,
         name: insertProperty.name,
@@ -91,6 +102,7 @@ export class PropertyStorage {
         occupiedUnits: "0",
       });
       const saved = await property.save();
+      console.log('✅ PropertyStorage: Property created successfully:', saved._id.toString());
 
       // Add property to landlord's properties array
       await LandlordModel.findByIdAndUpdate(

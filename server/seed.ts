@@ -69,7 +69,8 @@ export async function seedDatabase() {
                 fullName: 'John Landlord',
                 email: 'landlord@example.com',
                 password: 'password123',
-                role: 'landlord'
+                role: 'landlord',
+                phone: '0712345678'
             });
             console.log('✅ Created test landlord:', landlord.email);
 
@@ -117,7 +118,8 @@ export async function seedDatabase() {
                 fullName: 'Jane Tenant',
                 email: 'tenant@example.com',
                 password: 'password123',
-                role: 'tenant'
+                role: 'tenant',
+                phone: '0723456789'
             });
             console.log('✅ Created test tenant:', tenant.email);
 

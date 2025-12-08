@@ -122,10 +122,29 @@ export const insertPropertySchema = propertySchema.omit({
 export const insertUserSchema = z.object({
   fullName: z.string().min(2, "Full name must be at least 2 characters"),
   email: z.string().email("Please enter a valid email"),
-  phone: z.string().optional(),
+  phone: z.string().min(1, "Phone number is required"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   role: z.enum(["landlord", "tenant"]),
 });
+
+// Manual Payment Details Schema
+export const manualPaymentDetailsSchema = z.object({
+  enabled: z.boolean().default(false),
+  mpesa: z.object({
+    type: z.enum(['paybill', 'till']).optional(), // Either paybill or till, not both
+    businessNumber: z.string().optional(), // Paybill number or Till number
+    accountNumber: z.string().optional(), // Only for paybill
+  }).optional(),
+  bank: z.object({
+    enabled: z.boolean().default(false),
+    bankName: z.string().optional(),
+    accountNumber: z.string().optional()
+  }).optional(),
+  instructions: z.string().optional(),
+  updatedAt: z.date().optional()
+});
+
+export type ManualPaymentDetails = z.infer<typeof manualPaymentDetailsSchema>;
 
 // Type exports
 export type Landlord = z.infer<typeof landlordSchema>;

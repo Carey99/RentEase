@@ -245,7 +245,7 @@ export default function AddTenantDialog({ open, onOpenChange }: AddTenantDialogP
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="phone">WhatsApp Number *</Label>
+                <Label htmlFor="phone">Phone Number *</Label>
                 <Input
                   id="phone"
                   value={formData.phone}

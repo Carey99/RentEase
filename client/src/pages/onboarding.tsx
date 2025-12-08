@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useRoute } from "wouter";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,23 @@ import type { UserRole } from "@/types/onboarding";
 export default function OnboardingPage() {
   const [, params] = useRoute("/onboarding/:role");
   const role = params?.role as UserRole;
+
+  // CRITICAL: Clear any existing session when starting registration
+  // This prevents new users from seeing old user's data
+  useEffect(() => {
+    console.log('🧹 Clearing any existing session for new registration');
+    localStorage.removeItem('rentease_user');
+    localStorage.removeItem('currentUser');
+    
+    // Also clear session cookie by calling logout endpoint
+    fetch('/api/auth/logout', { 
+      method: 'POST',
+      credentials: 'include' 
+    }).catch(err => {
+      // Ignore errors - session might not exist
+      console.log('Session clear attempt (may not exist):', err.message);
+    });
+  }, []);
 
   // Initialize all hooks
   const state = useOnboardingState();

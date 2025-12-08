@@ -103,7 +103,12 @@ export function useOnboardingLogic({
         userId = registerResponse.user.id;
         setRegisteredUserId(userId);
 
-        // Store user data in localStorage for dashboard access
+        // CRITICAL: Clear any old user data before storing new user
+        // This prevents showing wrong user's dashboard due to stale localStorage
+        localStorage.removeItem('rentease_user');
+        localStorage.removeItem('currentUser');
+        
+        // Store new user data in localStorage for dashboard access
         localStorage.setItem('rentease_user', JSON.stringify({
           id: registerResponse.user.id,
           name: registerResponse.user.fullName,

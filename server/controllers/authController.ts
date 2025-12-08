@@ -28,6 +28,34 @@ export class AuthController {
 
       const user = await storage.createUser(userData);
       
+      // CRITICAL: Create session immediately for newly registered user
+      // Overwrite any existing session data (don't destroy, just overwrite)
+      if (req.session?.userId) {
+        console.log(`⚠️  Overwriting old session for user ${req.session.userId}`);
+      }
+      
+      // Create session for newly registered user
+      createUserSession(req, user.id, user.role, false);
+      
+      // Force session save before sending response
+      await new Promise<void>((resolve, reject) => {
+        req.session.save((err) => {
+          if (err) {
+            console.error('❌ Error saving session:', err);
+            reject(err);
+          } else {
+            console.log('✅ Session saved successfully for user:', user.id);
+            resolve();
+          }
+        });
+      });
+      
+      console.log('✅ Registration complete - Session created for:', {
+        userId: req.session.userId,
+        role: req.session.userRole,
+        sessionID: req.sessionID
+      });
+      
       // Log activity if tenant was registered
       if (user.role === 'tenant') {
         const tenant = await storage.getTenant(user.id);
@@ -54,6 +82,9 @@ export class AuthController {
       res.status(201).json({
         message: "User created successfully",
         user: userWithoutPassword,
+        session: {
+          expiresIn: "7 days"
+        }
       });
     } catch (error) {
       if (error instanceof ZodError) {
@@ -186,20 +217,34 @@ export class AuthController {
    */
   static async getSession(req: Request, res: Response) {
     try {
+      console.log('📋 GET /api/auth/session - Checking session...');
+      console.log('Session data:', {
+        hasSession: !!req.session,
+        userId: req.session?.userId,
+        userRole: req.session?.userRole,
+        cookies: req.cookies,
+        sessionID: req.sessionID
+      });
+      
       if (!req.session?.userId) {
+        console.log('❌ No active session found');
         return res.status(401).json({ 
           error: "No active session",
           sessionExpired: true 
         });
       }
 
+      console.log('✅ Session found for user:', req.session.userId);
       const user = await storage.getUser(req.session.userId);
       if (!user) {
+        console.log('❌ User not found in database:', req.session.userId);
         return res.status(404).json({ 
           error: "User not found",
           sessionExpired: true 
         });
       }
+      
+      console.log('✅ Returning user session:', user.id, user.role);
 
       const { password, ...userWithoutPassword } = user;
       res.json({

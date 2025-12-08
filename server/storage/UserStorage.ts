@@ -110,6 +110,7 @@ export class UserStorage {
         const landlord = new LandlordModel({
           fullName: insertUser.fullName,
           email: insertUser.email,
+          phone: insertUser.phone,
           password: hashedPassword,
           role: 'landlord',
         });
@@ -235,6 +236,45 @@ export class UserStorage {
     } catch (error) {
       console.error('❌ Error changing tenant password:', error);
       return false;
+    }
+  }
+
+  /**
+   * Get complete landlord details with properties and tenants
+   * Returns landlord info with populated properties array
+   */
+  async getLandlordDetails(landlordId: string) {
+    try {
+      console.log('🔍 Fetching complete landlord details for:', landlordId);
+      
+      if (!isValidObjectId(landlordId)) {
+        console.log('Invalid ObjectId format for landlordId:', landlordId);
+        return null;
+      }
+
+      const landlord = await LandlordModel.findById(landlordId)
+        .populate('properties')
+        .lean();
+
+      if (!landlord) {
+        console.log('❌ Landlord not found');
+        return null;
+      }
+
+      console.log('✅ Landlord details fetched successfully');
+      return {
+        id: landlord._id.toString(),
+        fullName: landlord.fullName,
+        email: landlord.email,
+        phone: landlord.phone,
+        role: 'landlord' as const,
+        properties: landlord.properties || [],
+        createdAt: landlord.createdAt,
+        updatedAt: landlord.updatedAt,
+      };
+    } catch (error) {
+      console.error('❌ Error fetching landlord details:', error);
+      return null;
     }
   }
 }

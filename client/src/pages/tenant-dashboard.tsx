@@ -14,78 +14,11 @@ import TenantNotificationBell from "@/components/dashboard/TenantNotificationBel
 import { MpesaPaymentModal } from "@/components/dashboard/tenant/MpesaPaymentModal";
 import MonthlyPaymentBreakdown from "@/components/dashboard/shared/MonthlyPaymentBreakdown";
 import TenantSettingsTab from "@/components/dashboard/tenant/TenantSettingsTab";
-import TenantDashboardTab from "@/components/dashboard/tenant/TenantDashboardTab";
+import TenantDashboardTab, { LandlordPaymentDetails } from "@/components/dashboard/tenant/TenantDashboardTab";
 import TenantPaymentsTab from "@/components/dashboard/tenant/TenantPaymentsTab";
 import TenantApartmentTab from "@/components/dashboard/tenant/TenantApartmentTab";
 import { formatRentStatusText, getRentStatusColor } from "@/lib/rent-cycle-utils";
 import { sumOutstanding, balanceForCurrentMonth } from "@/lib/payment-utils";
-
-// Component to display landlord's M-Pesa payment details - Ultra minimal design
-function LandlordPaymentDetails({ landlordId }: { landlordId: string }) {
-  const { data: darajaStatus } = useQuery({
-    queryKey: [`/api/landlords/${landlordId}/daraja/status`],
-    queryFn: async () => {
-      if (!landlordId) return null;
-      const response = await fetch(`/api/landlords/${landlordId}/daraja/status`);
-      if (!response.ok) return null;
-      return response.json();
-    },
-    enabled: !!landlordId,
-  });
-
-  if (!darajaStatus || !darajaStatus.isConfigured) {
-    return null; // Don't show if landlord hasn't configured M-Pesa
-  }
-
-  const { businessShortCode, businessType, accountNumber } = darajaStatus;
-
-  // Display number in spaced circles
-  const NumberDisplay = ({ code }: { code: string }) => (
-    <div className="flex justify-center items-center gap-2 py-6">
-      {code.split('').map((digit, idx) => (
-        <div
-          key={idx}
-          className="h-12 w-12 rounded-full bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center font-mono text-lg font-semibold text-gray-900 dark:text-white"
-        >
-          {digit}
-        </div>
-      ))}
-    </div>
-  );
-
-  return (
-    <>
-      {/* Divider */}
-      <div className="relative py-2">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-gray-200 dark:border-gray-700"></div>
-        </div>
-        <div className="relative flex justify-center">
-          <span className="px-2 bg-white dark:bg-slate-950 text-xs text-gray-500 dark:text-gray-400">Or pay manually</span>
-        </div>
-      </div>
-
-      {/* Simple centered payment details */}
-      <div className="text-center space-y-4">
-        {/* Label */}
-        <p className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wide">
-          {businessType === 'till' ? 'Till Number' : 'Paybill Number'}
-        </p>
-        
-        {/* Number in circles */}
-        <NumberDisplay code={businessShortCode} />
-        
-        {/* Account number if paybill */}
-        {businessType === 'paybill' && accountNumber && (
-          <>
-            <p className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wide">Account Number</p>
-            <NumberDisplay code={accountNumber} />
-          </>
-        )}
-      </div>
-    </>
-  );
-}
 
 export default function TenantDashboard() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -150,7 +83,7 @@ export default function TenantDashboard() {
     if (!currentUser?.id) return;
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws/activities?userId=${currentUser.id}`;
+    const wsUrl = `${protocol}//${window.location.host}/ws/activities?tenantId=${currentUser.id}`;
     
     console.log('🔌 Connecting tenant to WebSocket for real-time updates:', wsUrl);
     const ws = new WebSocket(wsUrl);
@@ -180,11 +113,14 @@ export default function TenantDashboard() {
           });
         } else if (message.type === 'bill_created') {
           console.log('📋 New bill created, refreshing data...');
+          
+          // Invalidate all relevant queries for immediate update
           queryClient.invalidateQueries({ queryKey: ['/api/payment-history/tenant', currentUser.id] });
+          queryClient.invalidateQueries({ queryKey: ['/api/tenant-properties/tenant', currentUser.id] });
           
           toast({
-            title: "New Bill",
-            description: message.data?.message || "A new bill has been created for you.",
+            title: "New Bill Created",
+            description: `Bill for ${message.data?.forMonth}/${message.data?.forYear} - KSH ${message.data?.amount?.toLocaleString()}`,
             variant: "default",
           });
         }

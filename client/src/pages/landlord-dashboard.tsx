@@ -10,7 +10,7 @@ import AddPropertyDialog from "@/components/dashboard/landlord/properties/AddPro
 import RecordCashPayment from "@/components/dashboard/landlord/RecordCashPayment";
 import DebtTrackingTab from "@/components/dashboard/landlord/DebtTrackingTab";
 import { PaymentsTab } from "@/components/dashboard/landlord/tabs/PaymentsTab";
-import { useDashboard, useCurrentUser } from "@/hooks/dashboard/useDashboard";
+import { useDashboard, useCurrentUser, useLandlordDetailsQuery } from "@/hooks/dashboard/useDashboard";
 import type { Property } from "@/types/dashboard";
 import { useToast } from "@/hooks/use-toast";
 
@@ -23,17 +23,20 @@ export default function LandlordDashboard() {
 
   const currentUser = useCurrentUser();
   const { properties, createPropertyMutation } = useDashboard();
+  const { data: landlordDetails } = useLandlordDetailsQuery(currentUser);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   console.log('👤 Current User:', currentUser);
+  console.log('🏠 Landlord Details:', landlordDetails);
+  console.log('📋 Properties:', properties);
 
   // WebSocket for real-time payment notifications
   useEffect(() => {
     if (!currentUser?.id) return;
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws/activities?userId=${currentUser.id}`;
+    const wsUrl = `${protocol}//${window.location.host}/ws/activities?landlordId=${currentUser.id}`;
     
     console.log('🔌 Connecting landlord to WebSocket for real-time updates:', wsUrl);
     const ws = new WebSocket(wsUrl);
@@ -61,6 +64,21 @@ export default function LandlordDashboard() {
           toast({
             title: "Payment Received",
             description: `${message.data?.tenantName} paid KSH ${message.data?.amount?.toLocaleString()} via ${message.data?.paymentMethod}`,
+            variant: "default",
+          });
+        } else if (message.type === 'bill_created') {
+          console.log('📄 Bill created, refreshing data...');
+          
+          // Invalidate all relevant queries for immediate update
+          queryClient.invalidateQueries({ queryKey: [`/api/tenants/landlord/${currentUser.id}`] });
+          queryClient.invalidateQueries({ queryKey: [`/api/payment-history/landlord/${currentUser.id}`] });
+          queryClient.invalidateQueries({ queryKey: ['payment-history'] });
+          queryClient.invalidateQueries({ queryKey: ['tenants'] });
+          
+          // Show toast notification
+          toast({
+            title: "Bill Created",
+            description: `Bill for ${message.data?.tenantName} - KSH ${message.data?.amount?.toLocaleString()} (${message.data?.forMonth}/${message.data?.forYear})`,
             variant: "default",
           });
         }
@@ -138,12 +156,27 @@ export default function LandlordDashboard() {
       payments: tenantPayments
     });
 
+    // CRITICAL: Get BASE RENT from property type, not from apartmentInfo.rentAmount
+    // apartmentInfo.rentAmount may have been saved with utilities included (wrong)
+    // We need the pure base rent so we can add utilities from bills correctly
+    const property = properties.find((p: Property) => p.id === tenant.propertyId);
+    const propertyType = property?.propertyTypes?.find((pt: any) => pt.type === tenant.propertyType);
+    const baseRent = propertyType ? parseFloat(propertyType.price) : (tenant.rentAmount || tenant.monthlyRent || 0);
+    
+    console.log(`💰 Tenant ${tenant.name} base rent calculation:`, {
+      propertyType: tenant.propertyType,
+      foundPropertyType: !!propertyType,
+      baseRentFromProperty: propertyType?.price,
+      fallbackRent: tenant.rentAmount,
+      finalBaseRent: baseRent
+    });
+    
     return {
       tenantId: tenant.id || tenant._id,
       tenantName: tenant.name || tenant.fullName,
       propertyName: tenant.propertyName || tenant.property?.name || 'N/A',
       unitNumber: tenant.unitNumber || 'N/A',
-      monthlyRent: tenant.rentAmount || tenant.monthlyRent || 0,
+      monthlyRent: baseRent,
       payments: tenantPayments
     };
   });
@@ -215,7 +248,13 @@ export default function LandlordDashboard() {
                    activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
                 </h1>
                 <p className="text-sm text-neutral-500 mt-0.5">
-                  Welcome back, {currentUser?.name || 'Landlord'}!
+                  Welcome back, {landlordDetails?.fullName || currentUser?.name || 'Landlord'}!
+                  {landlordDetails?.email && (
+                    <span className="ml-2 text-neutral-400">• {landlordDetails.email}</span>
+                  )}
+                  {landlordDetails?.phone && (
+                    <span className="ml-2 text-neutral-400">• {landlordDetails.phone}</span>
+                  )}
                 </p>
               </div>
             </div>

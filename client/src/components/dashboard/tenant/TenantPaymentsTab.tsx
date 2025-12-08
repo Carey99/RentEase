@@ -87,9 +87,6 @@ export default function TenantPaymentsTab({ tenantId, paymentHistory = [], tenan
         tenantId={tenantId}
         title="Monthly Payment History"
       />
-
-      {/* Recorded Payments */}
-      <RecordedPaymentsCard payments={paymentHistory} expectedRent={expectedRent} />
     </div>
   );
 }

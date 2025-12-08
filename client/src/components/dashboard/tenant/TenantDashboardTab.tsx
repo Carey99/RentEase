@@ -23,7 +23,9 @@ interface TenantDashboardTabProps {
   currentUser?: any;
 }
 
-function LandlordPaymentDetails({ landlordId }: { landlordId: string }) {
+// Exported for reuse in tenant-dashboard.tsx
+export function LandlordPaymentDetails({ landlordId }: { landlordId: string }) {
+  // Check for Daraja API configuration (automated payments)
   const { data: darajaStatus } = useQuery({
     queryKey: [`/api/landlords/${landlordId}/daraja/status`],
     queryFn: async () => {
@@ -35,11 +37,17 @@ function LandlordPaymentDetails({ landlordId }: { landlordId: string }) {
     enabled: !!landlordId,
   });
 
-  if (!darajaStatus || !darajaStatus.isConfigured) {
-    return null;
-  }
-
-  const { businessShortCode, businessType, accountNumber } = darajaStatus;
+  // Check for manual payment details
+  const { data: manualPaymentDetails } = useQuery({
+    queryKey: [`/api/landlords/${landlordId}/payment-details/public`],
+    queryFn: async () => {
+      if (!landlordId) return null;
+      const response = await fetch(`/api/landlords/${landlordId}/payment-details/public`);
+      if (!response.ok) return null;
+      return response.json();
+    },
+    enabled: !!landlordId,
+  });
 
   const NumberDisplay = ({ code }: { code: string }) => (
     <div className="flex justify-center items-center gap-2 py-6">
@@ -54,31 +62,101 @@ function LandlordPaymentDetails({ landlordId }: { landlordId: string }) {
     </div>
   );
 
-  return (
-    <>
-      <div className="relative py-2">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-gray-200 dark:border-gray-700"></div>
-        </div>
-        <div className="relative flex justify-center">
-          <span className="px-2 bg-white dark:bg-slate-950 text-xs text-gray-500 dark:text-gray-400">Or pay manually</span>
-        </div>
-      </div>
+  // Show Daraja API details if configured
+  if (darajaStatus?.isConfigured) {
+    const { businessShortCode, businessType, accountNumber } = darajaStatus;
 
-      <div className="text-center space-y-4">
-        <p className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wide">
-          {businessType === 'till' ? 'Till Number' : 'Paybill Number'}
-        </p>
-        <NumberDisplay code={businessShortCode} />
-        {businessType === 'paybill' && accountNumber && (
-          <>
-            <p className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wide">Account Number</p>
-            <NumberDisplay code={accountNumber} />
-          </>
-        )}
-      </div>
-    </>
-  );
+    return (
+      <>
+        <div className="relative py-2">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-200 dark:border-gray-700"></div>
+          </div>
+          <div className="relative flex justify-center">
+            <span className="px-2 bg-white dark:bg-slate-950 text-xs text-gray-500 dark:text-gray-400">Or pay manually</span>
+          </div>
+        </div>
+
+        <div className="text-center space-y-4">
+          <p className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wide">
+            {businessType === 'till' ? 'Till Number' : 'Paybill Number'}
+          </p>
+          <NumberDisplay code={businessShortCode} />
+          {businessType === 'paybill' && accountNumber && (
+            <>
+              <p className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wide">Account Number</p>
+              <NumberDisplay code={accountNumber} />
+            </>
+          )}
+        </div>
+      </>
+    );
+  }
+
+  // Show manual payment details if enabled
+  if (manualPaymentDetails?.enabled) {
+    return (
+      <>
+        <div className="relative py-2">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-200 dark:border-gray-700"></div>
+          </div>
+          <div className="relative flex justify-center">
+            <span className="px-2 bg-white dark:bg-slate-950 text-xs text-gray-500 dark:text-gray-400">Pay manually using</span>
+          </div>
+        </div>
+
+        <div className="text-center space-y-4">
+          {/* M-Pesa Details */}
+          {manualPaymentDetails.mpesa?.type && manualPaymentDetails.mpesa?.businessNumber && (
+            <div>
+              <p className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wide">
+                {manualPaymentDetails.mpesa.type === 'paybill' ? 'Paybill Number' : 'Till Number'}
+              </p>
+              <NumberDisplay code={manualPaymentDetails.mpesa.businessNumber} />
+              {manualPaymentDetails.mpesa.type === 'paybill' && manualPaymentDetails.mpesa.accountNumber && (
+                <>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wide mt-2">
+                    Account Number
+                  </p>
+                  <NumberDisplay code={manualPaymentDetails.mpesa.accountNumber} />
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Bank Details */}
+          {manualPaymentDetails.bank?.enabled && (
+            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 text-left space-y-2">
+              <p className="text-sm font-semibold text-gray-900 dark:text-white text-center mb-3">Bank Transfer</p>
+              {manualPaymentDetails.bank.bankName && (
+                <p className="text-sm text-gray-700 dark:text-gray-300">
+                  <span className="text-gray-600 dark:text-gray-400">Bank:</span>{" "}
+                  <span className="font-semibold">{manualPaymentDetails.bank.bankName}</span>
+                </p>
+              )}
+              {manualPaymentDetails.bank.accountNumber && (
+                <p className="text-sm text-gray-700 dark:text-gray-300">
+                  <span className="text-gray-600 dark:text-gray-400">Account Number:</span>{" "}
+                  <span className="font-semibold font-mono">{manualPaymentDetails.bank.accountNumber}</span>
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Additional Instructions */}
+          {manualPaymentDetails.instructions && (
+            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <p className="text-xs text-gray-600 dark:text-gray-400 italic">{manualPaymentDetails.instructions}</p>
+            </div>
+          )}
+        </div>
+      </>
+    );
+  }
+
+  // No payment details configured
+  return null;
 }
 
 export default function TenantDashboardTab({ tenantId, tenantProperty, paymentHistory = [], currentUser }: TenantDashboardTabProps) {
@@ -386,10 +464,21 @@ export default function TenantDashboardTab({ tenantId, tenantProperty, paymentHi
                   </div>
 
                   <div className="border-t border-gray-200 dark:border-gray-700 pt-4 space-y-3">
-                    {/* Monthly Rent */}
+                    {/* Monthly Rent - Show total with utilities from current bill */}
                     <div className="flex justify-between items-center">
                       <span className="text-xs text-gray-600 dark:text-gray-400 uppercase tracking-wide">Monthly Rent</span>
-                      <span className="text-base font-semibold text-gray-900 dark:text-white">KSH {tenantProperty.rentAmount || '0'}</span>
+                      <span className="text-base font-semibold text-gray-900 dark:text-white">
+                        KSH {(() => {
+                          const baseRent = parseFloat(tenantProperty.rentAmount || '0');
+                          const currentMonth = new Date().getMonth() + 1;
+                          const currentYear = new Date().getFullYear();
+                          const currentBill = paymentHistory?.find(
+                            (p: any) => p.forMonth === currentMonth && p.forYear === currentYear && !p.notes?.includes('Payment transaction')
+                          );
+                          const utilities = currentBill ? (currentBill.totalUtilityCost || 0) : 0;
+                          return (baseRent + utilities).toLocaleString();
+                        })()}
+                      </span>
                     </div>
                     
                     {/* Rent Cycle Information */}

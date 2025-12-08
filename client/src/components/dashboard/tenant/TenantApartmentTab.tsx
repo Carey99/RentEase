@@ -91,7 +91,7 @@ export default function TenantApartmentTab({ tenantId, tenantProperty }: TenantA
                 </span>
               </div>
               <div className="flex justify-between items-start">
-                <span className="text-xs text-gray-600 dark:text-gray-400">Monthly Rent</span>
+                <span className="text-xs text-gray-600 dark:text-gray-400">Base Rent (per month)</span>
                 <span className="text-sm font-medium text-gray-900 dark:text-white">
                   KSH {tenantProperty.rentAmount?.toLocaleString() || 0}
                 </span>

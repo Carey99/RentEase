@@ -48,12 +48,14 @@ export class PaymentStorage {
       const existingPayment = await PaymentHistoryModel.findOne({
         tenantId,
         forMonth,
-        forYear
+        forYear,
+        notes: { $not: /Payment transaction/ } // Exclude transaction records
       });
 
       if (existingPayment) {
-        console.log(`⚠️ Bill already exists for tenant ${tenantId} for ${forMonth}/${forYear}`);
-        throw new Error(`Bill already recorded for ${forMonth}/${forYear}. Cannot create duplicate bill.`);
+        console.log(`⚠️ Bill already exists for tenant ${tenantId} for ${forMonth}/${forYear} - returning success`);
+        // Bill already exists - this is OK, just return success (idempotent operation)
+        return true;
       }
 
       // Get monthly rent amount from tenant's apartment info
@@ -405,7 +407,11 @@ export class PaymentStorage {
     try {
       const tenant = await TenantModel.findById(tenantId).lean();
 
-      const payments = await PaymentHistoryModel.find({ tenantId })
+      // Only return bill records, not transaction records (exclude records with "Payment transaction" in notes)
+      const payments = await PaymentHistoryModel.find({ 
+        tenantId,
+        notes: { $not: /Payment transaction/ }
+      })
         .populate('propertyId', 'name')
         .sort({ paymentDate: -1 })
         .lean();
@@ -452,8 +458,12 @@ export class PaymentStorage {
    */
   async getPaymentHistoryByLandlord(landlordId: string): Promise<PaymentHistory[]> {
     try {
-      const payments = await PaymentHistoryModel.find({ landlordId })
-        .populate('tenantId', 'fullName email')
+      // Only return bill records, not transaction records (exclude records with "Payment transaction" in notes)
+      const payments = await PaymentHistoryModel.find({ 
+        landlordId,
+        notes: { $not: /Payment transaction/ }
+      })
+        .populate('tenantId', 'fullName')
         .populate('propertyId', 'name')
         .sort({ paymentDate: -1 })
         .lean();
@@ -501,7 +511,11 @@ export class PaymentStorage {
    */
   async getPaymentHistoryByProperty(propertyId: string): Promise<PaymentHistory[]> {
     try {
-      const payments = await PaymentHistoryModel.find({ propertyId })
+      // Only return bill records, not transaction records (exclude records with "Payment transaction" in notes)
+      const payments = await PaymentHistoryModel.find({ 
+        propertyId,
+        notes: { $not: /Payment transaction/ }
+      })
         .populate('tenantId', 'fullName email')
         .sort({ paymentDate: -1 })
         .lean();
@@ -548,9 +562,11 @@ export class PaymentStorage {
    */
   async getRecordedMonthsForTenant(tenantId: string, year: number): Promise<number[]> {
     try {
+      // Only check bill records, not transaction records
       const payments = await PaymentHistoryModel.find({
         tenantId,
-        forYear: year
+        forYear: year,
+        notes: { $not: /Payment transaction/ }
       }).lean();
 
       const months = payments.map(p => p.forMonth);

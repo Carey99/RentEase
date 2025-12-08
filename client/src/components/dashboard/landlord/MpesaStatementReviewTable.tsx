@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Check, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { Check, X, ChevronDown, ChevronUp, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
@@ -18,6 +18,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import { ManualTenantMatchDialog } from './ManualTenantMatchDialog';
 
 interface TransactionMatch {
   id: string;
@@ -53,6 +54,8 @@ export function MpesaStatementReviewTable({ statementId, matches }: MpesaStateme
   const queryClient = useQueryClient();
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [notes, setNotes] = useState<Record<string, string>>({});
+  const [manualMatchDialogOpen, setManualMatchDialogOpen] = useState(false);
+  const [selectedMatchForManual, setSelectedMatchForManual] = useState<TransactionMatch | null>(null);
 
   const toggleRow = (id: string) => {
     const newExpanded = new Set(expandedRows);
@@ -104,6 +107,42 @@ export function MpesaStatementReviewTable({ statementId, matches }: MpesaStateme
     },
   });
 
+  const manualMatchMutation = useMutation({
+    mutationFn: async ({ matchId, tenantId }: { matchId: string; tenantId: string }) => {
+      const response = await fetch(`/api/mpesa/matches/${matchId}/manual-match`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ tenantId }),
+      });
+      if (!response.ok) throw new Error('Failed to manually match tenant');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/mpesa/statements/${statementId}`] });
+      toast({ title: 'Match Created', description: 'Transaction manually matched to tenant. You can now approve it.' });
+      setManualMatchDialogOpen(false);
+      setSelectedMatchForManual(null);
+    },
+    onError: () => {
+      toast({ title: 'Error', description: 'Failed to manually match tenant', variant: 'destructive' });
+    },
+  });
+
+  const handleManualMatch = (tenantId: string) => {
+    if (selectedMatchForManual) {
+      manualMatchMutation.mutate({ 
+        matchId: selectedMatchForManual.id, 
+        tenantId
+      });
+    }
+  };
+
+  const openManualMatchDialog = (match: TransactionMatch) => {
+    setSelectedMatchForManual(match);
+    setManualMatchDialogOpen(true);
+  };
+
   const getConfidenceBadge = (confidence?: string) => {
     if (!confidence) return null;
     
@@ -128,6 +167,22 @@ export function MpesaStatementReviewTable({ statementId, matches }: MpesaStateme
     );
   };
 
+  const getStatusBadge = (status: string) => {
+    const statusConfig: Record<string, { variant: 'default' | 'secondary' | 'destructive' | 'outline', label: string, className?: string }> = {
+      approved: { variant: 'default', label: 'Approved' },
+      rejected: { variant: 'destructive', label: 'Rejected' },
+      manual: { variant: 'secondary', label: 'Manual Match', className: 'bg-blue-100 text-blue-800 hover:bg-blue-100' },
+      pending: { variant: 'outline', label: 'Pending' },
+    };
+
+    const config = statusConfig[status] || statusConfig.pending;
+    return (
+      <Badge variant={config.variant} className={config.className}>
+        {config.label}
+      </Badge>
+    );
+  };
+
   return (
     <div className="border rounded-lg">
       <Table>
@@ -147,8 +202,8 @@ export function MpesaStatementReviewTable({ statementId, matches }: MpesaStateme
             const isPending = match.status === 'pending';
 
             return (
-              <>
-                <TableRow key={match.id} className={isPending ? '' : 'bg-muted/50'}>
+              <React.Fragment key={match.id}>
+                <TableRow className={isPending ? '' : 'bg-muted/50'}>
                   {/* Retrieved from PDF */}
                   <TableCell>
                     <div className="space-y-1">
@@ -214,7 +269,7 @@ export function MpesaStatementReviewTable({ statementId, matches }: MpesaStateme
 
                   {/* Actions */}
                   <TableCell className="text-right">
-                    {isPending ? (
+                    {isPending || match.status === 'manual' ? (
                       <div className="flex items-center justify-end gap-2">
                         {hasMatch && (
                           <Button
@@ -226,6 +281,18 @@ export function MpesaStatementReviewTable({ statementId, matches }: MpesaStateme
                           >
                             <Check className="h-4 w-4 mr-1" />
                             Approve
+                          </Button>
+                        )}
+                        {!hasMatch && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-blue-500 text-blue-600 hover:bg-blue-50"
+                            onClick={() => openManualMatchDialog(match)}
+                            disabled={manualMatchMutation.isPending}
+                          >
+                            <UserPlus className="h-4 w-4 mr-1" />
+                            Manual Match
                           </Button>
                         )}
                         <Button
@@ -246,9 +313,7 @@ export function MpesaStatementReviewTable({ statementId, matches }: MpesaStateme
                         </Button>
                       </div>
                     ) : (
-                      <Badge variant={match.status === 'approved' ? 'default' : 'destructive'}>
-                        {match.status}
-                      </Badge>
+                      getStatusBadge(match.status)
                     )}
                   </TableCell>
                 </TableRow>
@@ -294,11 +359,27 @@ export function MpesaStatementReviewTable({ statementId, matches }: MpesaStateme
                     </TableCell>
                   </TableRow>
                 )}
-              </>
+              </React.Fragment>
             );
           })}
         </TableBody>
       </Table>
+
+      {/* Manual Match Dialog */}
+      {selectedMatchForManual && (
+        <ManualTenantMatchDialog
+          open={manualMatchDialogOpen}
+          onOpenChange={setManualMatchDialogOpen}
+          transactionDetails={{
+            senderName: selectedMatchForManual.transaction.senderName,
+            senderPhone: selectedMatchForManual.transaction.senderPhone,
+            amount: selectedMatchForManual.transaction.amount,
+            receiptNo: selectedMatchForManual.transaction.receiptNo,
+          }}
+          onMatch={handleManualMatch}
+          isLoading={manualMatchMutation.isPending}
+        />
+      )}
     </div>
   );
 }

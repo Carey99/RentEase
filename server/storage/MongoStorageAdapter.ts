@@ -112,7 +112,11 @@ export class MongoStorageAdapter implements IStorage {
     return tenantStorage.deleteTenant(tenantId);
   }
 
-  // Landlord settings
+  // Landlord details and settings
+  async getLandlordDetails(landlordId: string) {
+    return userStorage.getLandlordDetails(landlordId);
+  }
+
   async getLandlordSettings(landlordId: string) {
     return tenantStorage.getLandlordSettings(landlordId);
   }

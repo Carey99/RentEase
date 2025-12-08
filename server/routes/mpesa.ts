@@ -12,6 +12,7 @@ import {
   getLandlordStatements,
   approveMatch,
   rejectMatch,
+  manualMatchTenant,
   deleteStatement,
   uploadMiddleware
 } from "../controllers/mpesaStatementController";
@@ -25,4 +26,5 @@ export function registerMpesaRoutes(app: Express): void {
   app.delete("/api/mpesa/statements/:statementId", deleteStatement);
   app.post("/api/mpesa/matches/:matchId/approve", approveMatch);
   app.post("/api/mpesa/matches/:matchId/reject", rejectMatch);
+  app.post("/api/mpesa/matches/:matchId/manual-match", manualMatchTenant);
 }

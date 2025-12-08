@@ -10,6 +10,7 @@ import { ZodError } from "zod";
 import { logActivity, createActivityLog } from "./activityController";
 import { sendWelcomeEmail } from "../services/emailService";
 import { format } from "date-fns";
+import { broadcastToUser } from "../websocket";
 
 export class TenantController {
   /**
@@ -320,6 +321,35 @@ export class TenantController {
 
       if (!success) {
         return res.status(404).json({ error: "Tenant not found or payment could not be recorded" });
+      }
+
+      // Get tenant and landlord info for WebSocket broadcast
+      const tenant = await storage.getTenant(tenantId);
+      if (tenant && tenant.apartmentInfo?.landlordId) {
+        // Broadcast to landlord
+        broadcastToUser(tenant.apartmentInfo.landlordId, {
+          type: 'bill_created',
+          data: {
+            tenantName: tenant.fullName,
+            amount: paymentAmount,
+            forMonth,
+            forYear,
+            utilityCharges,
+            totalUtilityCost
+          }
+        });
+
+        // Broadcast to tenant
+        broadcastToUser(tenantId, {
+          type: 'bill_created',
+          data: {
+            amount: paymentAmount,
+            forMonth,
+            forYear,
+            utilityCharges,
+            totalUtilityCost
+          }
+        });
       }
 
       res.json({

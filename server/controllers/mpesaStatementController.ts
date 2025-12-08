@@ -426,130 +426,219 @@ export async function approveMatch(req: Request, res: Response) {
       return res.status(404).json({ error: 'Tenant not found' });
     }
 
-    console.log(`💰 Recording payment for tenant ${tenant.fullName}...`);
+    console.log(`💰 Processing M-Pesa payment for tenant ${tenant.fullName}...`);
 
-    // Step 1: Create PaymentHistory record
-    const paymentDate = match.transaction.date;
-    const paymentMonth = paymentDate.getMonth() + 1; // 1-12
-    const paymentYear = paymentDate.getFullYear();
+    const amount = match.transaction.amount;
+    const paymentDate = new Date(); // Use TODAY as payment date (when approved)
+    const propertyId = tenant.apartmentInfo?.propertyId;
 
-    // Get property to calculate base rent and utilities
-    const property = await Property.findById(tenant.apartmentInfo?.propertyId);
-    let monthlyRent = match.transaction.amount; // Default to payment amount
-    let totalUtilityCost = 0;
-    let utilityCharges = [];
-    
-    if (property) {
-      // Get base rent from property type
-      const propertyType = tenant.apartmentInfo?.propertyType;
-      const propertyTypeInfo = property.propertyTypes?.find((pt: any) => pt.type === propertyType);
-      if (propertyTypeInfo) {
-        monthlyRent = parseFloat(propertyTypeInfo.price);
-      }
-      
-      // Calculate utilities
-      utilityCharges = property.utilities?.map((utility: any) => ({
-        type: utility.type,
-        unitsUsed: 1,
-        pricePerUnit: parseFloat(utility.price),
-        total: parseFloat(utility.price),
-      })) || [];
-      totalUtilityCost = utilityCharges.reduce((sum: number, charge: any) => sum + charge.total, 0);
+    if (!propertyId) {
+      return res.status(400).json({ error: 'Tenant has no property assigned' });
     }
 
-    const paymentHistory = await PaymentHistory.create({
+    // Find the MOST RECENT OUTSTANDING bill (pending or partial) - regardless of month
+    // This is the bill that needs payment
+    const outstandingBill = await PaymentHistory.findOne({
       tenantId,
-      landlordId,
-      propertyId: tenant.apartmentInfo?.propertyId,
-      amount: match.transaction.amount,
-      paymentMethod: 'mpesa',
-      mpesaReceiptNumber: match.transaction.receiptNo,
+      status: { $in: ['pending', 'partial'] },
+      notes: { $not: /Payment transaction/ }
+    }).sort({ forYear: -1, forMonth: -1 });
+
+    if (!outstandingBill) {
+      return res.status(404).json({ error: 'No outstanding bill found for this tenant' });
+    }
+
+    console.log(`📋 Found outstanding bill: ${outstandingBill.forMonth}/${outstandingBill.forYear}, Expected: ${outstandingBill.monthlyRent}, Already paid: ${outstandingBill.amount || 0}`);
+
+    // Simple calculation: subtract payment from bill
+    const previousAmountPaid = outstandingBill.amount || 0;
+    const totalPaidNow = previousAmountPaid + amount;
+    const expectedAmount = outstandingBill.monthlyRent; // Use the bill's expected amount as-is
+    
+    console.log(`💵 Payment: ${amount}, Previous: ${previousAmountPaid}, New Total: ${totalPaidNow}, Expected: ${expectedAmount}`);
+
+    // Determine payment status
+    const tolerance = 0.01;
+    const difference = Math.abs(totalPaidNow - expectedAmount);
+    let paymentStatus: 'pending' | 'partial' | 'completed' | 'overpaid';
+    
+    if (difference <= tolerance) {
+      paymentStatus = 'completed';
+      console.log(`✅ COMPLETED`);
+    } else if (totalPaidNow < expectedAmount) {
+      paymentStatus = 'partial';
+      console.log(`⚠️  PARTIAL: ${totalPaidNow}/${expectedAmount} paid`);
+    } else {
+      paymentStatus = 'overpaid';
+      console.log(`💰 OVERPAID`);
+    }
+
+    // Update the outstanding bill
+    outstandingBill.amount = totalPaidNow;
+    outstandingBill.status = paymentStatus;
+    outstandingBill.mpesaReceiptNumber = match.transaction.receiptNo;
+    outstandingBill.paymentDate = paymentDate; // Update to today
+    outstandingBill.notes = outstandingBill.notes 
+      ? `${outstandingBill.notes} | M-Pesa KSH ${amount} from ${match.transaction.senderName} (Receipt: ${match.transaction.receiptNo})`
+      : `M-Pesa KSH ${amount} from ${match.transaction.senderName} (Receipt: ${match.transaction.receiptNo})`;
+    
+    await outstandingBill.save();
+
+    // Create transaction record for receipt
+    const paymentTransaction = new PaymentHistory({
+      tenantId,
+      landlordId: outstandingBill.landlordId,
+      propertyId,
+      amount,
       paymentDate,
-      forMonth: paymentMonth,
-      forYear: paymentYear,
-      monthlyRent, // Base rent from property type
-      totalUtilityCost,
-      utilityCharges,
-      status: 'completed',
-      notes: `M-Pesa payment from ${match.transaction.senderName} (${match.transaction.senderPhone})`,
-      createdAt: new Date(),
+      forMonth: outstandingBill.forMonth,
+      forYear: outstandingBill.forYear,
+      monthlyRent: outstandingBill.monthlyRent,
+      paymentMethod: 'M-Pesa',
+      mpesaReceiptNumber: match.transaction.receiptNo,
+      status: paymentStatus,
+      notes: `Payment transaction - M-Pesa from ${match.transaction.senderName} (${match.transaction.senderPhone})`,
+      utilityCharges: outstandingBill.utilityCharges,
+      totalUtilityCost: outstandingBill.totalUtilityCost,
     });
 
-    console.log(`✅ Payment recorded: ${paymentHistory._id}`);
+    await paymentTransaction.save();
 
-    // Step 2: Update tenant's rent cycle
+    const forMonth = outstandingBill.forMonth;
+    const forYear = outstandingBill.forYear;
+
+    console.log(`✅ M-Pesa payment recorded - Bill: ${outstandingBill._id}, Transaction: ${paymentTransaction._id}`);
+
+    // Update tenant's rent cycle
+    const currentMonth = new Date().getMonth() + 1;
+    const currentYear = new Date().getFullYear();
+    const isCurrentMonth = forMonth === currentMonth && forYear === currentYear;
+    const isFullyPaid = paymentStatus === 'completed' || paymentStatus === 'overpaid';
+
     await Tenant.updateOne(
       { _id: tenantId },
       {
         $set: {
           'rentCycle.lastPaymentDate': paymentDate,
-          'rentCycle.lastPaymentAmount': match.transaction.amount,
-          'rentCycle.currentMonthPaid': true,
-          'rentCycle.paidForMonth': paymentMonth,
-          'rentCycle.paidForYear': paymentYear,
-          'rentCycle.rentStatus': 'paid',
+          'rentCycle.lastPaymentAmount': amount,
+          'rentCycle.currentMonthPaid': isCurrentMonth && isFullyPaid,
+          'rentCycle.paidForMonth': forMonth,
+          'rentCycle.paidForYear': forYear,
+          'rentCycle.rentStatus': isFullyPaid ? 'paid' : (paymentStatus === 'partial' ? 'overdue' : 'pending'),
         },
       }
     );
+    console.log(`✅ Updated tenant rent cycle - Last paid: TODAY`);
 
-    console.log(`✅ Updated tenant rent cycle`);
+    // Activity logging & notifications
+    const { logActivity, createActivityLog } = await import('./activityController');
+    const { logTenantActivity, createTenantActivityLog } = await import('./tenantActivityController');
 
-    // Step 3: Create activity log
-    await ActivityLog.create({
+    // Log activity for LANDLORD
+    await logActivity(createActivityLog(
       landlordId,
-      tenantId,
-      type: 'payment_received',
-      title: 'M-Pesa Payment Received',
-      description: `${tenant.fullName} paid KSH ${match.transaction.amount.toLocaleString()} via M-Pesa (Receipt: ${match.transaction.receiptNo})`,
-      metadata: {
-        amount: match.transaction.amount,
-        paymentMethod: 'mpesa',
+      paymentStatus === 'completed' || paymentStatus === 'overpaid' ? 'payment_received' : 'debt_created',
+      paymentStatus === 'completed' ? 'M-Pesa Payment Received' : 'Partial M-Pesa Payment',
+      `${tenant.fullName} paid KSH ${amount.toLocaleString()} via M-Pesa for ${forMonth}/${forYear} (Receipt: ${match.transaction.receiptNo})${paymentStatus === 'partial' ? ` (Balance: KSH ${(expectedAmount - totalPaidNow).toLocaleString()})` : ''}`,
+      {
+        tenantId: tenant._id?.toString(),
+        tenantName: tenant.fullName,
+        propertyId: propertyId.toString(),
+        paymentId: outstandingBill._id?.toString(),
+        amount: amount,
+        unitNumber: tenant.apartmentInfo?.unitNumber,
         receiptNumber: match.transaction.receiptNo,
-        paymentId: paymentHistory._id.toString(),
-        statementId: match.statementId,
-        matchId: matchId,
       },
-      read: false,
-      createdAt: new Date(),
-    });
+      paymentStatus === 'completed' ? 'high' : 'medium'
+    ));
 
-    console.log(`✅ Activity logged`);
+    // Log activity for TENANT
+    await logTenantActivity(createTenantActivityLog(
+      tenantId,
+      paymentStatus === 'completed' || paymentStatus === 'overpaid' ? 'payment_processed' : 'partial_payment_received',
+      paymentStatus === 'completed' ? 'M-Pesa Payment Confirmed' : 'Partial M-Pesa Payment Received',
+      paymentStatus === 'completed' 
+        ? `Your M-Pesa payment of KSH ${amount.toLocaleString()} for ${forMonth}/${forYear} has been confirmed (Receipt: ${match.transaction.receiptNo})`
+        : `Partial M-Pesa payment of KSH ${amount.toLocaleString()} received. Remaining balance: KSH ${(expectedAmount - totalPaidNow).toLocaleString()}`,
+      {
+        landlordId: landlordId,
+        propertyId: propertyId.toString(),
+        paymentId: outstandingBill._id?.toString(),
+        amount: amount,
+        receiptNumber: match.transaction.receiptNo,
+      },
+      paymentStatus === 'completed' ? 'high' : 'medium'
+    ));
 
-    // Step 4: Send WebSocket notification
-    try {
-      broadcastToUser(landlordId, {
-        type: 'payment_received',
+    // WebSocket broadcasts for real-time updates
+    // Broadcast to LANDLORD
+    broadcastToUser(landlordId, {
+      type: 'payment_received',
+      data: {
         tenantId,
         tenantName: tenant.fullName,
-        amount: match.transaction.amount,
-        paymentMethod: 'mpesa',
+        amount,
+        totalPaid: totalPaidNow,
+        expectedAmount,
+        paymentMethod: 'M-Pesa',
+        status: paymentStatus,
+        forMonth,
+        forYear,
         receiptNumber: match.transaction.receiptNo,
-      });
-      console.log(`✅ WebSocket notification sent`);
-    } catch (wsError) {
-      console.error('⚠️  WebSocket notification failed:', wsError);
-      // Don't fail the whole operation if WebSocket fails
-    }
+        timestamp: new Date().toISOString(),
+      },
+    });
 
-    // Step 5: Update match status
+    // Broadcast to TENANT
+    broadcastToUser(tenantId, {
+      type: 'payment_confirmed',
+      data: {
+        amount,
+        totalPaid: totalPaidNow,
+        expectedAmount,
+        paymentMethod: 'M-Pesa',
+        status: paymentStatus,
+        forMonth,
+        forYear,
+        balance: expectedAmount - totalPaidNow,
+        receiptNumber: match.transaction.receiptNo,
+        timestamp: new Date().toISOString(),
+      },
+    });
+
+    console.log(`📡 WebSocket broadcasts sent to landlord and tenant`);
+    console.log(`🔔 Notifications logged for both parties`);
+
+    // Update match status
     match.status = 'approved';
     match.reviewNotes = notes;
     match.approvedBy = landlordId;
     match.approvedAt = new Date();
-    match.recordedPaymentId = paymentHistory._id.toString();
+    match.recordedPaymentId = outstandingBill._id.toString();
     match.updatedAt = new Date();
     await match.save();
 
-    console.log(`✅ M-Pesa payment approval completed`);
+    console.log(`✅ M-Pesa payment approval completed successfully`);
+    console.log(`   Bill updated: ${forMonth}/${forYear}`);
+    console.log(`   Amount paid: KSH ${amount}`);
+    console.log(`   New balance: KSH ${Math.max(0, expectedAmount - totalPaidNow)}`);
+    console.log(`   Status: ${paymentStatus}`);
 
     res.status(200).json({ 
       success: true, 
       match,
       payment: {
-        id: paymentHistory._id,
-        amount: match.transaction.amount,
-        method: 'mpesa',
+        billId: outstandingBill._id,
+        transactionId: paymentTransaction._id,
+        amount: amount,
+        totalPaid: totalPaidNow,
+        expectedAmount: expectedAmount,
+        balance: Math.max(0, expectedAmount - totalPaidNow),
+        status: paymentStatus,
+        method: 'M-Pesa',
         receiptNumber: match.transaction.receiptNo,
+        forMonth,
+        forYear,
       }
     });
 
@@ -592,6 +681,77 @@ export async function rejectMatch(req: Request, res: Response) {
   } catch (error: any) {
     console.error('Error rejecting match:', error);
     res.status(500).json({ error: 'Failed to reject match' });
+  }
+}
+
+/**
+ * Manually match a transaction to a specific tenant
+ * POST /api/mpesa/matches/:matchId/manual-match
+ * Body: { tenantId: string, notes?: string }
+ */
+export async function manualMatchTenant(req: Request, res: Response) {
+  try {
+    const { matchId } = req.params;
+    const { tenantId } = req.body;
+    const landlordId = req.session?.userId;
+
+    if (!landlordId || req.session?.userRole !== 'landlord') {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    if (!tenantId) {
+      return res.status(400).json({ error: 'Tenant ID is required' });
+    }
+
+    // Find the match record
+    const match = await MpesaTransactionMatch.findOne({ _id: matchId, landlordId });
+
+    if (!match) {
+      return res.status(404).json({ error: 'Match not found' });
+    }
+
+    // Verify tenant exists and belongs to this landlord
+    const tenant = await Tenant.findById(tenantId);
+
+    if (!tenant) {
+      return res.status(404).json({ error: 'Tenant not found' });
+    }
+
+    // Verify tenant belongs to this landlord
+    if (tenant.apartmentInfo?.landlordId?.toString() !== landlordId) {
+      return res.status(403).json({ error: 'This tenant does not belong to you' });
+    }
+
+    // Update match record with manual tenant selection
+    match.matchedTenant = {
+      tenantId: tenant._id.toString(),
+      tenantName: tenant.fullName,
+      tenantPhone: tenant.phone,
+      propertyName: tenant.apartmentInfo?.propertyName || '',
+      unitNumber: tenant.apartmentInfo?.unitNumber || '',
+      phoneScore: 0, // Manual match - no automatic scoring
+      nameScore: 0,
+      amountScore: 0,
+      overallScore: 100, // Manual match gets 100% since landlord confirmed it
+      confidence: 'high',
+      matchType: 'perfect',
+    };
+    match.status = 'manual'; // Mark as manually matched
+    match.reviewNotes = 'Manually matched by landlord';
+    match.updatedAt = new Date();
+    await match.save();
+
+    console.log(`✅ Manual match created: Transaction ${match.transaction.receiptNo} → Tenant ${tenant.fullName}`);
+
+    res.status(200).json({ 
+      success: true, 
+      match,
+      message: 'Transaction manually matched to tenant',
+    });
+
+  } catch (error: any) {
+    console.error('Error manually matching tenant:', error);
+    res.status(500).json({ error: 'Failed to manually match tenant' });
   }
 }
 

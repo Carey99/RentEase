@@ -70,9 +70,15 @@ export default function MonthlyPaymentBreakdown({
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [expandedTenants, setExpandedTenants] = useState<Set<string>>(new Set());
 
-  // Fetch payment history
+  // Fetch payment history - use consistent query key format
   const { data: payments = [], isLoading } = useQuery<PaymentHistoryItem[]>({
-    queryKey: ["payment-history", { tenantId, landlordId, propertyId }],
+    queryKey: tenantId 
+      ? ['/api/payment-history/tenant', tenantId]
+      : landlordId 
+        ? [`/api/payment-history/landlord/${landlordId}`]
+        : propertyId
+          ? [`/api/payment-history/property/${propertyId}`]
+          : ["payment-history"],
     queryFn: async () => {
       let url = "";
       if (tenantId) {
@@ -386,16 +392,19 @@ export default function MonthlyPaymentBreakdown({
                             const monthPayments = group.payments[month];
                             const billRecord = monthPayments[0]; // Should only be one bill per month
                             
-                            // Get tenant's base rent (use property rent, not bill's stored monthlyRent)
-                            const tenantBaseRent = billRecord.monthlyRent; // This should be base rent
+                            // CRITICAL: DO NOT pass defaultMonthlyRent parameter
+                            // The bill.monthlyRent might already include utilities (old data)
+                            // By passing 0, expectedForBill will use bill.monthlyRent as-is
+                            // and add utilities from bill.totalUtilityCost
+                            // This prevents double-counting utilities
                             
                             // Filter all bills for this tenant (no transactions)
                             const allTenantBills = Object.values(group.payments).flat().filter((p: any) => !isTransactionRecord(p));
                             
-                            // Use DebtTrackingTab logic: includes historical debt
-                            const expectedAmount = expectedForCurrentMonth(allTenantBills, month, parseInt(selectedYear), tenantBaseRent);
+                            // Pass 0 as defaultMonthlyRent to use bill's stored monthlyRent
+                            const expectedAmount = expectedForCurrentMonth(allTenantBills, month, parseInt(selectedYear), 0);
                             const paidAmount = paidForBill(billRecord);
-                            const balanceAmount = balanceForCurrentMonth(allTenantBills, month, parseInt(selectedYear), tenantBaseRent);
+                            const balanceAmount = balanceForCurrentMonth(allTenantBills, month, parseInt(selectedYear), 0);
                       
                             return (
                               <div
