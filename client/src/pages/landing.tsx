@@ -147,8 +147,10 @@ export default function LandingPage() {
             <div className="property-grid">
               <div className="property-card featured">
                 <img 
-                  src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80"
+                  src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?fm=webp&q=75&w=1000&fit=crop&cs=tinysrgb"
                   alt="Modern Apartment"
+                  loading="lazy"
+                  decoding="async"
                 />
                 <div className="card-content">
                   <h3>Luxury Penthouse</h3>
@@ -167,8 +169,10 @@ export default function LandingPage() {
 
               <div className="property-card">
                 <img 
-                  src="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80"
+                  src="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?fm=webp&q=75&w=1000&fit=crop&cs=tinysrgb"
                   alt="Modern House"
+                  loading="lazy"
+                  decoding="async"
                 />
                 <div className="card-content">
                   <h3>Smart Villa</h3>
@@ -186,8 +190,10 @@ export default function LandingPage() {
 
               <div className="property-card">
                 <img 
-                  src="https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80"
+                  src="https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?fm=webp&q=75&w=1000&fit=crop&cs=tinysrgb"
                   alt="Designer Loft"
+                  loading="lazy"
+                  decoding="async"
                 />
                 <div className="card-content">
                   <h3>Modern Apartment</h3>
@@ -266,7 +272,7 @@ export default function LandingPage() {
               </div>
               <p>"RentEase transformed my property management. Revenue increased 40% in just 6 months."</p>
               <div className="testimonial-author">
-                <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80" alt="James Mwangi" />
+                <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?fm=webp&q=80&w=150&fit=crop&cs=tinysrgb" alt="James Mwangi" loading="lazy" decoding="async" />
                 <div>
                   <strong>James Mwangi</strong>
                   <span>Property Owner • 18 Units</span>
@@ -282,7 +288,7 @@ export default function LandingPage() {
               </div>
               <p>"Found my dream apartment in 2 days. The process was incredibly smooth and transparent."</p>
               <div className="testimonial-author">
-                <img src="https://images.unsplash.com/photo-1494790108755-2616b612b786?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80" alt="Grace Wanjiku" />
+                <img src="https://images.unsplash.com/photo-1494790108755-2616b612b786?fm=webp&q=80&w=150&fit=crop&cs=tinysrgb" alt="Grace Wanjiku" loading="lazy" decoding="async" />
                 <div>
                   <strong>Grace Wanjiku</strong>
                   <span>Tenant • Westlands</span>
@@ -298,7 +304,7 @@ export default function LandingPage() {
               </div>
               <p>"The maintenance system is game-changing. Issues are resolved 3x faster than before."</p>
               <div className="testimonial-author">
-                <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80" alt="David Kiprotich" />
+                <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?fm=webp&q=80&w=150&fit=crop&cs=tinysrgb" alt="David Kiprotich" loading="lazy" decoding="async" />
                 <div>
                   <strong>David Kiprotich</strong>
                   <span>Property Manager • 80+ Units</span>

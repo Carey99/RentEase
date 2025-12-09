@@ -9,18 +9,18 @@ interface PropertyListViewProps {
   setShowAddPropertyDialog: (show: boolean) => void;
 }
 
-// Curated pool of high-quality property images
+// Curated pool of high-quality property images - Optimized with CDN parameters
 const PROPERTY_IMAGES = [
-  "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800&h=400&fit=crop", // Modern apartment interior
-  "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&h=400&fit=crop", // Luxury apartment building
-  "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&h=400&fit=crop", // Bright apartment living room
-  "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&h=400&fit=crop", // Modern apartment complex
-  "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&h=400&fit=crop", // Beautiful home exterior
-  "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&h=400&fit=crop", // Contemporary house
-  "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&h=400&fit=crop", // Modern apartments
-  "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&h=400&fit=crop", // Residential building
-  "https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?w=800&h=400&fit=crop", // House with garden
-  "https://images.unsplash.com/photo-1582407947304-fd86f028f716?w=800&h=400&fit=crop", // Apartment building facade
+  "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?fm=webp&q=75&w=800&h=400&fit=crop&cs=tinysrgb", // Modern apartment interior
+  "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?fm=webp&q=75&w=800&h=400&fit=crop&cs=tinysrgb", // Luxury apartment building
+  "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?fm=webp&q=75&w=800&h=400&fit=crop&cs=tinysrgb", // Bright apartment living room
+  "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?fm=webp&q=75&w=800&h=400&fit=crop&cs=tinysrgb", // Modern apartment complex
+  "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?fm=webp&q=75&w=800&h=400&fit=crop&cs=tinysrgb", // Beautiful home exterior
+  "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?fm=webp&q=75&w=800&h=400&fit=crop&cs=tinysrgb", // Contemporary house
+  "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?fm=webp&q=75&w=800&h=400&fit=crop&cs=tinysrgb", // Modern apartments
+  "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?fm=webp&q=75&w=800&h=400&fit=crop&cs=tinysrgb", // Residential building
+  "https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?fm=webp&q=75&w=800&h=400&fit=crop&cs=tinysrgb", // House with garden
+  "https://images.unsplash.com/photo-1582407947304-fd86f028f716?fm=webp&q=75&w=800&h=400&fit=crop&cs=tinysrgb", // Apartment building facade
 ];
 
 // Simple hash function to consistently map property ID to an image
