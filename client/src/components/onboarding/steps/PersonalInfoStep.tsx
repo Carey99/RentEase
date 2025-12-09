@@ -26,7 +26,7 @@ export function PersonalInfoStep({ form, onSubmit, isAddingAnotherProperty }: Pe
     >
       <div className="space-y-6">
         <div>
-          <Label htmlFor="fullName">Full Name</Label>
+          <Label htmlFor="fullName" className="mb-1.5 block">Full Name</Label>
           <Input
             id="fullName"
             {...form.register("fullName")}
@@ -41,7 +41,7 @@ export function PersonalInfoStep({ form, onSubmit, isAddingAnotherProperty }: Pe
         </div>
 
         <div>
-          <Label htmlFor="email">Email Address</Label>
+          <Label htmlFor="email" className="mb-1.5 block">Email Address</Label>
           <Input
             id="email"
             type="email"
@@ -57,7 +57,7 @@ export function PersonalInfoStep({ form, onSubmit, isAddingAnotherProperty }: Pe
         </div>
 
         <div>
-          <Label htmlFor="phone">Phone Number</Label>
+          <Label htmlFor="phone" className="mb-1.5 block">Phone Number</Label>
           <Input
             id="phone"
             type="tel"

@@ -233,12 +233,12 @@ export default function LandlordDashboard() {
           onTabChange={setActiveTab}
         />
         
-        <main className="flex-1 flex flex-col h-screen">
+        <main className="flex-1 flex flex-col h-screen bg-neutral-50 dark:bg-slate-900">
           {/* Top Bar - Fixed */}
-          <div className="bg-white border-b border-neutral-100 px-8 py-4 flex-shrink-0">
+          <div className="bg-white dark:bg-slate-950 border-b border-neutral-100 dark:border-slate-800 px-8 py-4 flex-shrink-0">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-xl font-semibold text-neutral-900 tracking-tight">
+                <h1 className="text-xl font-semibold text-neutral-900 dark:text-white tracking-tight">
                   {activeTab === 'dashboard' ? 'Dashboard' :
                    activeTab === 'properties' ? 'Properties' :
                    activeTab === 'tenants' ? 'Tenants' :
@@ -247,13 +247,13 @@ export default function LandlordDashboard() {
                    activeTab === 'settings' ? 'Settings' :
                    activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
                 </h1>
-                <p className="text-sm text-neutral-500 mt-0.5">
+                <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-0.5">
                   Welcome back, {landlordDetails?.fullName || currentUser?.name || 'Landlord'}!
                   {landlordDetails?.email && (
-                    <span className="ml-2 text-neutral-400">• {landlordDetails.email}</span>
+                    <span className="ml-2 text-neutral-400 dark:text-neutral-500">• {landlordDetails.email}</span>
                   )}
                   {landlordDetails?.phone && (
-                    <span className="ml-2 text-neutral-400">• {landlordDetails.phone}</span>
+                    <span className="ml-2 text-neutral-400 dark:text-neutral-500">• {landlordDetails.phone}</span>
                   )}
                 </p>
               </div>

@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useRoute } from "wouter";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { PersonalInfoStep } from "@/components/onboarding/steps/PersonalInfoStep";
 import { PasswordStep } from "@/components/onboarding/steps/PasswordStep";
 import { LandlordPropertyStep } from "@/components/onboarding/steps/LandlordPropertyStep";
@@ -184,35 +185,39 @@ export default function OnboardingPage() {
 
   const motivationalContent = getMotivationalContent(state.currentStep);
   const maxSteps = role === 'landlord' ? 4 : 3;
+  const IconComponent = motivationalContent.icon;
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen bg-white dark:bg-slate-950">
       {/* Left Side - Form */}
-      <div className="flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-8 py-12 bg-white">
+      <div className="flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-8 py-12 bg-white dark:bg-slate-950">
         <div className="max-w-md w-full">
           {/* Logo and Back Button */}
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center space-x-2">
-              <span className="text-xl font-bold text-neutral-900">RentEase</span>
+              <span className="text-xl font-bold text-neutral-900 dark:text-white">RentEase</span>
             </div>
-            <Button
-              variant="ghost"
-              onClick={logic.goBack}
-              className="text-neutral-500 hover:text-neutral-700"
-              data-testid="button-back-to-landing"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <Button
+                variant="ghost"
+                onClick={logic.goBack}
+                className="text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200"
+                data-testid="button-back-to-landing"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
 
           {/* Progress Indicator */}
           <div className="mb-8">
             <div className="flex items-center space-x-2 mb-2">
-              <span className="text-sm font-medium text-neutral-500">
+              <span className="text-sm font-medium text-neutral-500 dark:text-neutral-400">
                 Step {state.currentStep} of {maxSteps}
               </span>
             </div>
-            <div className="w-full bg-neutral-200 rounded-full h-2">
+            <div className="w-full bg-neutral-200 dark:bg-slate-700 rounded-full h-2">
               <div 
                 className="bg-primary h-2 rounded-full transition-all duration-300"
                 style={{ width: `${(state.currentStep / maxSteps) * 100}%` }}
@@ -226,21 +231,43 @@ export default function OnboardingPage() {
       </div>
 
       {/* Right Side - Motivational Content */}
-      <div className="flex-1 relative hidden lg:block">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/40 to-secondary/50"></div>
+      <div className="flex-1 relative hidden lg:block overflow-hidden">
+        {/* Background Image */}
         <img 
           src={getBackgroundImage(state.currentStep)}
           alt="Onboarding background" 
           className="w-full h-full object-cover"
         />
         
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-center text-white p-8 max-w-md">
-            <div className="text-6xl mb-6 opacity-90">
-              {motivationalContent.icon}
+        {/* Left-to-Right Dark Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent"></div>
+        
+        {/* Content */}
+        <div className="absolute inset-0 flex items-center">
+          <div className="text-white p-12 max-w-xl">
+            {/* Icon with backdrop */}
+            <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 mb-8">
+              <IconComponent className="w-10 h-10 text-white" strokeWidth={1.5} />
             </div>
-            <h2 className="text-3xl font-bold mb-4">{motivationalContent.title}</h2>
-            <p className="text-lg opacity-90">{motivationalContent.description}</p>
+            
+            {/* Headline with accent */}
+            <h2 className="text-5xl font-bold mb-3 leading-tight">
+              <span className="text-white drop-shadow-lg">
+                {motivationalContent.title}
+              </span>
+              {' '}
+              <span className="text-primary drop-shadow-lg bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-blue-600">
+                {motivationalContent.subtitle}
+              </span>
+            </h2>
+            
+            {/* Description with better contrast */}
+            <p className="text-lg text-gray-100 leading-relaxed drop-shadow-md max-w-lg">
+              {motivationalContent.description}
+            </p>
+            
+            {/* Visual accent line */}
+            <div className="mt-6 w-20 h-1 bg-gradient-to-r from-blue-500 to-transparent rounded-full"></div>
           </div>
         </div>
       </div>

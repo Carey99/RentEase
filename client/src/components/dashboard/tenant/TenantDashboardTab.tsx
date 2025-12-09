@@ -175,7 +175,7 @@ export default function TenantDashboardTab({ tenantId, tenantProperty, paymentHi
     return (
       <div className="space-y-8">
         <div className="text-center py-12">
-          <h2 className="text-xl font-semibold text-neutral-900 mb-2">
+          <h2 className="text-xl font-semibold text-neutral-900 dark:text-white mb-2">
             Welcome to Your Dashboard
           </h2>
           <p className="text-neutral-600">

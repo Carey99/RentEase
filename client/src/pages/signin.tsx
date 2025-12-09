@@ -3,12 +3,13 @@ import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ArrowLeft, Eye, EyeOff, LogIn } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, LogIn, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/hooks/useAuth";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const signinSchema = z.object({
   email: z.string().email("Please enter a valid email"),
@@ -57,35 +58,38 @@ export default function SigninPage() {
   };
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen bg-white dark:bg-slate-950">
       {/* Left Side - Sign In Form */}
-      <div className="flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-8 py-12 bg-white">
+      <div className="flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-8 py-12 bg-white dark:bg-slate-950">
         <div className="max-w-md w-full">
           {/* Logo and Back Button */}
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center space-x-2">
-              <span className="text-xl font-bold text-neutral-900">RentEase</span>
+              <span className="text-xl font-bold text-neutral-900 dark:text-white">RentEase</span>
             </div>
-            <Button
-              variant="ghost"
-              onClick={goBack}
-              className="text-neutral-500 hover:text-neutral-700"
-              data-testid="button-back-to-landing"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <Button
+                variant="ghost"
+                onClick={goBack}
+                className="text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200"
+                data-testid="button-back-to-landing"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
 
           {/* Welcome Back Header */}
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-neutral-900 mb-2">Welcome Back!</h2>
-            <p className="text-neutral-600">Sign in to your RentEase account to continue.</p>
+            <h2 className="text-2xl font-bold text-neutral-900 dark:text-white mb-2">Welcome Back!</h2>
+            <p className="text-neutral-600 dark:text-neutral-400">Sign in to your RentEase account to continue.</p>
           </div>
 
           {/* Sign In Form */}
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <div>
-              <Label htmlFor="email">Email Address</Label>
+              <Label htmlFor="email" className="mb-1.5 block">Email Address</Label>
               <Input
                 id="email"
                 type="email"
@@ -102,7 +106,7 @@ export default function SigninPage() {
             </div>
 
             <div>
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password" className="mb-1.5 block">Password</Label>
               <div className="relative mt-1">
                 <Input
                   id="password"
@@ -138,7 +142,7 @@ export default function SigninPage() {
               />
               <Label
                 htmlFor="rememberMe"
-                className="text-sm font-normal text-neutral-600 cursor-pointer"
+                className="text-sm font-normal text-neutral-600 dark:text-neutral-400 cursor-pointer"
               >
                 Remember me for 30 days
               </Label>
@@ -157,7 +161,7 @@ export default function SigninPage() {
 
           {/* Sign Up Link */}
           <div className="mt-8 text-center">
-            <p className="text-neutral-600 text-sm">
+            <p className="text-neutral-600 dark:text-neutral-400 text-sm">
               Don't have an account?{" "}
               <Button
                 variant="link"
@@ -173,23 +177,37 @@ export default function SigninPage() {
       </div>
 
       {/* Right Side - Motivational Image */}
-      <div className="flex-1 relative hidden lg:block">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/40 to-secondary/50"></div>
+      <div className="flex-1 relative hidden lg:block overflow-hidden">
         <img 
           src="https://images.unsplash.com/photo-1560472354-b33ff0c44a43?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1920&h=1080"
           alt="Welcome back to RentEase" 
           className="w-full h-full object-cover"
         />
         
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-center text-white p-8 max-w-md">
-            <div className="text-6xl mb-6 opacity-90">
-              🏠
+        {/* Left-to-Right Dark Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent"></div>
+        
+        <div className="absolute inset-0 flex items-center">
+          <div className="text-white p-12 max-w-xl">
+            {/* Icon with frosted glass backdrop */}
+            <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 mb-8">
+              <Home className="w-10 h-10 text-white" strokeWidth={1.5} />
             </div>
-            <h2 className="text-3xl font-bold mb-4">Welcome Back!</h2>
-            <p className="text-lg opacity-90">
+            
+            {/* Split headline with accent */}
+            <h2 className="text-5xl font-bold mb-3 leading-tight">
+              <span className="text-white drop-shadow-lg">Welcome</span>{' '}
+              <span className="text-primary bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-blue-600">
+                Back!
+              </span>
+            </h2>
+            
+            <p className="text-lg text-gray-100 leading-relaxed drop-shadow-md">
               Continue managing your rental properties and tenant relationships with ease.
             </p>
+            
+            {/* Visual accent line */}
+            <div className="mt-6 w-20 h-1 bg-gradient-to-r from-blue-500 to-transparent rounded-full"></div>
           </div>
         </div>
       </div>
