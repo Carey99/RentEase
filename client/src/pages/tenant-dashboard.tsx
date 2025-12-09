@@ -230,14 +230,14 @@ export default function TenantDashboard() {
         />
 
         {/* Main Content */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col bg-neutral-50 dark:bg-slate-900">
           {/* Header - Fixed */}
-          <header className="sticky top-0 z-20 bg-white border-b border-gray-200">
+          <header className="sticky top-0 z-20 bg-white dark:bg-slate-950 border-b border-gray-200 dark:border-slate-800">
             <div className="px-6 py-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-base font-normal text-gray-900">Dashboard</h2>
-                  <p className="text-xs text-gray-600">
+                  <h2 className="text-base font-normal text-gray-900 dark:text-white">Dashboard</h2>
+                  <p className="text-xs text-gray-600 dark:text-neutral-400">
                     Welcome back, {currentUser.name || currentUser.fullName || 'User'}
                   </p>
                 </div>

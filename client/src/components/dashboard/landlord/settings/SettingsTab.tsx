@@ -210,7 +210,7 @@ export default function ModernSettingsTab() {
   return (
     <div className="flex flex-col h-full">
       {/* Tabs Navigation - Fixed */}
-      <div className="flex border-b border-neutral-200 overflow-x-auto mb-6 flex-shrink-0 bg-white sticky top-0 z-10">
+      <div className="flex border-b border-neutral-200 dark:border-slate-700 overflow-x-auto mb-6 flex-shrink-0 bg-white dark:bg-slate-900 sticky top-0 z-10">
         {menuItems.map((item) => (
           <button
             key={item.id}
@@ -219,7 +219,7 @@ export default function ModernSettingsTab() {
               "flex items-center gap-2 px-6 py-3 text-sm font-medium whitespace-nowrap transition-all duration-200 border-b-2",
               activeTab === item.id
                 ? "border-primary text-primary"
-                : "border-transparent text-neutral-600 hover:text-neutral-900"
+                : "border-transparent text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white"
             )}
           >
             <item.icon className="h-4 w-4" />
@@ -240,13 +240,13 @@ export default function ModernSettingsTab() {
           <Card className="border-neutral-200">
               <div className="p-6 space-y-6">
                 <div>
-                  <h2 className="text-lg font-semibold text-neutral-900">Profile Information</h2>
-                  <p className="text-sm text-neutral-600 mt-1">Update your account details</p>
+                  <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">Profile Information</h2>
+                  <p className="text-sm text-neutral-600 dark:text-neutral-400 mt-1">Update your account details</p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <Label htmlFor="fullName" className="text-sm font-medium text-neutral-700">Full Name</Label>
+                    <Label htmlFor="fullName" className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Full Name</Label>
                     <Input 
                       id="fullName"
                       value={settings.profile.fullName}
@@ -333,15 +333,15 @@ export default function ModernSettingsTab() {
           <Card className="border-neutral-200">
               <div className="p-6 space-y-6">
                 <div>
-                  <h2 className="text-lg font-semibold text-neutral-900">Notification Preferences</h2>
-                  <p className="text-sm text-neutral-600 mt-1">Manage how you receive notifications</p>
+                  <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">Notification Preferences</h2>
+                  <p className="text-sm text-neutral-600 dark:text-neutral-400 mt-1">Manage how you receive notifications</p>
                 </div>
 
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between py-4 border-b">
+                  <div className="flex items-center justify-between py-4 border-b dark:border-slate-700">
                     <div className="space-y-0.5">
-                      <Label className="text-base font-medium text-neutral-900">Email Notifications</Label>
-                      <p className="text-sm text-neutral-600">Receive notifications via email</p>
+                      <Label className="text-base font-medium text-neutral-900 dark:text-white">Email Notifications</Label>
+                      <p className="text-sm text-neutral-600 dark:text-neutral-400">Receive notifications via email</p>
                     </div>
                     <Switch 
                       checked={settings.notifications.emailNotifications}
@@ -354,10 +354,10 @@ export default function ModernSettingsTab() {
                     />
                   </div>
 
-                  <div className="flex items-center justify-between py-4 border-b">
+                  <div className="flex items-center justify-between py-4 border-b dark:border-slate-700">
                     <div className="space-y-0.5">
-                      <Label className="text-base font-medium text-neutral-900">SMS Alerts</Label>
-                      <p className="text-sm text-neutral-600">Get text message alerts</p>
+                      <Label className="text-base font-medium text-neutral-900 dark:text-white">SMS Alerts</Label>
+                      <p className="text-sm text-neutral-600 dark:text-neutral-400">Get text message alerts</p>
                     </div>
                     <Switch 
                       checked={settings.notifications.smsNotifications}
@@ -370,10 +370,10 @@ export default function ModernSettingsTab() {
                     />
                   </div>
 
-                  <div className="flex items-center justify-between py-4 border-b">
+                  <div className="flex items-center justify-between py-4 border-b dark:border-slate-700">
                     <div className="space-y-0.5">
-                      <Label className="text-base font-medium text-neutral-900">New Tenant Alerts</Label>
-                      <p className="text-sm text-neutral-600">Notify when new tenants are added</p>
+                      <Label className="text-base font-medium text-neutral-900 dark:text-white">New Tenant Alerts</Label>
+                      <p className="text-sm text-neutral-600 dark:text-neutral-400">Notify when new tenants are added</p>
                     </div>
                     <Switch 
                       checked={settings.notifications.newTenantAlerts}
@@ -388,8 +388,8 @@ export default function ModernSettingsTab() {
 
                   <div className="flex items-center justify-between py-4">
                     <div className="space-y-0.5">
-                      <Label className="text-base font-medium text-neutral-900">Payment Reminders</Label>
-                      <p className="text-sm text-neutral-600">Send reminders for upcoming payments</p>
+                      <Label className="text-base font-medium text-neutral-900 dark:text-white">Payment Reminders</Label>
+                      <p className="text-sm text-neutral-600 dark:text-neutral-400">Send reminders for upcoming payments</p>
                     </div>
                     <Switch 
                       checked={settings.notifications.paymentReminders}
@@ -421,13 +421,13 @@ export default function ModernSettingsTab() {
           <Card className="border-neutral-200">
               <div className="p-6 space-y-6">
                 <div>
-                  <h2 className="text-lg font-semibold text-neutral-900">Security Settings</h2>
-                  <p className="text-sm text-neutral-600 mt-1">Update your password and security preferences</p>
+                  <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">Security Settings</h2>
+                  <p className="text-sm text-neutral-600 dark:text-neutral-400 mt-1">Update your password and security preferences</p>
                 </div>
 
                 <div className="space-y-5">
                   <div className="space-y-2">
-                    <Label htmlFor="currentPassword" className="text-sm font-medium text-neutral-700">Current Password</Label>
+                    <Label htmlFor="currentPassword" className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Current Password</Label>
                     <div className="relative">
                       <Input 
                         id="currentPassword"

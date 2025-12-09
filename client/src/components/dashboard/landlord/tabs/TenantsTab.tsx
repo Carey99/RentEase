@@ -93,8 +93,8 @@ export default function TenantsTab() {
   if (tenantsQuery.isError) {
     return (
       <div className="text-center py-12">
-        <h2 className="text-xl font-semibold text-neutral-900 mb-2">Error Loading Tenants</h2>
-        <p className="text-neutral-600 mb-4">There was an error loading your tenants. Please try again.</p>
+        <h2 className="text-xl font-semibold text-neutral-900 dark:text-white mb-2">Error Loading Tenants</h2>
+        <p className="text-neutral-600 dark:text-neutral-400 mb-4">There was an error loading your tenants. Please try again.</p>
         <Button onClick={() => tenantsQuery.refetch()} className="bg-primary hover:bg-secondary">
           Retry
         </Button>
@@ -105,9 +105,9 @@ export default function TenantsTab() {
   return (
     <div className="relative h-full flex flex-col">
       {/* Sticky Tabs and Filters */}
-      <div className="sticky top-0 z-20 bg-white">
+      <div className="sticky top-0 z-20 bg-white dark:bg-slate-900">
         <div className="flex justify-between items-center pt-6 px-2">
-          <h2 className="text-xl font-semibold text-neutral-900">Tenants</h2>
+          <h2 className="text-xl font-semibold text-neutral-900 dark:text-white">Tenants</h2>
           <div className="flex gap-2">
             <BulkReminderButton tenants={filteredTenants} />
             <Button 
@@ -126,7 +126,7 @@ export default function TenantsTab() {
             className={`relative px-4 py-3 text-sm font-medium transition-colors ${
               activeTab === "all"
                 ? "text-primary border-b-2 border-primary -mb-px"
-                : "text-neutral-600 hover:text-neutral-900"
+                : "text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white"
             }`}
           >
             All Tenants
@@ -136,7 +136,7 @@ export default function TenantsTab() {
             className={`relative px-4 py-3 text-sm font-medium transition-colors flex items-center gap-2 ${
               activeTab === "overdue"
                 ? "text-primary border-b-2 border-primary -mb-px"
-                : "text-neutral-600 hover:text-neutral-900"
+                : "text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white"
             }`}
           >
             Overdue

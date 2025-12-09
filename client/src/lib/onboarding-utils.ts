@@ -1,35 +1,41 @@
 import type { MotivationalContent } from "@/types/onboarding";
+import { Home, Shield, Building2, Zap } from "lucide-react";
 
 export function getMotivationalContent(currentStep: number): MotivationalContent {
   switch (currentStep) {
     case 1:
       return {
-        icon: "👋",
-        title: "Welcome Aboard!",
+        icon: Home,
+        title: "Welcome",
+        subtitle: "Aboard!",
         description: "Join thousands of users who trust RentEase for their property management needs."
       };
     case 2:
       return {
-        icon: "🔒",
-        title: "Security First",
+        icon: Shield,
+        title: "Security",
+        subtitle: "First",
         description: "Your data is protected with enterprise-grade security. Sleep peacefully knowing your information is safe."
       };
     case 3:
       return {
-        icon: "🏠",
-        title: "Almost There!",
+        icon: Building2,
+        title: "Almost",
+        subtitle: "There!",
         description: "Just a few more details and you'll be ready to start managing your rental experience like a pro."
       };
     case 4:
       return {
-        icon: "⚡",
-        title: "Final Touch!",
+        icon: Zap,
+        title: "Final",
+        subtitle: "Touch!",
         description: "Configure your utilities and complete your property setup. You're just one step away from going live!"
       };
     default:
       return {
-        icon: "",
+        icon: Home,
         title: "",
+        subtitle: "",
         description: ""
       };
   }

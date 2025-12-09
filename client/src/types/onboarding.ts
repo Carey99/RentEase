@@ -44,8 +44,9 @@ export interface OnboardingFormData {
 }
 
 export interface MotivationalContent {
-  icon: string;
+  icon: any; // Lucide icon component
   title: string;
+  subtitle: string;
   description: string;
 }
 

@@ -293,7 +293,7 @@ export default function PropertyDetailView({
       </div>
 
       {/* Hero Image & Quick Stats */}
-      <div className="bg-white rounded-2xl border border-neutral-200/60 overflow-hidden mb-6">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-neutral-200/60 dark:border-slate-700 overflow-hidden mb-6">
         <div className="relative h-64">
           <img 
             src={getPropertyImage(selectedProperty.id)} 
@@ -309,28 +309,28 @@ export default function PropertyDetailView({
               </span>
             </div>
             <div className="grid grid-cols-3 gap-4">
-              <div className="bg-white/95 backdrop-blur-sm rounded-xl p-3">
-                <div className="flex items-center gap-2 text-neutral-600 mb-1">
+              <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm rounded-xl p-3">
+                <div className="flex items-center gap-2 text-neutral-600 dark:text-neutral-400 mb-1">
                   <Home className="h-4 w-4" />
                   <span className="text-xs font-medium">Unit Types</span>
                 </div>
-                <p className="text-2xl font-bold text-neutral-900">{editingPropertyTypes.length}</p>
+                <p className="text-2xl font-bold text-neutral-900 dark:text-white">{editingPropertyTypes.length}</p>
               </div>
-              <div className="bg-white/95 backdrop-blur-sm rounded-xl p-3">
-                <div className="flex items-center gap-2 text-neutral-600 mb-1">
+              <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm rounded-xl p-3">
+                <div className="flex items-center gap-2 text-neutral-600 dark:text-neutral-400 mb-1">
                   <Building className="h-4 w-4" />
                   <span className="text-xs font-medium">Total Units</span>
                 </div>
-                <p className="text-2xl font-bold text-neutral-900">
+                <p className="text-2xl font-bold text-neutral-900 dark:text-white">
                   {editingPropertyTypes.reduce((sum, pt) => sum + (pt.units || 0), 0)}
                 </p>
               </div>
-              <div className="bg-white/95 backdrop-blur-sm rounded-xl p-3">
-                <div className="flex items-center gap-2 text-neutral-600 mb-1">
+              <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm rounded-xl p-3">
+                <div className="flex items-center gap-2 text-neutral-600 dark:text-neutral-400 mb-1">
                   <DollarSign className="h-4 w-4" />
                   <span className="text-xs font-medium">Utilities</span>
                 </div>
-                <p className="text-2xl font-bold text-neutral-900">{editingUtilities.length}</p>
+                <p className="text-2xl font-bold text-neutral-900 dark:text-white">{editingUtilities.length}</p>
               </div>
             </div>
           </div>
@@ -343,11 +343,11 @@ export default function PropertyDetailView({
         <div className="lg:col-span-2 space-y-6">
           
           {/* Unit Types & Pricing */}
-          <div className="bg-white rounded-xl border border-neutral-200/60 p-6">
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-neutral-200/60 dark:border-slate-700 p-6">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h3 className="text-lg font-semibold text-neutral-900">Unit Types & Pricing</h3>
-                <p className="text-sm text-neutral-500 mt-1">Manage different unit types and rental prices</p>
+                <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">Unit Types & Pricing</h3>
+                <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">Manage different unit types and rental prices</p>
               </div>
               {isEditing && (
                 <Button
@@ -375,8 +375,8 @@ export default function PropertyDetailView({
                         />
                       ) : (
                         <div>
-                          <p className="text-sm text-neutral-500">Type</p>
-                          <p className="font-medium text-neutral-900 capitalize">
+                          <p className="text-sm text-neutral-500 dark:text-neutral-400">Type</p>
+                          <p className="font-medium text-neutral-900 dark:text-white capitalize">
                             {propertyType.type.replace('bedroom', ' Bedroom')}
                           </p>
                         </div>
@@ -397,8 +397,8 @@ export default function PropertyDetailView({
                         </div>
                       ) : (
                         <div>
-                          <p className="text-sm text-neutral-500">Units</p>
-                          <p className="font-medium text-neutral-900">
+                          <p className="text-sm text-neutral-500 dark:text-neutral-400">Units</p>
+                          <p className="font-medium text-neutral-900 dark:text-white">
                             {propertyType.units || 1} unit{(propertyType.units || 1) > 1 ? 's' : ''}
                           </p>
                         </div>
@@ -486,10 +486,10 @@ export default function PropertyDetailView({
           </div>
 
           {/* Utilities Section */}
-          <div className="bg-white rounded-xl border border-neutral-200/60 p-6">
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-neutral-200/60 dark:border-slate-700 p-6">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h3 className="text-lg font-semibold text-neutral-900">Utilities</h3>
+                <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">Utilities</h3>
                 <p className="text-sm text-neutral-500 mt-1">Manage utilities and pricing per unit</p>
               </div>
               {isEditing && (
@@ -519,8 +519,8 @@ export default function PropertyDetailView({
                         />
                       ) : (
                         <div>
-                          <p className="text-sm text-neutral-500">Utility</p>
-                          <p className="font-medium text-neutral-900 capitalize">{utility.type}</p>
+                          <p className="text-sm text-neutral-500 dark:text-neutral-400">Utility</p>
+                          <p className="font-medium text-neutral-900 dark:text-white capitalize">{utility.type}</p>
                         </div>
                       )}
                     </div>
@@ -599,8 +599,8 @@ export default function PropertyDetailView({
 
         {/* Right Column - Rent Settings */}
         <div className="lg:col-span-1 space-y-6">
-          <div className="bg-white rounded-xl border border-neutral-200/60 p-6">
-            <h3 className="text-lg font-semibold text-neutral-900 mb-6">Rent Payment Settings</h3>
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-neutral-200/60 dark:border-slate-700 p-6">
+            <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-6">Rent Payment Settings</h3>
             
             <div className="space-y-5">
               <div>
@@ -652,28 +652,28 @@ export default function PropertyDetailView({
               </div>
 
               {!isEditing && (
-                <div className="pt-4 mt-4 border-t border-neutral-200/60">
+                <div className="pt-4 mt-4 border-t border-neutral-200/60 dark:border-slate-700">
                   <div className="space-y-3">
                     <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-                        <span className="text-sm font-semibold text-blue-600">{rentSettings.paymentDay}</span>
+                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                        <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">{rentSettings.paymentDay}</span>
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-neutral-900">Due on the {rentSettings.paymentDay}
+                        <p className="text-sm font-medium text-neutral-900 dark:text-white">Due on the {rentSettings.paymentDay}
                           {rentSettings.paymentDay === 1 ? 'st' : 
                            rentSettings.paymentDay === 2 ? 'nd' : 
                            rentSettings.paymentDay === 3 ? 'rd' : 'th'}
                         </p>
-                        <p className="text-xs text-neutral-500 mt-0.5">Monthly payment date</p>
+                        <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">Monthly payment date</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
-                        <span className="text-sm font-semibold text-green-600">{rentSettings.gracePeriodDays}</span>
+                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                        <span className="text-sm font-semibold text-green-600 dark:text-green-400">{rentSettings.gracePeriodDays}</span>
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-neutral-900">{rentSettings.gracePeriodDays} day grace period</p>
-                        <p className="text-xs text-neutral-500 mt-0.5">Before overdue status</p>
+                        <p className="text-sm font-medium text-neutral-900 dark:text-white">{rentSettings.gracePeriodDays} day grace period</p>
+                        <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">Before overdue status</p>
                       </div>
                     </div>
                   </div>

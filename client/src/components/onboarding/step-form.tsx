@@ -35,8 +35,8 @@ export default function StepForm({
   return (
     <div className="step-form" data-testid={testId}>
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-neutral-900 mb-2">{title}</h2>
-        <p className="text-neutral-600">{description}</p>
+        <h2 className="text-2xl font-bold text-neutral-900 dark:text-white mb-2">{title}</h2>
+        <p className="text-neutral-600 dark:text-neutral-400">{description}</p>
       </div>
 
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -48,7 +48,7 @@ export default function StepForm({
               type="button"
               variant="outline"
               onClick={onBack}
-              className="flex-1 bg-neutral-100 hover:bg-neutral-200 text-neutral-700"
+              className="flex-1 bg-neutral-100 dark:bg-slate-800 hover:bg-neutral-200 dark:hover:bg-slate-700 text-neutral-700 dark:text-neutral-300"
               data-testid="button-back"
             >
               <ArrowLeft className="mr-2 h-4 w-4" />

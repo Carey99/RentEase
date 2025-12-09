@@ -46,7 +46,7 @@ export default function PropertyListView({
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-semibold text-neutral-900">Your Properties</h2>
+        <h2 className="text-xl font-semibold text-neutral-900 dark:text-white">Your Properties</h2>
         <Button 
           className="bg-primary hover:bg-primary/90" 
           data-testid="button-add-property" 
@@ -58,10 +58,10 @@ export default function PropertyListView({
       </div>
 
       {properties.length === 0 ? (
-        <div className="bg-white rounded-xl border border-neutral-200/60 p-12 text-center">
-          <Building className="h-12 w-12 mx-auto text-neutral-300 mb-4" />
-          <h3 className="text-lg font-medium text-neutral-900 mb-2">No properties yet</h3>
-          <p className="text-neutral-600 mb-6">Get started by adding your first rental property.</p>
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-neutral-200/60 dark:border-slate-700 p-12 text-center">
+          <Building className="h-12 w-12 mx-auto text-neutral-300 dark:text-neutral-600 mb-4" />
+          <h3 className="text-lg font-medium text-neutral-900 dark:text-white mb-2">No properties yet</h3>
+          <p className="text-neutral-600 dark:text-neutral-400 mb-6">Get started by adding your first rental property.</p>
           <Button 
             className="bg-primary hover:bg-primary/90" 
             data-testid="button-add-first-property" 
@@ -76,7 +76,7 @@ export default function PropertyListView({
           {properties.map((property: any) => (
             <div 
               key={property.id} 
-              className="group bg-white rounded-2xl border border-neutral-200/60 overflow-hidden hover:border-neutral-300 transition-all cursor-pointer"
+              className="group bg-white dark:bg-slate-900 rounded-2xl border border-neutral-200/60 dark:border-slate-700 overflow-hidden hover:border-neutral-300 dark:hover:border-slate-600 transition-all cursor-pointer"
               onClick={() => handleViewProperty(property)}
             >
               <div className="relative overflow-hidden">
@@ -89,14 +89,14 @@ export default function PropertyListView({
               <div className="p-5">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1">
-                    <h3 className="text-base font-semibold text-neutral-900 mb-1">{property.name}</h3>
-                    <p className="text-xs text-neutral-500">
+                    <h3 className="text-base font-semibold text-neutral-900 dark:text-white mb-1">{property.name}</h3>
+                    <p className="text-xs text-neutral-500 dark:text-neutral-400">
                       {property.propertyTypes?.length || 0} unit type(s) available
                     </p>
                   </div>
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-green-50 rounded-full">
-                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
-                    <span className="text-xs font-medium text-green-700">Active</span>
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-green-50 dark:bg-green-900/30 rounded-full">
+                    <span className="w-1.5 h-1.5 bg-green-500 dark:bg-green-400 rounded-full"></span>
+                    <span className="text-xs font-medium text-green-700 dark:text-green-400">Active</span>
                   </div>
                 </div>
                 
