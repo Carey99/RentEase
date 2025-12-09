@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ArrowLeft, Eye, EyeOff, LogIn, Home } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, LogIn, Home, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/hooks/useAuth";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { getSessionPropertyImage } from "@/lib/property-images";
+import { useImagePreload } from "@/hooks/useImagePreload";
 
 const signinSchema = z.object({
   email: z.string().email("Please enter a valid email"),
@@ -28,6 +29,9 @@ export default function SigninPage() {
 
   // Get a random property image for this session
   const propertyImage = useMemo(() => getSessionPropertyImage(), []);
+  
+  // Preload the image for smooth rendering
+  const { isLoaded: imageLoaded } = useImagePreload(propertyImage.url);
 
   const form = useForm<SigninFormData>({
     resolver: zodResolver(signinSchema),
@@ -181,11 +185,28 @@ export default function SigninPage() {
       </div>
 
       {/* Right Side - Motivational Image */}
-      <div className="flex-1 relative hidden lg:block overflow-hidden">
+      <div className="flex-1 relative hidden lg:block overflow-hidden bg-slate-100 dark:bg-slate-900">
+        {/* Blur placeholder - shows instantly */}
+        {propertyImage.blurDataUrl && (
+          <img 
+            src={propertyImage.blurDataUrl}
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover scale-110 blur-xl"
+            aria-hidden="true"
+          />
+        )}
+        
+        {/* Main high-quality image */}
         <img 
           src={propertyImage.url}
           alt={propertyImage.alt}
-          className="w-full h-full object-cover"
+          className={`relative w-full h-full object-cover transition-opacity duration-700 ${
+            imageLoaded ? 'opacity-100' : 'opacity-0'
+          }`}
+          onLoad={() => setImageLoaded(true)}
+          loading="eager"
+          decoding="async"
+          fetchpriority="high"
         />
         
         {/* Left-to-Right Dark Gradient Overlay */}
