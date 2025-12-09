@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/hooks/useAuth";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { getSessionPropertyImage } from "@/lib/property-images";
 
 const signinSchema = z.object({
   email: z.string().email("Please enter a valid email"),
@@ -24,6 +25,9 @@ export default function SigninPage() {
   const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Get a random property image for this session
+  const propertyImage = useMemo(() => getSessionPropertyImage(), []);
 
   const form = useForm<SigninFormData>({
     resolver: zodResolver(signinSchema),
@@ -179,8 +183,8 @@ export default function SigninPage() {
       {/* Right Side - Motivational Image */}
       <div className="flex-1 relative hidden lg:block overflow-hidden">
         <img 
-          src="https://images.unsplash.com/photo-1560472354-b33ff0c44a43?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1920&h=1080"
-          alt="Welcome back to RentEase" 
+          src={propertyImage.url}
+          alt={propertyImage.alt}
           className="w-full h-full object-cover"
         />
         
