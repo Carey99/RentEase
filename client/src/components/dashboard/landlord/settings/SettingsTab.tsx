@@ -259,17 +259,17 @@ export default function ModernSettingsTab() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="email" className="text-sm font-medium text-neutral-700">Email Address</Label>
+                    <Label htmlFor="email" className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Email Address</Label>
                     <Input 
                       id="email"
                       type="email"
                       value={settings.profile.email}
-                      onChange={(e) => setSettings({
-                        ...settings,
-                        profile: { ...settings.profile, email: e.target.value }
-                      })}
-                      className="h-11"
+                      readOnly
+                      disabled
+                      className="h-11 bg-neutral-50 dark:bg-slate-800 cursor-not-allowed opacity-60"
+                      title="Email address cannot be changed"
                     />
+                    <p className="text-xs text-neutral-500 dark:text-neutral-400">Email address cannot be changed for security reasons</p>
                   </div>
 
                   <div className="space-y-2">
