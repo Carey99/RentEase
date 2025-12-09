@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ArrowLeft, Eye, EyeOff, LogIn, Home, Loader2 } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, LogIn, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,7 +11,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/hooks/useAuth";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { getSessionPropertyImage } from "@/lib/property-images";
-import { useImagePreload } from "@/hooks/useImagePreload";
 
 const signinSchema = z.object({
   email: z.string().email("Please enter a valid email"),
@@ -26,12 +25,10 @@ export default function SigninPage() {
   const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
 
   // Get a random property image for this session
   const propertyImage = useMemo(() => getSessionPropertyImage(), []);
-  
-  // Preload the image for smooth rendering
-  const { isLoaded: imageLoaded } = useImagePreload(propertyImage.url);
 
   const form = useForm<SigninFormData>({
     resolver: zodResolver(signinSchema),
