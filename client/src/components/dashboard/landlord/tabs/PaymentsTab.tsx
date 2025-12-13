@@ -48,7 +48,7 @@ export function PaymentsTab({ landlordId }: PaymentsTabProps) {
   return (
     <div className="space-y-0 h-full flex flex-col">
       {/* Fixed header - stays at top while content scrolls */}
-      <div className="sticky top-0 z-10 bg-white dark:bg-slate-950 pb-4 space-y-4">
+      <div className="sticky top-0 z-10 bg-white dark:bg-slate-900 pb-4 space-y-4">
         <div className="flex flex-col gap-3">
           <div>
             <h2 className={`${isMobile ? 'text-xl' : 'text-3xl'} font-semibold tracking-tight text-gray-900 dark:text-white`}>
