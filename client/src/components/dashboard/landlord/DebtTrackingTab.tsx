@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertCircle, CheckCircle, DollarSign, TrendingUp, AlertTriangle, Mail, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { isTransactionRecord, expectedForBill, paidForBill, balanceForBill, sumOutstanding, expectedForCurrentMonth, balanceForCurrentMonth } from "@/lib/payment-utils";
 
 interface PaymentRecord {
@@ -48,6 +49,7 @@ export default function DebtTrackingTab({ tenants }: DebtTrackingTabProps) {
   const currentMonth = now.getMonth() + 1;
   const currentYear = now.getFullYear();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
 
   // State for selected month filter
   const [selectedMonth, setSelectedMonth] = useState<number>(currentMonth);
@@ -361,26 +363,130 @@ export default function DebtTrackingTab({ tenants }: DebtTrackingTabProps) {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Tenant</TableHead>
-                  <TableHead>Property / Unit</TableHead>
-                  <TableHead>{MONTHS[selectedMonth - 1]} {selectedYear}</TableHead>
-                  <TableHead className="text-right">Expected</TableHead>
-                  <TableHead className="text-right">Paid</TableHead>
-                  <TableHead className="text-right">Balance</TableHead>
-                  <TableHead className="text-right">Last Paid</TableHead>
-                  <TableHead className="text-right">Total Owed</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-center">Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sortedTenants.length === 0 ? (
+          {/* Mobile View - Card Layout */}
+          {isMobile ? (
+            <div className="space-y-3">
+              {sortedTenants.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="flex flex-col items-center gap-3">
+                    <AlertTriangle className="h-12 w-12 text-neutral-300" />
+                    <div className="text-neutral-500">
+                      <p className="font-medium">No payment records yet</p>
+                      <p className="text-sm mt-1">Record payments to track debts</p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                sortedTenants.map((tenant) => (
+                  <Card 
+                    key={tenant.tenantId}
+                    className={`${tenant.hasDebt ? 'border-red-200 bg-red-50/30' : 'border-green-200 bg-green-50/30'}`}
+                  >
+                    <CardContent className="p-4 space-y-3">
+                      {/* Header with Name and Status */}
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-neutral-900 dark:text-white truncate">
+                            {tenant.tenantName}
+                          </h3>
+                          <p className="text-sm text-neutral-600 dark:text-neutral-400 truncate">
+                            {tenant.propertyName} • Unit {tenant.unitNumber}
+                          </p>
+                        </div>
+                        {getStatusBadge(tenant.selectedMonth.status)}
+                      </div>
+
+                      {/* Total Owed - Prominent */}
+                      <div className="p-3 bg-white dark:bg-slate-800 rounded-lg border">
+                        <div className="text-xs text-neutral-500 dark:text-neutral-400 mb-1">Total Owed</div>
+                        <div className={`text-2xl font-bold ${
+                          tenant.totalDebt > 0 ? 'text-red-600' : 'text-green-600'
+                        }`}>
+                          KSH {tenant.totalDebt.toLocaleString()}
+                        </div>
+                      </div>
+
+                      {/* Details Grid */}
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <div className="text-xs text-neutral-500 dark:text-neutral-400">Expected</div>
+                          <div className="font-semibold text-neutral-900 dark:text-white">
+                            KSH {tenant.selectedMonth.expected.toLocaleString()}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-neutral-500 dark:text-neutral-400">Paid</div>
+                          <div className="font-semibold text-green-600">
+                            KSH {tenant.selectedMonth.paid.toLocaleString()}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-neutral-500 dark:text-neutral-400">Balance</div>
+                          <div className={`font-semibold ${
+                            tenant.selectedMonth.balance > 0 ? 'text-red-600' : 'text-green-600'
+                          }`}>
+                            KSH {tenant.selectedMonth.balance.toLocaleString()}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-neutral-500 dark:text-neutral-400">Last Paid</div>
+                          <div className="font-medium text-neutral-700 dark:text-neutral-300">
+                            {tenant.lastPayment.daysSince !== null
+                              ? tenant.lastPayment.daysSince === 0 
+                                ? 'Today' 
+                                : `${tenant.lastPayment.daysSince}d ago`
+                              : 'Never'}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Action Button - Always Visible */}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleSendReminder(tenant.tenantId, tenant.tenantName)}
+                        disabled={sendingReminder === tenant.tenantId}
+                        className="w-full"
+                      >
+                        {sendingReminder === tenant.tenantId ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Sending...
+                          </>
+                        ) : (
+                          <>
+                            <Mail className="mr-2 h-4 w-4" />
+                            Send Payment Reminder
+                          </>
+                        )}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
+          ) : (
+            /* Desktop View - Table Layout */
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-12">
+                    <TableHead>Tenant</TableHead>
+                    <TableHead>Property / Unit</TableHead>
+                    <TableHead>{MONTHS[selectedMonth - 1]} {selectedYear}</TableHead>
+                    <TableHead className="text-right">Expected</TableHead>
+                    <TableHead className="text-right">Paid</TableHead>
+                    <TableHead className="text-right">Balance</TableHead>
+                    <TableHead className="text-right">Last Paid</TableHead>
+                    <TableHead className="text-right">Total Owed</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-center">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sortedTenants.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={10} className="text-center py-12">
                       <div className="flex flex-col items-center gap-3">
                         <AlertTriangle className="h-12 w-12 text-neutral-300" />
                         <div className="text-neutral-500">
@@ -493,7 +599,8 @@ export default function DebtTrackingTab({ tenants }: DebtTrackingTabProps) {
                 )}
               </TableBody>
             </Table>
-          </div>
+            </div>
+          )}
 
           {/* Historical Debts Breakdown */}
           {sortedTenants.some(t => t.historicalDebts.length > 0) && (
