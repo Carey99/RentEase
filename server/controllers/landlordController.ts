@@ -85,8 +85,9 @@ export class LandlordController {
         return res.status(400).json({ error: "Current password and new password are required" });
       }
 
-      if (newPassword.length < 6) {
-        return res.status(400).json({ error: "New password must be at least 6 characters long" });
+      const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z\d]).{8,}$/;
+      if (!passwordRegex.test(newPassword)) {
+        return res.status(400).json({ error: "Password must be at least 8 characters and contain uppercase, lowercase, number, and symbol" });
       }
 
       const success = await storage.changeLandlordPassword(landlordId, currentPassword, newPassword);

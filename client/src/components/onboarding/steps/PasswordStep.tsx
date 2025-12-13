@@ -42,7 +42,7 @@ export function PasswordStep({
               id="password"
               type={showPassword ? "text" : "password"}
               {...form.register("password")}
-              placeholder="Enter your password"
+              placeholder="Min 8 chars with uppercase, lowercase, number, symbol"
               data-testid="input-password"
             />
             <Button

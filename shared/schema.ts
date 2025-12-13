@@ -33,7 +33,10 @@ export const landlordSchema = z.object({
   fullName: z.string().min(2, "Full name must be at least 2 characters"),
   email: z.string().email("Please enter a valid email"),
   phone: z.string().optional(),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  password: z.string().min(8, "Password must be at least 8 characters").regex(
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z\d]).{8,}$/,
+    "Password must contain uppercase, lowercase, number, and symbol"
+  ),
   role: z.literal("landlord"),
   properties: z.array(z.string()).optional(), // Array of property IDs
   createdAt: z.date().optional(),
@@ -46,7 +49,10 @@ export const tenantSchema = z.object({
   fullName: z.string().min(2, "Full name must be at least 2 characters"),
   email: z.string().email("Please enter a valid email"),
   phone: z.string().optional(),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  password: z.string().min(8, "Password must be at least 8 characters").regex(
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z\d]).{8,}$/,
+    "Password must contain uppercase, lowercase, number, and symbol"
+  ),
   role: z.literal("tenant"),
   status: z.enum(["active", "pending", "inactive", "overdue"]).default("active").optional(),
   apartmentInfo: z.object({
@@ -123,7 +129,10 @@ export const insertUserSchema = z.object({
   fullName: z.string().min(2, "Full name must be at least 2 characters"),
   email: z.string().email("Please enter a valid email"),
   phone: z.string().min(1, "Phone number is required"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  password: z.string().min(8, "Password must be at least 8 characters").regex(
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z\d]).{8,}$/,
+    "Password must contain uppercase, lowercase, number, and symbol"
+  ),
   role: z.enum(["landlord", "tenant"]),
 });
 
