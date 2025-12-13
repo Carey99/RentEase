@@ -7,6 +7,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { CheckCircle2, XCircle, Loader2, Smartphone, Building2, AlertCircle, Eye, EyeOff, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
@@ -44,6 +45,7 @@ interface ConfigStatus {
 
 export function MpesaSetupWizard({ landlordId }: MpesaSetupWizardProps) {
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   const [loading, setLoading] = useState(false);
   const [testing, setTesting] = useState(false);
   const [fetchingStatus, setFetchingStatus] = useState(true);
@@ -270,39 +272,39 @@ export function MpesaSetupWizard({ landlordId }: MpesaSetupWizardProps) {
     <div className="space-y-6">
       {/* Status Header */}
       {status?.isConfigured && (
-        <div className="grid grid-cols-4 gap-4">
+        <div className={`grid ${isMobile ? 'grid-cols-2' : 'grid-cols-4'} gap-3`}>
           <Card className="border-gray-200 dark:border-gray-700">
-            <CardContent className="pt-6">
+            <CardContent className="pt-4 pb-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Status</p>
+                  <p className="text-[10px] md:text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Status</p>
                   <p className="text-sm font-semibold text-gray-900 dark:text-white mt-1">
                     {status.isActive ? 'Active' : 'Inactive'}
                   </p>
                 </div>
                 {status.isActive ? (
-                  <CheckCircle2 className="h-5 w-5 text-green-600" />
+                  <CheckCircle2 className="h-4 w-4 md:h-5 md:w-5 text-green-600" />
                 ) : (
-                  <XCircle className="h-5 w-5 text-amber-600" />
+                  <XCircle className="h-4 w-4 md:h-5 md:w-5 text-amber-600" />
                 )}
               </div>
             </CardContent>
           </Card>
 
           <Card className="border-gray-200 dark:border-gray-700">
-            <CardContent className="pt-6">
+            <CardContent className="pt-4 pb-4">
               <div>
-                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Type</p>
+                <p className="text-[10px] md:text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Type</p>
                 <p className="text-sm font-semibold text-gray-900 dark:text-white mt-1 capitalize">{status.businessType}</p>
               </div>
             </CardContent>
           </Card>
 
           <Card className="border-gray-200 dark:border-gray-700">
-            <CardContent className="pt-6">
+            <CardContent className="pt-4 pb-4">
               <div>
-                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Environment</p>
-                <Badge className="mt-1" variant={status.environment === 'production' ? 'destructive' : 'secondary'}>
+                <p className="text-[10px] md:text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Environment</p>
+                <Badge className="mt-1 text-[10px] md:text-xs" variant={status.environment === 'production' ? 'destructive' : 'secondary'}>
                   {status.environment}
                 </Badge>
               </div>
@@ -310,9 +312,9 @@ export function MpesaSetupWizard({ landlordId }: MpesaSetupWizardProps) {
           </Card>
 
           <Card className="border-gray-200 dark:border-gray-700">
-            <CardContent className="pt-6">
+            <CardContent className="pt-4 pb-4">
               <div>
-                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Short Code</p>
+                <p className="text-[10px] md:text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Short Code</p>
                 <p className="text-sm font-semibold text-gray-900 dark:text-white mt-1">{status.businessShortCode}</p>
               </div>
             </CardContent>
@@ -502,40 +504,38 @@ export function MpesaSetupWizard({ landlordId }: MpesaSetupWizardProps) {
         </ConfigSection>
 
         {/* Action Buttons */}
-        <div className="flex gap-2 justify-between pt-4">
-          <div className="flex gap-2">
-            {status?.isConfigured && (
-              <>
-                <Button
-                  type="button"
-                  onClick={handleTest}
-                  disabled={testing || loading}
-                  variant="outline"
-                  className="text-sm"
-                >
-                  {testing ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Testing...
-                    </>
-                  ) : (
-                    'Test Connection'
-                  )}
-                </Button>
-                <Button
-                  type="button"
-                  onClick={handleRemove}
-                  disabled={loading || testing}
-                  variant="destructive"
-                  className="text-sm"
-                >
-                  Deactivate
-                </Button>
-              </>
-            )}
-          </div>
+        <div className={`${isMobile ? 'flex-col space-y-2' : 'flex gap-2 justify-between'} pt-4`}>
+          {status?.isConfigured && (
+            <div className={`flex gap-2 ${isMobile ? 'w-full' : ''}`}>
+              <Button
+                type="button"
+                onClick={handleTest}
+                disabled={testing || loading}
+                variant="outline"
+                className={`text-sm ${isMobile ? 'flex-1' : ''}`}
+              >
+                {testing ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Testing...
+                  </>
+                ) : (
+                  'Test Connection'
+                )}
+              </Button>
+              <Button
+                type="button"
+                onClick={handleRemove}
+                disabled={loading || testing}
+                variant="destructive"
+                className={`text-sm ${isMobile ? 'flex-1' : ''}`}
+              >
+                Deactivate
+              </Button>
+            </div>
+          )}
 
-          <div className="flex gap-2">
+          <div className={`flex gap-2 ${isMobile ? 'w-full' : ''}`}>
             <Button
               type="button"
               variant="outline"
@@ -549,14 +549,14 @@ export function MpesaSetupWizard({ landlordId }: MpesaSetupWizardProps) {
                 passkey: '',
                 environment: 'sandbox'
               })}
-              className="text-sm"
+              className={`text-sm ${isMobile ? 'flex-1' : ''}`}
             >
               Clear
             </Button>
             <Button
               type="submit"
               disabled={loading}
-              className="text-sm"
+              className={`text-sm ${isMobile ? 'flex-1' : ''}`}
             >
               {loading ? (
                 <>
@@ -581,13 +581,13 @@ export function MpesaSetupWizard({ landlordId }: MpesaSetupWizardProps) {
             </h3>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
-            <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-slate-900/30">
-              <div className="flex items-start gap-3">
-                <Smartphone className="h-5 w-5 text-gray-400 flex-shrink-0 mt-0.5" />
-                <div>
-                  <h4 className="font-medium text-sm text-gray-900 dark:text-white">How to Get Credentials</h4>
-                  <ol className="text-xs text-gray-600 dark:text-gray-400 space-y-1 mt-2 list-decimal list-inside">
+          <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-3'} gap-3 md:gap-4`}>
+            <div className="p-3 md:p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-slate-900/30">
+              <div className="flex items-start gap-2 md:gap-3">
+                <Smartphone className="h-4 w-4 md:h-5 md:w-5 text-gray-400 flex-shrink-0 mt-0.5" />
+                <div className="min-w-0 flex-1">
+                  <h4 className="font-medium text-xs md:text-sm text-gray-900 dark:text-white">How to Get Credentials</h4>
+                  <ol className="text-[10px] md:text-xs text-gray-600 dark:text-gray-400 space-y-1 mt-2 list-decimal list-inside">
                     <li>Visit Safaricom Daraja</li>
                     <li>Create developer account</li>
                     <li>Create new app</li>
@@ -597,12 +597,12 @@ export function MpesaSetupWizard({ landlordId }: MpesaSetupWizardProps) {
               </div>
             </div>
 
-            <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-slate-900/30">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="h-5 w-5 text-gray-400 flex-shrink-0 mt-0.5" />
-                <div>
-                  <h4 className="font-medium text-sm text-gray-900 dark:text-white">Important Notes</h4>
-                  <ul className="text-xs text-gray-600 dark:text-gray-400 space-y-1 mt-2 list-disc list-inside">
+            <div className="p-3 md:p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-slate-900/30">
+              <div className="flex items-start gap-2 md:gap-3">
+                <AlertCircle className="h-4 w-4 md:h-5 md:w-5 text-gray-400 flex-shrink-0 mt-0.5" />
+                <div className="min-w-0 flex-1">
+                  <h4 className="font-medium text-xs md:text-sm text-gray-900 dark:text-white">Important Notes</h4>
+                  <ul className="text-[10px] md:text-xs text-gray-600 dark:text-gray-400 space-y-1 mt-2 list-disc list-inside">
                     <li>Keep credentials secure</li>
                     <li>Test in sandbox first</li>
                     <li>Never share secrets</li>
@@ -611,12 +611,12 @@ export function MpesaSetupWizard({ landlordId }: MpesaSetupWizardProps) {
               </div>
             </div>
 
-            <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-slate-900/30">
-              <div className="flex items-start gap-3">
-                <CheckCircle2 className="h-5 w-5 text-gray-400 flex-shrink-0 mt-0.5" />
-                <div>
-                  <h4 className="font-medium text-sm text-gray-900 dark:text-white">Next Steps</h4>
-                  <ol className="text-xs text-gray-600 dark:text-gray-400 space-y-1 mt-2 list-decimal list-inside">
+            <div className="p-3 md:p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-slate-900/30">
+              <div className="flex items-start gap-2 md:gap-3">
+                <CheckCircle2 className="h-4 w-4 md:h-5 md:w-5 text-gray-400 flex-shrink-0 mt-0.5" />
+                <div className="min-w-0 flex-1">
+                  <h4 className="font-medium text-xs md:text-sm text-gray-900 dark:text-white">Next Steps</h4>
+                  <ol className="text-[10px] md:text-xs text-gray-600 dark:text-gray-400 space-y-1 mt-2 list-decimal list-inside">
                     <li>Enter credentials</li>
                     <li>Test connection</li>
                     <li>Go live</li>
