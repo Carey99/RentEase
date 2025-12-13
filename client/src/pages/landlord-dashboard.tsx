@@ -2,6 +2,9 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Sidebar from "@/components/dashboard/sidebar";
+import BottomNav from "@/components/dashboard/BottomNav";
+import MobileHeader from "@/components/dashboard/MobileHeader";
+import { NotificationBell } from "@/components/dashboard/NotificationBell";
 import DashboardTab from "@/components/dashboard/landlord/tabs/DashboardTab";
 import PropertiesTab from "@/components/dashboard/landlord/tabs/PropertiesTab";
 import TenantsTab from "@/components/dashboard/landlord/tabs/TenantsTab";
@@ -13,6 +16,7 @@ import { PaymentsTab } from "@/components/dashboard/landlord/tabs/PaymentsTab";
 import { useDashboard, useCurrentUser, useLandlordDetailsQuery } from "@/hooks/dashboard/useDashboard";
 import type { Property } from "@/types/dashboard";
 import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function LandlordDashboard() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -26,6 +30,7 @@ export default function LandlordDashboard() {
   const { data: landlordDetails } = useLandlordDetailsQuery(currentUser);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
 
   console.log('👤 Current User:', currentUser);
   console.log('🏠 Landlord Details:', landlordDetails);
@@ -224,18 +229,33 @@ export default function LandlordDashboard() {
   };
 
   return (
-    <div className="h-screen bg-neutral-50/50 overflow-hidden">
-      <div className="flex h-full">
+    <div className="min-h-screen bg-neutral-50 dark:bg-slate-900">
+      {/* Desktop Sidebar */}
+      {!isMobile && (
         <Sidebar 
           role="landlord" 
           userName={currentUser?.name || 'Landlord'}
           activeTab={activeTab}
           onTabChange={setActiveTab}
         />
-        
-        <main className="flex-1 flex flex-col h-screen bg-neutral-50 dark:bg-slate-900">
-          {/* Top Bar - Fixed */}
-          <div className="bg-white dark:bg-slate-950 border-b border-neutral-100 dark:border-slate-800 px-8 py-4 flex-shrink-0">
+      )}
+
+      {/* Mobile Header */}
+      {isMobile && (
+        <MobileHeader
+          role="landlord"
+          userName={landlordDetails?.fullName || currentUser?.name || 'Landlord'}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          showNotifications={<NotificationBell />}
+        />
+      )}
+
+      {/* Main Content */}
+      <main className={`min-h-screen ${!isMobile ? 'ml-64' : ''}`}>
+        {/* Desktop Top Bar */}
+        {!isMobile && (
+          <div className="bg-white dark:bg-slate-950 border-b border-neutral-100 dark:border-slate-800 px-6 lg:px-8 py-4 sticky top-0 z-30">
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-xl font-semibold text-neutral-900 dark:text-white tracking-tight">
@@ -259,13 +279,22 @@ export default function LandlordDashboard() {
               </div>
             </div>
           </div>
+        )}
 
-          {/* Content Area - Scrollable */}
-          <div className="flex-1 overflow-y-auto p-8">
-            {renderTabContent()}
-          </div>
-        </main>
-      </div>
+        {/* Content Area */}
+        <div className={`${isMobile ? 'pb-20 px-4 pt-4' : 'p-6 lg:p-8'}`}>
+          {renderTabContent()}
+        </div>
+      </main>
+
+      {/* Mobile Bottom Navigation */}
+      {isMobile && (
+        <BottomNav
+          role="landlord"
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+        />
+      )}
 
       {/* Add Property Dialog */}
       <AddPropertyDialog 

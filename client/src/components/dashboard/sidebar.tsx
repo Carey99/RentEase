@@ -37,7 +37,7 @@ export default function Sidebar({ role, userName, activeTab = 'dashboard', onTab
   };
 
   return (
-    <aside className="w-64 bg-white dark:bg-slate-950 border-r border-neutral-100 dark:border-slate-800 h-screen sticky top-0 flex flex-col">
+    <aside className="fixed left-0 top-0 w-64 bg-white dark:bg-slate-950 border-r border-neutral-100 dark:border-slate-800 h-screen flex flex-col z-40">
       {/* Header */}
       <div className="p-6 border-b border-neutral-100 dark:border-slate-800">
         <div className="flex items-center justify-between mb-1">

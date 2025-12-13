@@ -7,9 +7,10 @@ interface StatsCardProps {
   icon: ReactNode;
   color?: string;
   "data-testid"?: string;
+  compact?: boolean;
 }
 
-export default function StatsCard({ title, value, icon, color = "primary", "data-testid": testId }: StatsCardProps) {
+export default function StatsCard({ title, value, icon, color = "primary", "data-testid": testId, compact = false }: StatsCardProps) {
   const colorClasses = {
     primary: "bg-primary/10 dark:bg-primary/20 text-primary",
     green: "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400",
@@ -27,6 +28,22 @@ export default function StatsCard({ title, value, icon, color = "primary", "data
     red: "text-red-600 dark:text-red-400",
     accent: "text-neutral-900 dark:text-white",
   };
+
+  if (compact) {
+    return (
+      <div className="bg-white dark:bg-slate-900 rounded-xl p-4 border border-neutral-200/60 dark:border-slate-700" data-testid={testId}>
+        <div className="flex items-center gap-3">
+          <div className={`p-2 rounded-lg flex-shrink-0 ${colorClasses[color as keyof typeof colorClasses]}`}>
+            {icon}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate">{title}</p>
+            <p className={`text-lg md:text-xl font-bold ${valueColorClasses[color as keyof typeof valueColorClasses]} truncate`}>{value}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Card data-testid={testId}>
