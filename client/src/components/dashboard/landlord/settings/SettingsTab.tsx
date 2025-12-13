@@ -145,11 +145,11 @@ export default function ModernSettingsTab() {
       return;
     }
 
-    const strength = getPasswordStrength(passwordForm.newPassword);
-    if (strength.score < 3) {
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z\d]).{8,}$/;
+    if (!passwordRegex.test(passwordForm.newPassword)) {
       toast({
         title: "Error",
-        description: "Password is too weak",
+        description: "Password must be at least 8 characters and contain uppercase, lowercase, number, and symbol",
         variant: "destructive",
       });
       return;
@@ -453,7 +453,7 @@ export default function ModernSettingsTab() {
                       <Input 
                         id="newPassword"
                         type={showPassword.new ? "text" : "password"}
-                        placeholder="Enter new password"
+                        placeholder="Min 8 chars with uppercase, lowercase, number, symbol"
                         value={passwordForm.newPassword}
                         onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
                         className="h-11 pr-10"

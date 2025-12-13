@@ -116,20 +116,11 @@ export default function TenantSettingsTab({ tenantId }: TenantSettingsTabProps) 
       return;
     }
 
-    if (passwordForm.newPassword.length < 8) {
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z\d]).{8,}$/;
+    if (!passwordRegex.test(passwordForm.newPassword)) {
       toast({
         title: "Error",
-        description: "New password must be at least 8 characters long",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const strength = getPasswordStrength(passwordForm.newPassword);
-    if (strength.score < 3) {
-      toast({
-        title: "Error",
-        description: "Password is too weak. Please use a mix of uppercase, lowercase, numbers, and special characters",
+        description: "Password must be at least 8 characters and contain uppercase, lowercase, number, and symbol",
         variant: "destructive",
       });
       return;
@@ -292,7 +283,7 @@ export default function TenantSettingsTab({ tenantId }: TenantSettingsTabProps) 
                 <Label className="text-sm text-gray-600 dark:text-gray-400">New Password</Label>
                 <Input
                   type="password"
-                  placeholder="Enter new password (min. 8 characters)"
+                  placeholder="Min 8 chars with uppercase, lowercase, number, symbol"
                   value={passwordForm.newPassword}
                   onChange={(e) => setPasswordForm({
                     ...passwordForm,

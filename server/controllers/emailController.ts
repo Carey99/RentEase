@@ -35,9 +35,19 @@ export async function sendManualReminder(req: Request, res: Response) {
       return res.status(404).json({ error: 'Tenant not found' });
     }
 
+    // Check if tenant has apartment info
+    if (!tenant.apartmentInfo || !tenant.apartmentInfo.landlordId) {
+      console.log(`❌ Tenant ${tenantId} has no apartment assignment or landlordId`);
+      return res.status(400).json({ error: 'Tenant has no property assignment' });
+    }
+
     // Verify tenant belongs to this landlord
-    if (tenant.apartmentInfo?.landlordId?.toString() !== landlordId) {
-      return res.status(403).json({ error: 'Access denied' });
+    const tenantLandlordId = tenant.apartmentInfo.landlordId.toString();
+    console.log(`🔍 Access check: tenant landlordId=${tenantLandlordId}, session landlordId=${landlordId}`);
+    
+    if (tenantLandlordId !== landlordId) {
+      console.log(`❌ Access denied: landlordId mismatch`);
+      return res.status(403).json({ error: 'Access denied - This tenant does not belong to you' });
     }
 
     // Get landlord details
@@ -173,9 +183,16 @@ export async function sendBulkReminders(req: Request, res: Response) {
     
     const results = await Promise.allSettled(
       tenants.map(async (tenant) => {
+        // Check if tenant has apartment info
+        if (!tenant.apartmentInfo || !tenant.apartmentInfo.landlordId) {
+          console.warn(`⚠️  Skipping tenant ${tenant._id} - no apartment assignment`);
+          return { success: false, error: 'No apartment assignment' };
+        }
+
         // Verify tenant's landlordId matches (double-check for security)
-        if (tenant.apartmentInfo?.landlordId?.toString() !== landlordId) {
-          console.warn(`⚠️  Skipping tenant ${tenant._id} - landlord mismatch`);
+        const tenantLandlordId = tenant.apartmentInfo.landlordId.toString();
+        if (tenantLandlordId !== landlordId) {
+          console.warn(`⚠️  Skipping tenant ${tenant._id} - landlord mismatch (tenant: ${tenantLandlordId}, session: ${landlordId})`);
           return { success: false, error: 'Landlord mismatch' };
         }
 

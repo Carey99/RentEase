@@ -80,7 +80,7 @@ export async function sendWelcomeEmail(params: {
     );
 
     const { data, error } = await resend.emails.send({
-      from: `${params.landlordName} <${FROM_EMAIL}>`,
+      from: `RentEase <${FROM_EMAIL}>`,
       to: params.tenantEmail,
       subject: `Welcome to ${params.propertyName}!`,
       html: emailHtml,

@@ -197,8 +197,9 @@ export default function AddTenantDialog({ open, onOpenChange }: AddTenantDialogP
     }
     // Password validation
     const password = formData.password;
-    if (!password || password.length < 8 || !/^[a-zA-Z0-9]+$/.test(password)) {
-      setPasswordError("Password must be at least 8 alphanumeric characters.");
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z\d]).{8,}$/;
+    if (!password || !passwordRegex.test(password)) {
+      setPasswordError("Password must be at least 8 characters and contain uppercase, lowercase, number, and symbol.");
       return;
     }
     setPasswordError("");
@@ -261,7 +262,7 @@ export default function AddTenantDialog({ open, onOpenChange }: AddTenantDialogP
                   type="password"
                   value={formData.password}
                   onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                  placeholder="Set tenant password"
+                  placeholder="Min 8 chars with uppercase, lowercase, number, symbol"
                   minLength={8}
                   required
                 />

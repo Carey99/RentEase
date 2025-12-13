@@ -9,6 +9,7 @@ import { insertUserSchema } from "@shared/schema";
 import { ZodError } from "zod";
 import { logActivity, createActivityLog } from "./activityController";
 import { createUserSession, destroyUserSession } from "../middleware/auth";
+import { sendWelcomeEmail } from "../services/emailService";
 import bcrypt from 'bcryptjs';
 
 export class AuthController {
@@ -56,10 +57,11 @@ export class AuthController {
         sessionID: req.sessionID
       });
       
-      // Log activity if tenant was registered
+      // Send welcome email and log activity if tenant was registered
       if (user.role === 'tenant') {
         const tenant = await storage.getTenant(user.id);
         if (tenant && tenant.apartmentInfo?.landlordId) {
+          // Log activity
           await logActivity(createActivityLog(
             tenant.apartmentInfo.landlordId,
             'tenant_registered',
@@ -74,6 +76,27 @@ export class AuthController {
             },
             'medium'
           ));
+
+          // Send welcome email to tenant
+          if (tenant.apartmentInfo.propertyName && tenant.apartmentInfo.unitNumber && tenant.apartmentInfo.rentAmount) {
+            const landlord = await storage.getLandlord(tenant.apartmentInfo.landlordId);
+            if (landlord) {
+              console.log(`📧 Sending welcome email to new tenant: ${user.fullName}`);
+              await sendWelcomeEmail({
+                tenantId: user.id,
+                tenantName: user.fullName,
+                tenantEmail: user.email,
+                landlordId: landlord.id,
+                landlordName: landlord.fullName,
+                landlordEmail: landlord.email,
+                landlordPhone: landlord.phone,
+                propertyName: tenant.apartmentInfo.propertyName,
+                unitNumber: tenant.apartmentInfo.unitNumber,
+                rentAmount: parseFloat(tenant.apartmentInfo.rentAmount),
+                moveInDate: new Date().toLocaleDateString(),
+              });
+            }
+          }
         }
       }
       
