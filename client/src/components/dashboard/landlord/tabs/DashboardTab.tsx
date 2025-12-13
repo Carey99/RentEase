@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useCurrentUser } from "@/hooks/dashboard/useDashboard";
 import { useActivityNotifications } from "@/hooks/use-activity-notifications";
+import { useIsMobile } from "@/hooks/use-mobile";
+import StatsCard from "@/components/dashboard/stats-card";
 import type { Property } from "@/types/dashboard";
 import { formatDistanceToNow } from "date-fns";
 import { paidForBill, isTransactionRecord } from "@/lib/payment-utils";
@@ -18,6 +20,7 @@ interface DashboardTabProps {
 export default function DashboardTab({ properties }: DashboardTabProps) {
   const currentUser = useCurrentUser();
   const [expandedProperty, setExpandedProperty] = useState<string | null>(null);
+  const isMobile = useIsMobile();
 
   // Enable real-time activity notifications via WebSocket
   const { isConnected } = useActivityNotifications(
@@ -78,53 +81,41 @@ export default function DashboardTab({ properties }: DashboardTabProps) {
   };
 
   return (
-    <div>
+    <div className="space-y-4 md:space-y-6">
       {/* Top Stats Bar */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
-        <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-neutral-200/60 dark:border-slate-700">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
-              <Building className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-            </div>
-            <div>
-              <p className="text-xs text-neutral-500 dark:text-neutral-400">Total Properties</p>
-              <p className="text-2xl font-bold text-neutral-900 dark:text-white">{properties.length || 0}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-neutral-200/60 dark:border-slate-700">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-green-50 dark:bg-green-900/30 rounded-lg">
-              <Users className="h-5 w-5 text-green-600 dark:text-green-400" />
-            </div>
-            <div>
-              <p className="text-xs text-neutral-500 dark:text-neutral-400">Active Tenants</p>
-              <p className="text-2xl font-bold text-neutral-900 dark:text-white">{stats.activeTenants}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-neutral-200/60 dark:border-slate-700">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-orange-50 dark:bg-orange-900/30 rounded-lg">
-              <DollarSign className="h-5 w-5 text-orange-600 dark:text-orange-400" />
-            </div>
-            <div>
-              <p className="text-xs text-neutral-500 dark:text-neutral-400">Monthly Revenue</p>
-              <p className="text-2xl font-bold text-neutral-900 dark:text-white">KSH {stats.monthlyRevenue.toLocaleString()}</p>
-            </div>
-          </div>
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
+        <StatsCard
+          title="Total Properties"
+          value={properties.length || 0}
+          icon={<Building className="h-5 w-5" />}
+          color="blue"
+          compact={isMobile}
+        />
+        
+        <StatsCard
+          title="Active Tenants"
+          value={stats.activeTenants}
+          icon={<Users className="h-5 w-5" />}
+          color="green"
+          compact={isMobile}
+        />
+        
+        <StatsCard
+          title="Monthly Revenue"
+          value={`KSH ${stats.monthlyRevenue.toLocaleString()}`}
+          icon={<DollarSign className="h-5 w-5" />}
+          color="orange"
+          compact={isMobile}
+        />
       </div>
 
       {/* Main Content Grid */}
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Left Column - Recent Activity (2/3 width) */}
-        <div className="lg:col-span-2">
+      <div className="grid lg:grid-cols-3 gap-4 md:gap-6">
+        {/* Left Column - Recent Activity (2/3 width on desktop, full width on mobile) */}
+        <div className="lg:col-span-2 space-y-4 md:space-y-6">
           <div className="bg-white dark:bg-slate-900 rounded-xl border border-neutral-200/60 dark:border-slate-700">
-            <div className="p-5 flex items-center justify-between">
-              <h2 className="font-semibold text-neutral-900 dark:text-white">Recent Activity</h2>
+            <div className="p-4 md:p-5 flex items-center justify-between border-b border-neutral-100 dark:border-slate-800">
+              <h2 className="font-semibold text-neutral-900 dark:text-white text-base md:text-lg">Recent Activity</h2>
               <div className="flex items-center gap-2">
                 <div className={`h-2 w-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-gray-300 dark:bg-gray-600'}`} />
                 <span className="text-xs text-neutral-500 dark:text-neutral-400">
@@ -133,13 +124,13 @@ export default function DashboardTab({ properties }: DashboardTabProps) {
               </div>
             </div>
             
-            <div className="p-4">
+            <div className="p-3 md:p-4">
               {recentActivities.length === 0 ? (
-                <p className="text-neutral-500 text-center py-8">
+                <p className="text-neutral-500 text-center py-8 text-sm md:text-base">
                   No recent activity yet. Activity will appear here as you manage your properties and tenants.
                 </p>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-1">
                   {recentActivities.map((activity: any) => {
                     const iconMap: Record<string, any> = {
                       'user-plus': UserPlus,
@@ -166,21 +157,21 @@ export default function DashboardTab({ properties }: DashboardTabProps) {
                     const colorClass = priorityColors[activity.priority] || 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400';
 
                     return (
-                      <div key={activity._id} className="flex items-start gap-3 py-3 hover:bg-neutral-50/50 dark:hover:bg-slate-800/50 transition-colors">
-                        <div className={`p-2 rounded-full ${colorClass} flex-shrink-0`}>
-                          <IconComponent className="h-4 w-4" />
+                      <div key={activity._id} className="flex items-start gap-2 md:gap-3 py-2.5 md:py-3 px-2 md:px-0 hover:bg-neutral-50/50 dark:hover:bg-slate-800/50 rounded-lg transition-colors">
+                        <div className={`p-1.5 md:p-2 rounded-full ${colorClass} flex-shrink-0`}>
+                          <IconComponent className="h-3.5 w-3.5 md:h-4 md:w-4" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-neutral-900 dark:text-white">{activity.title}</p>
-                          <p className="text-xs text-neutral-600 dark:text-neutral-400 truncate">{activity.description}</p>
+                          <p className="text-xs md:text-sm font-medium text-neutral-900 dark:text-white line-clamp-1">{activity.title}</p>
+                          <p className="text-xs text-neutral-600 dark:text-neutral-400 line-clamp-1">{activity.description}</p>
                           {activity.metadata?.amount && (
-                            <p className="text-xs font-medium text-green-600 dark:text-green-400 mt-1">
+                            <p className="text-xs font-medium text-green-600 dark:text-green-400 mt-0.5 md:mt-1">
                               KSH {activity.metadata.amount.toLocaleString()}
                             </p>
                           )}
                         </div>
-                        <span className="text-xs text-neutral-400 dark:text-neutral-500 whitespace-nowrap">
-                          {formatDistanceToNow(new Date(activity.createdAt), { addSuffix: true })}
+                        <span className="text-[10px] md:text-xs text-neutral-400 dark:text-neutral-500 whitespace-nowrap flex-shrink-0">
+                          {formatDistanceToNow(new Date(activity.createdAt), { addSuffix: true }).replace('about ', '')}
                         </span>
                       </div>
                     );
@@ -197,42 +188,42 @@ export default function DashboardTab({ properties }: DashboardTabProps) {
           </div>
 
           {/* Property Overview Section Below Activity */}
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-neutral-200/60 dark:border-slate-700 mt-6">
-            <div className="p-5">
-              <h2 className="font-semibold text-neutral-900 dark:text-white flex items-center gap-2">
-                <Home className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-neutral-200/60 dark:border-slate-700">
+            <div className="p-4 md:p-5 border-b border-neutral-100 dark:border-slate-800">
+              <h2 className="font-semibold text-neutral-900 dark:text-white flex items-center gap-2 text-base md:text-lg">
+                <Home className="h-4 w-4 md:h-5 md:w-5 text-blue-600 dark:text-blue-400" />
                 Property Overview
               </h2>
             </div>
             
-            <div className="p-4">
+            <div className="p-3 md:p-4">
               {properties.length === 0 ? (
                 <div className="text-center py-8">
-                  <Building className="h-12 w-12 text-neutral-300 dark:text-neutral-600 mx-auto mb-3" />
-                  <p className="text-neutral-500 dark:text-neutral-400 mb-2">No properties yet</p>
-                  <p className="text-sm text-neutral-400 dark:text-neutral-500">Add your first property to get started!</p>
+                  <Building className="h-10 w-10 md:h-12 md:w-12 text-neutral-300 dark:text-neutral-600 mx-auto mb-3" />
+                  <p className="text-neutral-500 dark:text-neutral-400 mb-2 text-sm md:text-base">No properties yet</p>
+                  <p className="text-xs md:text-sm text-neutral-400 dark:text-neutral-500">Add your first property to get started!</p>
                 </div>
               ) : (
-                <div className="grid md:grid-cols-2 gap-4">
+                <div className="space-y-3 md:grid md:grid-cols-2 md:gap-4 md:space-y-0">
                   {properties.map((property: any) => {
                     const totalUnits = property.propertyTypes?.reduce((sum: number, pt: any) => sum + (pt.units || 0), 0) || 0;
                     const occupiedUnits = allTenants.filter((tenant: any) => tenant.propertyId === property.id).length;
                     const occupancyRate = totalUnits > 0 ? Math.round((occupiedUnits / totalUnits) * 100) : 0;
 
                     return (
-                      <div key={property.id} className="p-4 bg-neutral-50/50 dark:bg-slate-800/50 rounded-lg hover:bg-neutral-100/50 dark:hover:bg-slate-800 transition-colors">
-                        <h3 className="font-semibold text-neutral-900 dark:text-white mb-1">{property.name}</h3>
-                        <div className="flex items-center gap-3 text-sm text-neutral-600 dark:text-neutral-400 mb-3">
+                      <div key={property.id} className="p-3 md:p-4 bg-neutral-50/50 dark:bg-slate-800/50 rounded-lg hover:bg-neutral-100/50 dark:hover:bg-slate-800 transition-colors">
+                        <h3 className="font-semibold text-neutral-900 dark:text-white mb-1 text-sm md:text-base truncate">{property.name}</h3>
+                        <div className="flex items-center gap-2 md:gap-3 text-xs md:text-sm text-neutral-600 dark:text-neutral-400 mb-2 md:mb-3 flex-wrap">
                           <span>{totalUnits} Total</span>
                           <span>•</span>
                           <span className="text-green-600 dark:text-green-400">{occupiedUnits} Occupied</span>
                           <span>•</span>
                           <span className="text-orange-600 dark:text-orange-400">{totalUnits - occupiedUnits} Vacant</span>
                         </div>
-                        <div className="w-full bg-neutral-200 dark:bg-slate-700 rounded-full h-2">
+                        <div className="w-full bg-neutral-200 dark:bg-slate-700 rounded-full h-1.5 md:h-2">
                           <div 
                             className={cn(
-                              "h-2 rounded-full transition-all",
+                              "h-1.5 md:h-2 rounded-full transition-all",
                               occupancyRate >= 80 ? "bg-green-500" :
                               occupancyRate >= 50 ? "bg-blue-500" :
                               "bg-orange-500"
@@ -249,19 +240,19 @@ export default function DashboardTab({ properties }: DashboardTabProps) {
           </div>
         </div>
 
-        {/* Right Column - Tracked Properties (1/3 width, Fixed Height with Scroll) */}
+        {/* Right Column - Tracked Properties (1/3 width on desktop, full width on mobile) */}
         <div className="lg:col-span-1">
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-neutral-200/60 dark:border-slate-700 h-[600px] flex flex-col">
-            <div className="p-5 flex items-center justify-between flex-shrink-0">
-              <h2 className="font-semibold text-neutral-900 dark:text-white">Tracked Properties</h2>
-              <Badge variant="secondary">{properties.length}</Badge>
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-neutral-200/60 dark:border-slate-700 max-h-[600px] flex flex-col">
+            <div className="p-4 md:p-5 flex items-center justify-between flex-shrink-0 border-b border-neutral-100 dark:border-slate-800">
+              <h2 className="font-semibold text-neutral-900 dark:text-white text-base md:text-lg">Tracked Properties</h2>
+              <Badge variant="secondary" className="text-xs">{properties.length}</Badge>
             </div>
             
-            <div className="overflow-y-auto flex-1">
+            <div className="overflow-y-auto flex-1 max-h-[500px]">
               {properties.length === 0 ? (
-                <div className="p-4 text-center">
-                  <Building className="h-8 w-8 text-neutral-300 dark:text-neutral-600 mx-auto mb-2" />
-                  <p className="text-sm text-neutral-500 dark:text-neutral-400">No properties to track</p>
+                <div className="p-3 md:p-4 text-center">
+                  <Building className="h-7 w-7 md:h-8 md:w-8 text-neutral-300 dark:text-neutral-600 mx-auto mb-2" />
+                  <p className="text-xs md:text-sm text-neutral-500 dark:text-neutral-400">No properties to track</p>
                 </div>
               ) : (
                 <div className="divide-y divide-neutral-100 dark:divide-slate-700">
@@ -291,25 +282,25 @@ export default function DashboardTab({ properties }: DashboardTabProps) {
                         {/* Collapsed Row */}
                         <button
                           onClick={() => setExpandedProperty(isExpanded ? null : property.id)}
-                          className="w-full p-4 hover:bg-neutral-50/50 dark:hover:bg-slate-800/50 transition-colors text-left"
+                          className="w-full p-3 md:p-4 hover:bg-neutral-50/50 dark:hover:bg-slate-800/50 transition-colors text-left"
                         >
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <h3 className="font-medium text-sm text-neutral-900 dark:text-white">{property.name}</h3>
-                              <div className="flex items-center gap-2 mt-1">
-                                <Badge variant="outline" className="text-xs">{totalUnits} units</Badge>
-                                <Badge variant="secondary" className="text-xs bg-green-50 text-green-700 border-green-200">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-medium text-xs md:text-sm text-neutral-900 dark:text-white truncate">{property.name}</h3>
+                              <div className="flex items-center gap-1.5 md:gap-2 mt-1 flex-wrap">
+                                <Badge variant="outline" className="text-[10px] md:text-xs px-1.5 py-0">{totalUnits} units</Badge>
+                                <Badge variant="secondary" className="text-[10px] md:text-xs bg-green-50 text-green-700 border-green-200 px-1.5 py-0">
                                   {occupancyRate}%
                                 </Badge>
-                                <Badge variant="secondary" className="text-xs">
+                                <Badge variant="secondary" className="text-[10px] md:text-xs px-1.5 py-0">
                                   KSH {(propertyRevenue / 1000).toFixed(1)}k
                                 </Badge>
                               </div>
                             </div>
                             {isExpanded ? (
-                              <ChevronDown className="h-4 w-4 text-neutral-400 dark:text-neutral-500 flex-shrink-0" />
+                              <ChevronDown className="h-3.5 w-3.5 md:h-4 md:w-4 text-neutral-400 dark:text-neutral-500 flex-shrink-0" />
                             ) : (
-                              <ChevronRight className="h-4 w-4 text-neutral-400 dark:text-neutral-500 flex-shrink-0" />
+                              <ChevronRight className="h-3.5 w-3.5 md:h-4 md:w-4 text-neutral-400 dark:text-neutral-500 flex-shrink-0" />
                             )}
                           </div>
                         </button>

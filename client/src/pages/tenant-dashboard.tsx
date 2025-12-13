@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import Sidebar from "@/components/dashboard/sidebar";
+import BottomNav from "@/components/dashboard/BottomNav";
+import MobileHeader from "@/components/dashboard/MobileHeader";
 import StatsCard from "@/components/dashboard/stats-card";
 import RecordedPaymentsCard from "@/components/dashboard/tenant/RecordedPaymentsCard";
 import TenantNotificationBell from "@/components/dashboard/TenantNotificationBell";
@@ -19,6 +21,7 @@ import TenantPaymentsTab from "@/components/dashboard/tenant/TenantPaymentsTab";
 import TenantApartmentTab from "@/components/dashboard/tenant/TenantApartmentTab";
 import { formatRentStatusText, getRentStatusColor } from "@/lib/rent-cycle-utils";
 import { sumOutstanding, balanceForCurrentMonth } from "@/lib/payment-utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function TenantDashboard() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -28,6 +31,7 @@ export default function TenantDashboard() {
   const [showMpesaModal, setShowMpesaModal] = useState(false);
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
 
   // Get user data from localStorage (set during registration/signin)
   const getCurrentUser = () => {
@@ -220,47 +224,67 @@ export default function TenantDashboard() {
 
 
   return (
-    <div className="min-h-screen bg-neutral-50">
-      <div className="flex">
+    <div className="min-h-screen bg-neutral-50 dark:bg-slate-900">
+      {/* Desktop Sidebar */}
+      {!isMobile && (
         <Sidebar 
           role="tenant" 
           userName={currentUser.name || currentUser.fullName || 'User'}
           activeTab={activeTab}
           onTabChange={setActiveTab}
         />
+      )}
 
-        {/* Main Content */}
-        <div className="flex-1 flex flex-col bg-neutral-50 dark:bg-slate-900">
-          {/* Header - Fixed */}
-          <header className="sticky top-0 z-20 bg-white dark:bg-slate-950 border-b border-gray-200 dark:border-slate-800">
-            <div className="px-6 py-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-base font-normal text-gray-900 dark:text-white">Dashboard</h2>
-                  <p className="text-xs text-gray-600 dark:text-neutral-400">
-                    Welcome back, {currentUser.name || currentUser.fullName || 'User'}
-                  </p>
-                </div>
-                <div className="flex items-center space-x-4">
-                  <TenantNotificationBell tenantId={currentUser?.id} />
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-                      <span className="text-white text-xs font-semibold">
-                        {(currentUser.name || currentUser.fullName || 'U').split(' ').map((n: string) => n[0]).join('')}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+      {/* Mobile Header */}
+      {isMobile && (
+        <MobileHeader
+          role="tenant"
+          userName={currentUser.name || currentUser.fullName || 'User'}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          showNotifications={<TenantNotificationBell tenantId={currentUser?.id} />}
+        />
+      )}
+
+      {/* Main Content */}
+      <main className={`min-h-screen ${!isMobile ? 'ml-64' : ''}`}>
+        {/* Desktop Top Bar */}
+        {!isMobile && (
+          <div className="bg-white dark:bg-slate-950 border-b border-neutral-100 dark:border-slate-800 px-6 lg:px-8 py-4 sticky top-0 z-30">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-xl font-semibold text-neutral-900 dark:text-white tracking-tight">
+                  {activeTab === 'dashboard' ? 'Dashboard' :
+                   activeTab === 'apartment' ? 'My Apartment' :
+                   activeTab === 'payments' ? 'Payment History' :
+                   activeTab === 'settings' ? 'Settings' :
+                   activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
+                </h1>
+                <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-0.5">
+                  Welcome back, {currentUser.name || currentUser.fullName || 'User'}!
+                </p>
+              </div>
+              <div className="flex items-center space-x-4">
+                <TenantNotificationBell tenantId={currentUser?.id} />
               </div>
             </div>
-          </header>
+          </div>
+        )}
 
-          {/* Dashboard Content */}
-          <main className="flex-1 overflow-y-auto p-6">
-            {renderTabContent()}
-          </main>
+        {/* Content Area */}
+        <div className={`${isMobile ? 'pb-20 px-4 pt-4' : 'p-6 lg:p-8'}`}>
+          {renderTabContent()}
         </div>
-      </div>
+      </main>
+
+      {/* Mobile Bottom Navigation */}
+      {isMobile && (
+        <BottomNav
+          role="tenant"
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+        />
+      )}
     </div>
   );
 }
