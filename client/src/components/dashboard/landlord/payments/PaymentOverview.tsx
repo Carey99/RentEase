@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { CheckCircle2, XCircle, AlertCircle, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 import RecordPaymentDialog from "./RecordPaymentDialog";
 import type { Tenant } from "@/types/dashboard";
 
@@ -24,6 +25,7 @@ export default function PaymentOverview({ landlordId }: PaymentOverviewProps) {
   const currentDate = new Date();
   const currentMonth = currentDate.getMonth() + 1;
   const currentYear = currentDate.getFullYear();
+  const isMobile = useIsMobile();
 
   const [selectedProperty, setSelectedProperty] = useState<string>("all");
   const [selectedMonth, setSelectedMonth] = useState<string>(currentMonth.toString());
@@ -240,41 +242,40 @@ export default function PaymentOverview({ landlordId }: PaymentOverviewProps) {
   return (
     <>
       <Card>
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <CardTitle>Payment Overview</CardTitle>
+        <CardHeader className="space-y-3">
+          <CardTitle className="text-base md:text-lg">Payment Overview</CardTitle>
 
-            <div className="flex flex-wrap gap-2">
-              {/* Property Filter */}
-              <Select value={selectedProperty} onValueChange={setSelectedProperty}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="All Properties" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Properties</SelectItem>
-                  {properties.map((prop) => (
-                    <SelectItem key={prop.id} value={prop.id}>
-                      {prop.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <div className="flex flex-col gap-2">
+            {/* Property Filter */}
+            <Select value={selectedProperty} onValueChange={setSelectedProperty}>
+              <SelectTrigger className={`${isMobile ? 'w-full' : 'w-[180px]'}`}>
+                <SelectValue placeholder="All Properties" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Properties</SelectItem>
+                {properties.map((prop) => (
+                  <SelectItem key={prop.id} value={prop.id}>
+                    {prop.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-              {/* Month Filter */}
+            {/* Month and Year Filters */}
+            <div className="flex gap-2">
               <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                <SelectTrigger className="w-[130px]">
+                <SelectTrigger className="flex-1">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {months.map((month) => (
                     <SelectItem key={month.value} value={month.value.toString()}>
-                      {month.label}
+                      {isMobile ? month.label.slice(0, 3) : month.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
 
-              {/* Year Filter */}
               <Select value={selectedYear} onValueChange={setSelectedYear}>
                 <SelectTrigger className="w-[100px]">
                   <SelectValue />
@@ -293,74 +294,76 @@ export default function PaymentOverview({ landlordId }: PaymentOverviewProps) {
 
         <CardContent>
           {/* Stats Cards - Minimalist Design */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-            <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-slate-900/50 hover:bg-gray-50 dark:hover:bg-slate-900 transition-colors">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Paid</p>
-                <CheckCircle2 className="h-4 w-4 text-gray-400 dark:text-gray-600" />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3 mb-4 md:mb-6">
+            <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 md:p-4 bg-white dark:bg-slate-900/50 hover:bg-gray-50 dark:hover:bg-slate-900 transition-colors">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[10px] md:text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Paid</p>
+                <CheckCircle2 className="h-3 w-3 md:h-4 md:w-4 text-gray-400 dark:text-gray-600" />
               </div>
-              <p className="text-2xl font-semibold text-gray-900 dark:text-white">{stats.paid}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">tenants</p>
+              <p className="text-xl md:text-2xl font-semibold text-gray-900 dark:text-white">{stats.paid}</p>
+              <p className="text-[10px] md:text-xs text-gray-500 dark:text-gray-500 mt-1">tenants</p>
             </div>
-            <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-slate-900/50 hover:bg-gray-50 dark:hover:bg-slate-900 transition-colors">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Unpaid</p>
-                <AlertCircle className="h-4 w-4 text-gray-400 dark:text-gray-600" />
+            <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 md:p-4 bg-white dark:bg-slate-900/50 hover:bg-gray-50 dark:hover:bg-slate-900 transition-colors">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[10px] md:text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Unpaid</p>
+                <AlertCircle className="h-3 w-3 md:h-4 md:w-4 text-gray-400 dark:text-gray-600" />
               </div>
-              <p className="text-2xl font-semibold text-gray-900 dark:text-white">{stats.unpaid}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">tenants</p>
+              <p className="text-xl md:text-2xl font-semibold text-gray-900 dark:text-white">{stats.unpaid}</p>
+              <p className="text-[10px] md:text-xs text-gray-500 dark:text-gray-500 mt-1">tenants</p>
             </div>
-            <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-slate-900/50 hover:bg-gray-50 dark:hover:bg-slate-900 transition-colors">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Grace</p>
-                <AlertCircle className="h-4 w-4 text-gray-400 dark:text-gray-600" />
+            <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 md:p-4 bg-white dark:bg-slate-900/50 hover:bg-gray-50 dark:hover:bg-slate-900 transition-colors">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[10px] md:text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Grace</p>
+                <AlertCircle className="h-3 w-3 md:h-4 md:w-4 text-gray-400 dark:text-gray-600" />
               </div>
-              <p className="text-2xl font-semibold text-gray-900 dark:text-white">{stats.gracePeriod}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">tenants</p>
+              <p className="text-xl md:text-2xl font-semibold text-gray-900 dark:text-white">{stats.gracePeriod}</p>
+              <p className="text-[10px] md:text-xs text-gray-500 dark:text-gray-500 mt-1">tenants</p>
             </div>
-            <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-slate-900/50 hover:bg-gray-50 dark:hover:bg-slate-900 transition-colors">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Overdue</p>
-                <XCircle className="h-4 w-4 text-gray-400 dark:text-gray-600" />
+            <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 md:p-4 bg-white dark:bg-slate-900/50 hover:bg-gray-50 dark:hover:bg-slate-900 transition-colors">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[10px] md:text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Overdue</p>
+                <XCircle className="h-3 w-3 md:h-4 md:w-4 text-gray-400 dark:text-gray-600" />
               </div>
-              <p className="text-2xl font-semibold text-gray-900 dark:text-white">{stats.overdue}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">tenants</p>
+              <p className="text-xl md:text-2xl font-semibold text-gray-900 dark:text-white">{stats.overdue}</p>
+              <p className="text-[10px] md:text-xs text-gray-500 dark:text-gray-500 mt-1">tenants</p>
             </div>
           </div>
 
           {/* Collection Summary - Minimalist Design */}
-          <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-6 mb-6 bg-gradient-to-br from-gray-50 to-white dark:from-slate-900/50 dark:to-slate-900">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-              <div>
-                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Total Collected</p>
-                <p className="text-4xl font-bold text-gray-900 dark:text-white">
+          <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 md:p-6 mb-4 md:mb-6 bg-gradient-to-br from-gray-50 to-white dark:from-slate-900/50 dark:to-slate-900">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 md:gap-6">
+              <div className="flex-1">
+                <p className="text-[10px] md:text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1 md:mb-2">Total Collected</p>
+                <p className="text-2xl md:text-4xl font-bold text-gray-900 dark:text-white">
                   KSH {stats.totalCollected.toLocaleString()}
                 </p>
-                <p className="text-xs text-blue-200">
+                <p className="text-[10px] md:text-xs text-gray-500 dark:text-gray-400 mt-1">
                   {((stats.totalCollected / (stats.totalExpected || 1)) * 100).toFixed(1)}% collection rate
                 </p>
               </div>
-              <div className="text-right">
-                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Expected</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+              <div className="flex-1">
+                <p className="text-[10px] md:text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Expected</p>
+                <p className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">
                   KSH {stats.totalExpected.toLocaleString()}
                 </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                <p className="text-[10px] md:text-xs text-gray-500 dark:text-gray-400 mt-1">
                   {stats.hasBills ? `of billed amount` : 'based on agreements'}
                 </p>
               </div>
-              <div>
-                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1 text-right">Collection Rate</p>
-                <p className="text-3xl font-bold text-gray-900 dark:text-white text-right">
-                  {stats.totalExpected > 0 ? Math.round((stats.totalCollected / stats.totalExpected) * 100) : 0}%
-                </p>
-              </div>
+              {!isMobile && (
+                <div>
+                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1 text-right">Collection Rate</p>
+                  <p className="text-3xl font-bold text-gray-900 dark:text-white text-right">
+                    {stats.totalExpected > 0 ? Math.round((stats.totalCollected / stats.totalExpected) * 100) : 0}%
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Tenant List - Minimalist Cards */}
           <div className="space-y-2">
-            <h4 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wide">
+            <h4 className="font-semibold text-xs md:text-sm text-gray-700 dark:text-gray-300 mb-2 md:mb-3 uppercase tracking-wide">
               Tenants ({filteredTenants.length})
             </h4>
             {filteredTenants.map((tenant) => {
@@ -373,44 +376,48 @@ export default function PaymentOverview({ landlordId }: PaymentOverviewProps) {
               return (
                 <div
                   key={tenant.id}
-                  className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-slate-900/50 hover:bg-gray-50 dark:hover:bg-slate-900 transition-colors"
+                  className="flex items-center justify-between p-2 md:p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-slate-900/50 hover:bg-gray-50 dark:hover:bg-slate-900 transition-colors"
                 >
                   {/* Left side - Tenant info */}
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <Avatar className="h-9 w-9 border border-gray-200 dark:border-gray-700 flex-shrink-0">
+                  <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
+                    <Avatar className="h-8 w-8 md:h-9 md:w-9 border border-gray-200 dark:border-gray-700 flex-shrink-0">
                       <AvatarImage src={tenant.avatar || tenant.profileImage} />
                       <AvatarFallback className="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs font-medium">{getInitials(tenant.name)}</AvatarFallback>
                     </Avatar>
 
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-900 dark:text-white truncate">{tenant.name}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                      <p className="font-medium text-sm md:text-base text-gray-900 dark:text-white truncate">{tenant.name}</p>
+                      <p className="text-[10px] md:text-xs text-gray-500 dark:text-gray-400 truncate">
                         {tenant.propertyName} • {tenant.unitNumber}
                       </p>
                     </div>
                   </div>
 
                   {/* Right side - Amount and Status */}
-                  <div className="flex items-center gap-3">
-                    <div className="text-right">
-                      <p className="text-xs text-gray-500 dark:text-gray-400">Rent</p>
-                      <p className="font-semibold text-gray-900 dark:text-white">KSH {tenant.rentAmount.toLocaleString()}</p>
-                    </div>
-                    <div className="w-px h-8 bg-gray-200 dark:bg-gray-700"></div>
+                  <div className="flex items-center gap-1.5 md:gap-3 flex-shrink-0">
+                    {!isMobile && (
+                      <>
+                        <div className="text-right">
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Rent</p>
+                          <p className="font-semibold text-gray-900 dark:text-white">KSH {tenant.rentAmount.toLocaleString()}</p>
+                        </div>
+                        <div className="w-px h-8 bg-gray-200 dark:bg-gray-700"></div>
+                      </>
+                    )}
                     <Badge className={cn(
-                      "text-xs font-medium px-2 py-1 border-0",
-                      monthStatus.status === 'paid' && "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300",
-                      monthStatus.status === 'overdue' && "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300",
-                      monthStatus.status === 'grace' && "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300",
+                      "text-[10px] md:text-xs font-medium px-1.5 md:px-2 py-0.5 md:py-1 border-0",
+                      monthStatus.status === 'paid' && "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300",
+                      monthStatus.status === 'overdue' && "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300",
+                      monthStatus.status === 'grace' && "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300",
                       monthStatus.status === 'unpaid' && "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
                     )}>
-                      {monthStatus.badge}
+                      {isMobile ? monthStatus.badge.slice(0, 4) : monthStatus.badge}
                     </Badge>
                     <Button
                       size="sm"
                       variant="ghost"
                       onClick={() => setRecordPaymentTenant(tenant)}
-                      className="text-xs h-8 px-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
+                      className="text-xs h-7 md:h-8 w-7 md:w-8 p-0 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
                     >
                       <Plus className="h-3.5 w-3.5" />
                     </Button>

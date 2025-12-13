@@ -8,6 +8,7 @@ import { useQuery } from '@tanstack/react-query';
 import { DollarSign, FileText, Settings, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useIsMobile } from '@/hooks/use-mobile';
 import PaymentOverview from '@/components/dashboard/landlord/payments/PaymentOverview';
 import MonthlyPaymentBreakdown from '@/components/dashboard/shared/MonthlyPaymentBreakdown';
 import MpesaStatementsTab from './MpesaStatementsTab';
@@ -32,6 +33,7 @@ interface Tenant {
 export function PaymentsTab({ landlordId }: PaymentsTabProps) {
   const [showCashPaymentDialog, setShowCashPaymentDialog] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
+  const isMobile = useIsMobile();
 
   // Fetch tenants for cash payment recording
   const { data: tenants = [] } = useQuery<Tenant[]>({
@@ -44,17 +46,23 @@ export function PaymentsTab({ landlordId }: PaymentsTabProps) {
   });
 
   return (
-    <div className="space-y-0 px-2 md:px-6 h-full flex flex-col">
+    <div className="space-y-0 h-full flex flex-col">
       {/* Fixed header - stays at top while content scrolls */}
-      <div className="sticky top-0 z-10 bg-white dark:bg-slate-950 pt-8 pb-6 space-y-6">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="sticky top-0 z-10 bg-white dark:bg-slate-950 pb-4 space-y-4">
+        <div className="flex flex-col gap-3">
           <div>
-            <h2 className="text-3xl font-semibold tracking-tight text-gray-900 dark:text-white mb-1">Payments</h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Manage payment history, M-Pesa statements, and gateway configuration</p>
+            <h2 className={`${isMobile ? 'text-xl' : 'text-3xl'} font-semibold tracking-tight text-gray-900 dark:text-white`}>
+              Payments
+            </h2>
+            {!isMobile && (
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                Manage payment history, M-Pesa statements, and gateway configuration
+              </p>
+            )}
           </div>
           <Button 
             onClick={() => setShowCashPaymentDialog(true)} 
-            className="gap-2 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg px-5 py-2 text-base font-medium"
+            className={`gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-sm ${isMobile ? 'w-full text-sm py-5' : 'self-start px-5'}`}
           >
             <DollarSign className="h-4 w-4" />
             Record Cash Payment
@@ -62,22 +70,34 @@ export function PaymentsTab({ landlordId }: PaymentsTabProps) {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="flex gap-8 bg-transparent border-b border-gray-200 dark:border-gray-700 rounded-none px-0 py-0 w-full h-auto justify-start">
-            <TabsTrigger value="overview" className="flex items-center gap-2 px-0 pb-2 text-base font-medium border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=inactive]:text-gray-600 rounded-none">
+          <TabsList className={`${isMobile ? 'flex w-full overflow-x-auto' : 'flex gap-8'} bg-transparent border-b border-gray-200 dark:border-gray-700 rounded-none px-0 py-0 h-auto justify-start`}>
+            <TabsTrigger 
+              value="overview" 
+              className={`flex items-center gap-2 px-3 pb-2 ${isMobile ? 'text-sm' : 'text-base'} font-medium border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=inactive]:text-gray-600 dark:data-[state=inactive]:text-gray-400 rounded-none flex-shrink-0`}
+            >
               <DollarSign className="h-4 w-4" />
-              Overview
+              {!isMobile && 'Overview'}
             </TabsTrigger>
-            <TabsTrigger value="mpesa" className="flex items-center gap-2 px-0 pb-2 text-base font-medium border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=inactive]:text-gray-600 rounded-none">
+            <TabsTrigger 
+              value="mpesa" 
+              className={`flex items-center gap-2 px-3 pb-2 ${isMobile ? 'text-sm' : 'text-base'} font-medium border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=inactive]:text-gray-600 dark:data-[state=inactive]:text-gray-400 rounded-none flex-shrink-0`}
+            >
               <FileText className="h-4 w-4" />
-              M-Pesa Statements
+              {!isMobile && 'M-Pesa'}
             </TabsTrigger>
-            <TabsTrigger value="payment-details" className="flex items-center gap-2 px-0 pb-2 text-base font-medium border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=inactive]:text-gray-600 rounded-none">
+            <TabsTrigger 
+              value="payment-details" 
+              className={`flex items-center gap-2 px-3 pb-2 ${isMobile ? 'text-sm' : 'text-base'} font-medium border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=inactive]:text-gray-600 dark:data-[state=inactive]:text-gray-400 rounded-none flex-shrink-0`}
+            >
               <Wallet className="h-4 w-4" />
-              Payment Details
+              {!isMobile && 'Payment Details'}
             </TabsTrigger>
-            <TabsTrigger value="gateway" className="flex items-center gap-2 px-0 pb-2 text-base font-medium border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=inactive]:text-gray-600 rounded-none">
+            <TabsTrigger 
+              value="gateway" 
+              className={`flex items-center gap-2 px-3 pb-2 ${isMobile ? 'text-sm' : 'text-base'} font-medium border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=inactive]:text-gray-600 dark:data-[state=inactive]:text-gray-400 rounded-none flex-shrink-0`}
+            >
               <Settings className="h-4 w-4" />
-              Payment Gateway
+              {!isMobile && 'Gateway'}
             </TabsTrigger>
           </TabsList>
         </Tabs>
