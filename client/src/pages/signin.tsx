@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/hooks/useAuth";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { useTheme } from "@/hooks/useTheme";
 import { getSessionPropertyImage } from "@/lib/property-images";
 
 const signinSchema = z.object({
@@ -23,6 +24,7 @@ type SigninFormData = z.infer<typeof signinSchema>;
 export default function SigninPage() {
   const [, setLocation] = useLocation();
   const { login } = useAuth();
+  const { theme } = useTheme();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -63,14 +65,18 @@ export default function SigninPage() {
   };
 
   return (
-    <div className="flex min-h-screen bg-white dark:bg-slate-950">
+    <div className="flex min-h-screen bg-white dark:bg-black">
       {/* Left Side - Sign In Form */}
-      <div className="flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-8 py-12 bg-white dark:bg-slate-950">
+      <div className="flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-8 py-12 bg-white dark:bg-black">
         <div className="max-w-md w-full">
           {/* Logo and Back Button */}
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center space-x-2">
-              <span className="text-xl font-bold text-neutral-900 dark:text-white">RentEase</span>
+              <img 
+                src={theme === 'dark' ? '/logos/rentease_dark_logo.png' : '/logos/re_light_logo.png'}
+                alt="RentEase" 
+                className="h-16 md:h-20 lg:h-24 object-contain"
+              />
             </div>
             <div className="flex items-center gap-2">
               <ThemeToggle />

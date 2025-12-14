@@ -2,6 +2,7 @@ import { Home, LayoutDashboard, Building2, Users, Wallet, AlertCircle, Settings,
 import { NotificationBell } from "./NotificationBell";
 import { useAuth } from "@/hooks/useAuth";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { useTheme } from "@/hooks/useTheme";
 import { cn } from "@/lib/utils";
 
 interface SidebarProps {
@@ -13,6 +14,7 @@ interface SidebarProps {
 
 export default function Sidebar({ role, userName, activeTab = 'dashboard', onTabChange }: SidebarProps) {
   const { logout } = useAuth();
+  const { theme } = useTheme();
 
   const landlordNavItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -37,15 +39,17 @@ export default function Sidebar({ role, userName, activeTab = 'dashboard', onTab
   };
 
   return (
-    <aside className="fixed left-0 top-0 w-64 bg-white dark:bg-slate-950 border-r border-neutral-100 dark:border-slate-800 h-screen flex flex-col z-40">
+    <aside className="fixed left-0 top-0 w-64 bg-white dark:bg-black border-r border-neutral-100 dark:border-slate-900 h-screen flex flex-col z-40">
       {/* Header */}
-      <div className="p-6 border-b border-neutral-100 dark:border-slate-800">
+      <div className="p-6 border-b border-neutral-100 dark:border-slate-900">
         <div className="flex items-center justify-between mb-1">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <Home className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-xl font-semibold text-neutral-900 dark:text-white tracking-tight">RentEase</span>
+          <div className="flex items-center gap-3">
+            <img 
+              src={theme === 'dark' ? '/logos/rentease_dark_icon.png' : '/logos/re_light_icon.png'}
+              alt="RentEase" 
+              className="w-10 h-10 object-contain"
+            />
+            <span className="text-lg font-semibold text-neutral-900 dark:text-white">RentEase</span>
           </div>
           {role === 'landlord' && <NotificationBell />}
         </div>
