@@ -1,5 +1,6 @@
 import { Home } from "lucide-react";
 import HamburgerMenu from "./HamburgerMenu";
+import { useTheme } from "@/hooks/useTheme";
 import { cn } from "@/lib/utils";
 
 interface MobileHeaderProps {
@@ -19,6 +20,8 @@ export default function MobileHeader({
   showNotifications,
   title
 }: MobileHeaderProps) {
+  const { theme } = useTheme();
+  
   const getTitle = () => {
     if (title) return title;
     
@@ -35,13 +38,15 @@ export default function MobileHeader({
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-white dark:bg-slate-950 border-b border-neutral-200 dark:border-slate-800 md:hidden">
+    <header className="sticky top-0 z-40 w-full bg-white dark:bg-black border-b border-neutral-200 dark:border-slate-900 md:hidden">
       <div className="flex items-center justify-between h-16 px-4">
         {/* Logo */}
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-            <Home className="w-5 h-5 text-white" />
-          </div>
+          <img 
+            src={theme === 'dark' ? '/logos/rentease_dark_icon.png' : '/logos/re_light_icon.png'}
+            alt="RentEase" 
+            className="w-9 h-9 object-contain"
+          />
           <div>
             <h1 className="text-lg font-semibold text-neutral-900 dark:text-white">
               {getTitle()}

@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Link } from 'react-router-dom';
+import { useTheme } from "@/hooks/useTheme";
 import { 
   Home, 
   Star, 
@@ -24,6 +25,7 @@ import './landing.css';
 
 export default function LandingPage() {
   const [, setLocation] = useLocation();
+  const { theme } = useTheme();
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [scrollY, setScrollY] = useState(0);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -66,8 +68,11 @@ export default function LandingPage() {
       <nav className="modern-nav">
         <div className="nav-container">
           <div className="logo">
-            <Home className="logo-icon" />
-            <span className="logo-text">RentEase</span>
+            <img 
+              src={theme === 'dark' ? '/logos/rentease_dark_logo.png' : '/logos/re_light_logo.png'}
+              alt="RentEase" 
+              className="h-12 md:h-16 lg:h-20 object-contain"
+            />
           </div>
           
           <div className={`nav-menu ${isMenuOpen ? 'active' : ''}`}>

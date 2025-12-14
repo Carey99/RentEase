@@ -3,6 +3,7 @@ import { useRoute } from "wouter";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { useTheme } from "@/hooks/useTheme";
 import { PersonalInfoStep } from "@/components/onboarding/steps/PersonalInfoStep";
 import { PasswordStep } from "@/components/onboarding/steps/PasswordStep";
 import { LandlordPropertyStep } from "@/components/onboarding/steps/LandlordPropertyStep";
@@ -22,6 +23,7 @@ import type { UserRole } from "@/types/onboarding";
 export default function OnboardingPage() {
   const [, params] = useRoute("/onboarding/:role");
   const role = params?.role as UserRole;
+  const { theme } = useTheme();
 
   // CRITICAL: Clear any existing session when starting registration
   // This prevents new users from seeing old user's data
@@ -188,14 +190,18 @@ export default function OnboardingPage() {
   const IconComponent = motivationalContent.icon;
 
   return (
-    <div className="flex min-h-screen bg-white dark:bg-slate-950">
+    <div className="flex min-h-screen bg-white dark:bg-black">
       {/* Left Side - Form */}
-      <div className="flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-8 py-12 bg-white dark:bg-slate-950">
+      <div className="flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-8 py-12 bg-white dark:bg-black">
         <div className="max-w-md w-full">
           {/* Logo and Back Button */}
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center space-x-2">
-              <span className="text-xl font-bold text-neutral-900 dark:text-white">RentEase</span>
+              <img 
+                src={theme === 'dark' ? '/logos/rentease_dark_logo.png' : '/logos/re_light_logo.png'}
+                alt="RentEase" 
+                className="h-16 md:h-20 lg:h-24 object-contain"
+              />
             </div>
             <div className="flex items-center gap-2">
               <ThemeToggle />
