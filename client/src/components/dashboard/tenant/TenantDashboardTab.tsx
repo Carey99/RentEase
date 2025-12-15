@@ -385,30 +385,21 @@ export default function TenantDashboardTab({ tenantId, tenantProperty, paymentHi
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Payment Button - Primary CTA with Safaricom Logo */}
+              {/* Payment Button - Primary CTA with Lock Icon */}
               <Button 
                 onClick={() => setShowMpesaModal(true)}
-                className="w-full bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800 text-white font-semibold py-6 text-base shadow-sm hover:shadow-md transition-all flex items-center justify-center gap-3"
+                className="w-full bg-black hover:bg-gray-800 dark:bg-white dark:hover:bg-gray-100 text-white dark:text-black font-semibold py-6 text-base shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-3 rounded-[2rem]"
               >
-                {/* Safaricom Logo */}
+                {/* Wallet Icon */}
                 <svg
                   className="h-5 w-5"
-                  viewBox="0 0 100 100"
-                  fill="none"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
                   xmlns="http://www.w3.org/2000/svg"
                 >
-                  {/* Red arc/swoosh */}
-                  <path
-                    d="M 20 50 Q 40 20, 60 20 Q 75 20, 85 35"
-                    stroke="currentColor"
-                    strokeWidth="8"
-                    fill="none"
-                    strokeLinecap="round"
-                  />
-                  {/* Green dot */}
-                  <circle cx="25" cy="70" r="6" fill="currentColor" />
+                  <path d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.11 0-2 .9-2 2v8c0 1.1.89 2 2 2h9zm-9-2h10V8H12v8zm4-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
                 </svg>
-                Send Payment
+                Pay
               </Button>
               
               <p className="text-xs text-gray-600 dark:text-gray-400 text-center">
