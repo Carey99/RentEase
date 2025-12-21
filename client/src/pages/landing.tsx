@@ -257,6 +257,24 @@ export default function LandingPage() {
             </motion.div>
           </div>
 
+          {/* Center Divider with Lines and Text */}
+          <div className="hero-center-divider">
+            <div className="divider-line divider-line-1"></div>
+            <div className="divider-line divider-line-2"></div>
+            <div className="divider-text-wrapper">
+              <span className="divider-letter">R</span>
+              <span className="divider-letter">e</span>
+              <span className="divider-letter">n</span>
+              <span className="divider-letter">t</span>
+              <span className="divider-letter">E</span>
+              <span className="divider-letter">a</span>
+              <span className="divider-letter">s</span>
+              <span className="divider-letter">e</span>
+            </div>
+            <div className="divider-line divider-line-3"></div>
+            <div className="divider-line divider-line-4"></div>
+          </div>
+
           <div className="hero-right">
             {/* Hero Image */}
             <div className="hero-image-wrapper">

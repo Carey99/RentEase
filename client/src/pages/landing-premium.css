@@ -394,13 +394,15 @@ body {
   max-width: 1400px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: 0.9fr 1.1fr;
-  gap: 2rem;
+  grid-template-columns: 0.9fr auto 1.1fr;
+  gap: 0;
   align-items: center;
+  position: relative;
 }
 
 .hero-left {
   z-index: 2;
+  padding-right: 2rem;
 }
 
 .hero-badge {
@@ -546,10 +548,80 @@ body {
   color: var(--green-500);
 }
 
+/* Center Divider with Lines and Text */
+.hero-center-divider {
+  position: relative;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  width: 100px;
+  height: 100%;
+  min-height: 450px;
+  padding: 0 20px;
+}
+
+.divider-line {
+  width: 2px;
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.divider-line-1 {
+  height: 80px;
+  margin-bottom: 10px;
+}
+
+.divider-line-2 {
+  width: 3px;
+  height: 100px;
+  background: #d88f31;
+  margin-bottom: 15px;
+}
+
+.divider-line-3 {
+  width: 3px;
+  height: 100px;
+  background: #d88f31;
+  margin-top: 15px;
+}
+
+.divider-line-4 {
+  height: 70px;
+  margin-top: 10px;
+}
+
+.divider-text-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 0;
+}
+
+.divider-letter {
+  font-family: 'Inter', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #d88f31;
+  text-transform: uppercase;
+  position: relative;
+  display: block;
+  letter-spacing: 0;
+  text-shadow: 3px 3px 0px rgba(216, 143, 49, 0.25);
+}
+
+@media (min-width: 1024px) {
+  .hero-center-divider {
+    display: flex;
+  }
+}
+
 /* Dashboard Mockup Wrapper */
 .hero-right {
   position: relative;
   z-index: 1;
+  padding-left: 2rem;
 }
 
 .dashboard-wrapper {
@@ -615,6 +687,30 @@ body {
   width: 1px;
   height: 3rem;
   background: var(--gray-200);
+}
+
+/* Wavy Separator */
+.section-separator {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  display: none;
+}
+
+.separator-image {
+  width: auto;
+  height: 100%;
+  max-height: 500px;
+  display: block;
+  object-fit: contain;
+}
+
+@media (min-width: 1024px) {
+  .section-separator {
+    display: flex;
+  }
 }
 
 /* Dashboard Mockup Styles */
@@ -1154,6 +1250,14 @@ body {
   .hero-content-wrapper {
     grid-template-columns: 1fr;
     gap: 3rem;
+  }
+  
+  .hero-left {
+    padding-right: 0;
+  }
+  
+  .hero-right {
+    padding-left: 0;
   }
   
   .dashboard-wrapper {
