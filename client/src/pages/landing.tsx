@@ -161,7 +161,7 @@ export default function LandingPage() {
         </div>
       </motion.nav>
 
-      {/* Hero Section with Floating Dashboard */}
+      {/* Hero Section */}
       <section className="hero-section">
         <div className="hero-content-wrapper">
           <div className="hero-left">

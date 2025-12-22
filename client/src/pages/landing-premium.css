@@ -135,6 +135,12 @@ body {
   object-fit: contain;
 }
 
+@media (min-width: 1024px) {
+  .nav-logo-icon {
+    margin-left: -4.5rem;
+  }
+}
+
 .nav-logo-text {
   display: flex;
   font-family: 'Inter', sans-serif;
@@ -384,7 +390,7 @@ body {
 /* Hero Section */
 .hero-section {
   position: relative;
-  padding: 7rem 2rem 4rem;
+  padding: 2rem 2rem 4rem;
   z-index: 1;
   background: radial-gradient(circle at 70% 40%, rgba(255, 247, 237, 0.6), transparent 65%);
   overflow: hidden;
@@ -558,7 +564,7 @@ body {
   gap: 0;
   width: 100px;
   height: 100%;
-  min-height: 450px;
+  min-height: 400px;
   padding: 0 20px;
 }
 
@@ -660,9 +666,11 @@ body {
   margin: 4rem auto 0;
   padding: 0 2rem;
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
   gap: 3rem;
   flex-wrap: wrap;
+  transform: translateX(-3rem);
 }
 
 .stat-item {
@@ -1608,7 +1616,7 @@ body {
     top: 0.5rem;
     left: 0.75rem;
     right: 0.75rem;
-    border-radius: 0.625rem;
+    border-radius: 2.625rem;
   }
   
   .nav-logo-icon {
