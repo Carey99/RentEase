@@ -20,7 +20,6 @@ import {
   Sparkles,
   ChevronRight
 } from 'lucide-react';
-import DashboardMockup from '@/components/landing/DashboardMockup';
 import './landing-premium.css';
 
 export default function LandingPage() {
@@ -170,10 +169,6 @@ export default function LandingPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8 }}
             >
-              <div className="hero-badge">
-                <Sparkles size={14} />
-                <span>Award winning PropTech</span>
-              </div>
               
               <h1 className="hero-headline">
                 Property management
@@ -287,188 +282,103 @@ export default function LandingPage() {
           </div>
         </div>
 
-        {/* Floating Stats */}
-        <motion.div 
-          className="hero-stats-floating"
-          initial={{ opacity: 0, y: 50 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, delay: 0.5 }}
-        >
-          <div className="stat-item">
-            <div className="stat-value">231+</div>
-            <div className="stat-label">Properties managed</div>
-          </div>
-          <div className="stat-divider"></div>
-          <div className="stat-item">
-            <div className="stat-value">KES 13M+</div>
-            <div className="stat-label">Processed monthly</div>
-          </div>
-          <div className="stat-divider"></div>
-          <div className="stat-item">
-            <div className="stat-value">99.8%</div>
-            <div className="stat-label">Uptime guarantee</div>
-          </div>
-        </motion.div>
       </section>
 
-      {/* Features Bento Grid */}
-      <section id="features" className="features-section">
-        <div className="features-container">
+      {/* Why Choose Us Section */}
+      <section className="why-choose-section">
+        <motion.div 
+          className="why-choose-header"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+        >
+          <div className="decorative-line"></div>
+          <h2 className="why-choose-title">WHY CHOOSE US</h2>
+          <div className="decorative-line"></div>
+        </motion.div>
+
+        <motion.h3 
+          className="why-choose-headline"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+        >
+          For All Your Property Management Needs
+        </motion.h3>
+
+        <div className="why-choose-grid">
           <motion.div 
-            className="section-header-premium"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
+            className="why-choose-card"
+            initial={{ opacity: 0, x: -30 }}
+            whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
           >
-            <h2 className="section-title-premium">Everything you need to succeed</h2>
-            <p className="section-subtitle-premium">
-              Powerful features that make property management effortless
-            </p>
+            <div className="why-icon">
+              <Shield size={32} />
+            </div>
+            <h4>Secure & Reliable</h4>
+            <p>Bank-grade encryption ensures your data and payments are always protected</p>
           </motion.div>
 
-          <div className="bento-grid">
-            {/* Large Feature Card - Payments */}
-            <motion.div 
-              className="bento-card large"
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
-              whileHover={{ y: -5 }}
-            >
-              <div className="bento-content">
-                <div className="bento-icon purple">
-                  <Smartphone size={24} />
-                </div>
-                <h3 className="bento-title">M-Pesa Integration</h3>
-                <p className="bento-description">
-                  Instant rent collection with STK push. Automated reminders and receipt generation. Zero manual work.
-                </p>
-                <div className="bento-visual">
-                  <div className="payment-demo">
-                    <div className="payment-card">
-                      <div className="payment-header">
-                        <span className="payment-badge">Received</span>
-                        <span className="payment-amount">KES 45,000</span>
-                      </div>
-                      <div className="payment-details">
-                        <div className="payment-row">
-                          <span>Grace Wanjiku</span>
-                          <span>Apt 4B</span>
-                        </div>
-                        <div className="payment-row small">
-                          <span>Dec 15, 2025 • 2:34 PM</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
+          <motion.div 
+            className="why-choose-card"
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.4 }}
+          >
+            <div className="why-icon">
+              <Zap size={32} />
+            </div>
+            <h4>Lightning Fast</h4>
+            <p>Real-time payment processing and instant notifications keep you in control</p>
+          </motion.div>
 
-            {/* Medium Feature Card - Analytics */}
-            <motion.div 
-              className="bento-card medium"
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6, delay: 0.1 }}
-              whileHover={{ y: -5 }}
-            >
-              <div className="bento-content">
-                <div className="bento-icon blue">
-                  <BarChart3 size={24} />
-                </div>
-                <h3 className="bento-title">Real-time Analytics</h3>
-                <p className="bento-description">
-                  Track revenue, occupancy, and performance metrics in real-time.
-                </p>
-                <div className="bento-visual">
-                  <div className="chart-mini">
-                    <div className="chart-bars-mini">
-                      {[40, 70, 55, 85, 65, 90].map((height, i) => (
-                        <motion.div
-                          key={i}
-                          className="bar-mini"
-                          initial={{ height: 0 }}
-                          whileInView={{ height: `${height}%` }}
-                          viewport={{ once: true }}
-                          transition={{ duration: 0.5, delay: 0.3 + i * 0.1 }}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Small Feature Card - Security */}
-            <motion.div 
-              className="bento-card small"
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              whileHover={{ y: -5 }}
-            >
-              <div className="bento-content">
-                <div className="bento-icon green">
-                  <Shield size={24} />
-                </div>
-                <h3 className="bento-title">Bank-level Security</h3>
-                <p className="bento-description">
-                  256-bit encryption and secure data storage.
-                </p>
-              </div>
-            </motion.div>
-
-            {/* Small Feature Card - Support */}
-            <motion.div 
-              className="bento-card small"
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6, delay: 0.3 }}
-              whileHover={{ y: -5 }}
-            >
-              <div className="bento-content">
-                <div className="bento-icon orange">
-                  <Users size={24} />
-                </div>
-                <h3 className="bento-title">24/7 Support</h3>
-                <p className="bento-description">
-                  Always here to help. Response time under 2 hours.
-                </p>
-              </div>
-            </motion.div>
-
-            {/* Medium Feature Card - Automation */}
-            <motion.div 
-              className="bento-card medium"
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6, delay: 0.4 }}
-              whileHover={{ y: -5 }}
-            >
-              <div className="bento-content">
-                <div className="bento-icon purple">
-                  <Zap size={24} />
-                </div>
-                <h3 className="bento-title">Smart Automation</h3>
-                <p className="bento-description">
-                  Automated rent reminders, receipts, and reports. Save 20+ hours per month.
-                </p>
-                <div className="automation-tags">
-                  <span className="tag">Auto-reminders</span>
-                  <span className="tag">Smart receipts</span>
-                  <span className="tag">Reports</span>
-                </div>
-              </div>
-            </motion.div>
-          </div>
+          <motion.div 
+            className="why-choose-card"
+            initial={{ opacity: 0, x: 30 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.5 }}
+          >
+            <div className="why-icon">
+              <BarChart3 size={32} />
+            </div>
+            <h4>Smart Analytics</h4>
+            <p>Comprehensive insights and reports to optimize your property business</p>
+          </motion.div>
         </div>
+      </section>
+
+      {/* Application Flow Section */}
+      <section id="features" className="flow-section">
+        <motion.div 
+          className="flow-header"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+        >
+          <h2 className="flow-title">How It Works</h2>
+          <p className="flow-subtitle">Seamless workflow from onboarding to payment collection</p>
+        </motion.div>
+
+        <motion.div 
+          className="flow-svg-container"
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.8, delay: 0.2 }}
+        >
+          <img 
+            src="/images/flowchart.svg" 
+            alt="RentEase workflow: from property setup to payment collection" 
+            className="flow-svg-image"
+          />
+        </motion.div>
       </section>
 
       {/* Final CTA Section */}
@@ -484,7 +394,7 @@ export default function LandingPage() {
             <div className="cta-content-premium">
               <h2 className="cta-headline">Ready to transform your rental business?</h2>
               <p className="cta-subheadline">
-                Join 50,000+ users who trust RentEase for smarter property management
+                Start managing your properties efficiently today
               </p>
               
               <div className="cta-buttons-premium">
