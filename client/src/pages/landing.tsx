@@ -29,7 +29,47 @@ export default function LandingPage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isHeroDropdownOpen, setIsHeroDropdownOpen] = useState(false);
+  const [isPremiumCtaDropdownOpen, setIsPremiumCtaDropdownOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [visibleSteps, setVisibleSteps] = useState<number[]>([0, 1, 2, 3]);
+  const [hoveredMockup, setHoveredMockup] = useState<number | null>(null);
+  const hasLoadedOnce = React.useRef(false);
+
+  // Ref for the features section to track scroll progress
+  const featuresRef = React.useRef<HTMLDivElement>(null);
+  const heroRef = React.useRef<HTMLElement>(null);
+  
+  const { scrollYProgress } = useScroll({
+    target: featuresRef,
+    offset: ["start end", "end start"]
+  });
+
+  const { scrollYProgress: heroScrollProgress } = useScroll({
+    target: heroRef,
+    offset: ["start start", "end start"]
+  });
+
+  // Create parallax transforms for each mockup outside of render
+  const yOffset0 = useTransform(scrollYProgress, [0, 1], [0, 0]);
+  const yOffset1 = useTransform(scrollYProgress, [0, 1], [50, -50]);
+  const yOffset2 = useTransform(scrollYProgress, [0, 1], [100, -100]);
+  const yOffset3 = useTransform(scrollYProgress, [0, 1], [150, -150]);
+  
+  // Alternating rotation with increased amplitude: right, left, right, left
+  const rotate0 = useTransform(scrollYProgress, [0, 0.5, 1], [-15, -5, 10]);
+  const rotate1 = useTransform(scrollYProgress, [0, 0.5, 1], [-10, 0, -15]);
+  const rotate2 = useTransform(scrollYProgress, [0, 0.5, 1], [5, 12, 20]);
+  const rotate3 = useTransform(scrollYProgress, [0, 0.5, 1], [15, 5, -10]);
+  
+  const mockupOffsets = [yOffset0, yOffset1, yOffset2, yOffset3];
+  const mockupRotations = [rotate0, rotate1, rotate2, rotate3];
+
+  // Hero section parallax effects
+  const heroTextY = useTransform(heroScrollProgress, [0, 1], [0, -100]);
+  const heroTextOpacity = useTransform(heroScrollProgress, [0, 0.5], [1, 0]);
+  const heroImageY = useTransform(heroScrollProgress, [0, 1], [0, -150]);
+  const heroImageScale = useTransform(heroScrollProgress, [0, 1], [1, 0.9]);
+  const heroImageRotate = useTransform(heroScrollProgress, [0, 1], [0, -5]);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -50,6 +90,8 @@ export default function LandingPage() {
       window.removeEventListener('scroll', handleScroll);
     };
   }, []);
+
+  // Show all 4 mockups by default - no scroll triggers for now
 
   const startOnboarding = (role: 'landlord' | 'tenant') => {
     setLocation(`/onboarding/${role}`);
@@ -78,7 +120,7 @@ export default function LandingPage() {
         <div className="nav-container">
           <div className="nav-logo">
             <img 
-              src={'/logos/re_light_icon.png'}
+              src={'/images/tranparent_logo.webp'}
               alt="RentEase" 
               className="nav-logo-icon"
             />
@@ -161,9 +203,15 @@ export default function LandingPage() {
       </motion.nav>
 
       {/* Hero Section */}
-      <section className="hero-section">
+      <section className="hero-section" ref={heroRef}>
         <div className="hero-content-wrapper">
-          <div className="hero-left">
+          <motion.div 
+            className="hero-left"
+            style={{ 
+              y: heroTextY,
+              opacity: heroTextOpacity
+            }}
+          >
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
@@ -171,13 +219,14 @@ export default function LandingPage() {
             >
               
               <h1 className="hero-headline">
-                Property management
-                <span className="gradient-text-premium"> that just works</span>
+                Built for every stage of
+                <span className="gradient-text-premium"> property management</span>
               </h1>
               
               <p className="hero-subheadline">
-                The most intuitive platform for landlords and tenants. 
+                From rent collection to tenant placement. 
                 Seamless payments, real-time insights, and zero hassle.
+                Everything works together.
               </p>
 
               <div className="hero-cta-group">
@@ -246,31 +295,64 @@ export default function LandingPage() {
                 </div>
                 <div className="trust-item">
                   <CheckCircle size={16} className="trust-icon" />
-                  <span>Free 30-day trial</span>
+                  <span>Start for free</span>
                 </div>
               </div>
             </motion.div>
-          </div>
+          </motion.div>
 
           {/* Center Divider with Lines and Text */}
           <div className="hero-center-divider">
             <div className="divider-line divider-line-1"></div>
             <div className="divider-line divider-line-2"></div>
             <div className="divider-text-wrapper">
-              <span className="divider-letter">R</span>
-              <span className="divider-letter">e</span>
-              <span className="divider-letter">n</span>
-              <span className="divider-letter">t</span>
-              <span className="divider-letter">E</span>
-              <span className="divider-letter">a</span>
-              <span className="divider-letter">s</span>
-              <span className="divider-letter">e</span>
+              {['R', 'e', 'n', 't', 'E', 'a', 's', 'e'].map((letter, index) => (
+                <motion.span
+                  key={index}
+                  className="divider-letter"
+                  initial={{ y: -50, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{
+                    delay: index * 0.1,
+                    duration: 0.5,
+                    ease: [0.34, 1.56, 0.64, 1]
+                  }}
+                  whileInView={
+                    hasLoadedOnce.current 
+                      ? {
+                          scale: [0, 1.3, 1],
+                          opacity: [0, 1, 1]
+                        }
+                      : undefined
+                  }
+                  viewport={{ once: false, amount: 0.8 }}
+                  onViewportEnter={() => {
+                    if (!hasLoadedOnce.current) {
+                      hasLoadedOnce.current = true;
+                    }
+                  }}
+                  onAnimationComplete={() => {
+                    if (!hasLoadedOnce.current) {
+                      hasLoadedOnce.current = true;
+                    }
+                  }}
+                >
+                  {letter}
+                </motion.span>
+              ))}
             </div>
             <div className="divider-line divider-line-3"></div>
             <div className="divider-line divider-line-4"></div>
           </div>
 
-          <div className="hero-right">
+          <motion.div 
+            className="hero-right"
+            style={{ 
+              y: heroImageY,
+              scale: heroImageScale,
+              rotate: heroImageRotate
+            }}
+          >
             {/* Hero Image */}
             <div className="hero-image-wrapper">
               <img 
@@ -279,82 +361,144 @@ export default function LandingPage() {
                 className="hero-main-image"
               />
             </div>
-          </div>
+          </motion.div>
         </div>
 
       </section>
 
-      {/* Why Choose Us Section */}
-      <section className="why-choose-section">
-        <motion.div 
-          className="why-choose-header"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-        >
-          <div className="decorative-line"></div>
-          <h2 className="why-choose-title">WHY CHOOSE US</h2>
-          <div className="decorative-line"></div>
-        </motion.div>
-
-        <motion.h3 
-          className="why-choose-headline"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-        >
-          For All Your Property Management Needs
-        </motion.h3>
-
-        <div className="why-choose-grid">
-          <motion.div 
-            className="why-choose-card"
-            initial={{ opacity: 0, x: -30 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: 0.3 }}
-          >
-            <div className="why-icon">
-              <Shield size={32} />
-            </div>
-            <h4>Secure & Reliable</h4>
-            <p>Bank-grade encryption ensures your data and payments are always protected</p>
-          </motion.div>
+      {/* Premium Feature Section */}
+      <section className="premium-features-section" ref={featuresRef}>
+        <div className="premium-features-container">
+          {/* Large Background Text with Gradient Mask */}
+          <div className="background-text-wrapper">
+            <h2 className="background-text-gradient">Living</h2>
+          </div>
 
           <motion.div 
-            className="why-choose-card"
-            initial={{ opacity: 0, y: 30 }}
+            className="section-intro"
+            initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: 0.4 }}
+            transition={{ duration: 0.6 }}
           >
-            <div className="why-icon">
-              <Zap size={32} />
-            </div>
-            <h4>Lightning Fast</h4>
-            <p>Real-time payment processing and instant notifications keep you in control</p>
+            <h2 className="section-intro-title">Built for modern property management</h2>
+            <p className="section-intro-subtitle">Everything you need to run your rental business, all in one place</p>
           </motion.div>
 
-          <motion.div 
-            className="why-choose-card"
-            initial={{ opacity: 0, x: 30 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: 0.5 }}
-          >
-            <div className="why-icon">
-              <BarChart3 size={32} />
+          <div className="features-scroll-container">
+            {/* Sticky Left Visual with Stacking Mockups */}
+            <div className="sticky-visual-column">
+              <div className="mockups-stack-container">
+                {[0, 1, 2, 3].map((stepIndex) => (
+                  <div
+                    key={stepIndex}
+                    className={`feature-mockup stacked-mockup mockup-${stepIndex} ${hoveredMockup === stepIndex ? 'hovered' : ''} ${hoveredMockup !== null && hoveredMockup !== stepIndex ? 'dimmed' : ''}`}
+                    onMouseEnter={() => setHoveredMockup(stepIndex)}
+                    onMouseLeave={() => setHoveredMockup(null)}
+                  >
+                    <motion.img 
+                      src={
+                        stepIndex === 0 ? '/images/onemck.png?v=1' :
+                        stepIndex === 1 ? '/images/mck4.png?v=1' :
+                        stepIndex === 2 ? '/images/mck3.png?v=1' :
+                        '/images/lmck.png?v=1'
+                      }
+                      alt={`${
+                        stepIndex === 0 ? 'Rent cycle tracking' :
+                        stepIndex === 1 ? 'Payment matching' :
+                        stepIndex === 2 ? 'Property management' :
+                        'Unified dashboard'
+                      }`}
+                      className="mockup-image"
+                      style={{ 
+                        y: mockupOffsets[stepIndex],
+                        rotate: mockupRotations[stepIndex],
+                        scale: hoveredMockup === stepIndex ? 1.08 : 1
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
-            <h4>Smart Analytics</h4>
-            <p>Comprehensive insights and reports to optimize your property business</p>
-          </motion.div>
+
+            {/* Scrollable Right Content */}
+            <div className="scroll-content-column">
+              <motion.div 
+                className="feature-step"
+                initial={{ opacity: 0, y: 40 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: false, amount: 0.6 }}
+                transition={{ duration: 0.6 }}
+              >
+                <div className="step-number">01</div>
+                <h3 className="step-title">Never miss a rent cycle</h3>
+                <p className="step-description">
+                  Automated rent tracking that keeps payments on time and visible. 
+                  From billing to reminders to overdue tracking, we run your rent cycle 
+                  automatically, every month, without follow-ups.
+                </p>
+              </motion.div>
+
+              <motion.div 
+                className="feature-step"
+                initial={{ opacity: 0, y: 40 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: false, amount: 0.6 }}
+                transition={{ duration: 0.6 }}
+              >
+                <div className="step-number">02</div>
+                <h3 className="step-title">Payments matched instantly</h3>
+                <p className="step-description">
+                  Incoming payments are automatically linked to the right tenant and unit. 
+                  Upload your M-Pesa statement and RentEase does the rest, matching payments 
+                  to tenants accurately and updating balances in real time.
+                </p>
+              </motion.div>
+
+              <motion.div 
+                className="feature-step"
+                initial={{ opacity: 0, y: 40 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: false, amount: 0.6 }}
+                transition={{ duration: 0.6 }}
+              >
+                <div className="step-number">03</div>
+                <h3 className="step-title">Vacancy to tenant, faster</h3>
+                <p className="step-description">
+                  Move from listing to occupied without switching tools. List vacant units 
+                  once and RentEase markets them for you. Interested home-finders apply 
+                  directly, and landlords get notified instantly.
+                </p>
+              </motion.div>
+
+              <motion.div 
+                className="feature-step feature-step-final"
+                initial={{ opacity: 0, y: 40 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: false, amount: 0.6 }}
+                transition={{ duration: 0.6 }}
+              >
+                <div className="step-number">04</div>
+                <h3 className="step-title">One system. Zero guesswork.</h3>
+                <p className="step-description">
+                  Everything landlords and tenants need, working together. No more scattered 
+                  spreadsheets, missed payments, or manual reconciliation. Just seamless 
+                  property management that actually works.
+                </p>
+              </motion.div>
+            </div>
+          </div>
         </div>
       </section>
+
 
       {/* Application Flow Section */}
       <section id="features" className="flow-section">
+        {/* Large Background Text with Gradient Mask */}
+        <div className="flow-background-text-wrapper">
+          <h2 className="background-text-gradient">Works</h2>
+        </div>
+
         <motion.div 
           className="flow-header"
           initial={{ opacity: 0, y: 20 }}
@@ -374,7 +518,7 @@ export default function LandingPage() {
           transition={{ duration: 0.8, delay: 0.2 }}
         >
           <img 
-            src="/images/flowchart.svg" 
+            src="/images/svgflownew.svg" 
             alt="RentEase workflow: from property setup to payment collection" 
             className="flow-svg-image"
           />
@@ -390,6 +534,12 @@ export default function LandingPage() {
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
+            style={{
+              backgroundImage: 'url(/images/ctabg.png)',
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              backgroundRepeat: 'no-repeat'
+            }}
           >
             <div className="cta-content-premium">
               <h2 className="cta-headline">Ready to transform your rental business?</h2>
@@ -441,7 +591,11 @@ export default function LandingPage() {
           <div className="footer-content">
             <div className="footer-brand">
               <div className="logo">
-                <Home className="logo-icon" />
+                <img 
+                  src="/images/dark_logoRE.webp" 
+                  alt="RentEase" 
+                  className="footer-logo-image"
+                />
                 <span className="logo-text">RentEase</span>
               </div>
               <p>The future of property management</p>
@@ -472,7 +626,7 @@ export default function LandingPage() {
           </div>
           
           <div className="footer-bottom">
-            <p>&copy; 2025 RentEase. All rights reserved.</p>
+            <p>&copy; {new Date().getFullYear()} RentEase. All rights reserved.</p>
             <div className="footer-legal">
               <a href="#privacy">Privacy</a>
               <a href="#terms">Terms</a>
